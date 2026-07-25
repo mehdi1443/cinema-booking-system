@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:${POSTGRES_VERSION:-15}-alpine
+    container_name: ${POSTGRES_CONTAINER:-cinema_postgres}
+    restart: always
+    environment:
+      POSTGRES_USER: ${PDB_USER}
+      POSTGRES_PASSWORD: ${PDB_PASSWORD}
+      POSTGRES_DB: ${PDB_NAME}
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - cinema_network
+
+  redis:
+    image: redis:${REDIS_VERSION:-7}-alpine
+    container_name: ${REDIS_CONTAINER:-cinema_redis}
+    restart: always
+    command: redis-server --requirepass ${RDB_PASSWORD}
+    ports:
+      - "${RDB_PORT:-6379}:6379"
+    volumes:
+      - redisdata:/data
+    networks:
+      - cinema_network
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  cinema_network:
+    driver: bridge
