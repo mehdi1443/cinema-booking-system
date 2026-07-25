@@ -28,9 +28,24 @@ services:
     networks:
       - cinema_network
 
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: cinema_pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: adminpassword
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - cinema_network
+
 volumes:
   pgdata:
   redisdata:
+  pgadmin_data:
 
 networks:
   cinema_network:

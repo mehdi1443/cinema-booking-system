@@ -18,5 +18,5 @@ type User struct {
 	WalletBalance int64      `json:"wallet_balance"`
 	Status        UserStatus `json:"status"`
 
-	Roles []Role `json:"roles,omitempty"`
+	Roles []Role `json:"roles,omitempty" gorm:"many2many:user_roles;"`
 }
