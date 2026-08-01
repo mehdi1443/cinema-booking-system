@@ -13,10 +13,12 @@ import (
 
 type Cache interface {
 	GetRDB() *redis.Client
+	GetRedisConstant() *bootstrap.RedisConst
 }
 
 type RedisDatabase struct {
-	RDB *redis.Client
+	rdb       *redis.Client
+	rdb_const *bootstrap.RedisConst
 }
 
 var (
@@ -24,7 +26,7 @@ var (
 	rdbInstance *RedisDatabase
 )
 
-func NewRedisDatabase(redisConfig *bootstrap.Redis) *RedisDatabase {
+func NewRedisDatabase(redisConfig *bootstrap.Redis, redisConst *bootstrap.RedisConst) *RedisDatabase {
 	rdbOnce.Do(func() {
 		rdbNumber, _ := strconv.Atoi(redisConfig.RDBNumber)
 		address := fmt.Sprintf("%s:%s", redisConfig.Host, redisConfig.Port)
@@ -37,12 +39,16 @@ func NewRedisDatabase(redisConfig *bootstrap.Redis) *RedisDatabase {
 		if err != nil {
 			log.Fatal("Error connecting to Redis:", err)
 		}
-		rdbInstance = &RedisDatabase{RDB: rdb}
+		rdbInstance = &RedisDatabase{rdb: rdb, rdb_const: redisConst}
 	})
 
 	return rdbInstance
 }
 
 func (rdb *RedisDatabase) GetRDB() *redis.Client {
-	return rdbInstance.RDB
+	return rdbInstance.rdb
+}
+
+func (rdb *RedisDatabase) GetRedisConstant() *bootstrap.RedisConst {
+	return rdb.rdb_const
 }
