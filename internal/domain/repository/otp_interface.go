@@ -1,4 +1,4 @@
-package redis
+package repository_contract
 
 // import "time"
 
@@ -11,3 +11,4 @@ package redis
 // 	IsVerified(phone string) (bool, error)
 // 	DeleteVerified(phone string) error
 // }
+	

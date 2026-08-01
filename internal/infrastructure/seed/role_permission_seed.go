@@ -7,7 +7,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
-	repository "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/postgres"
+	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
 	"github.com/mehdi1443/cinema-booking-system/pkg/hash"
 )
@@ -18,14 +18,14 @@ func strPtr(s string) *string {
 
 type RoleSeeder struct {
 	superAdmin bootstrap.SuperUser
-	userRepo   repository.UserInterFace
+	userRepo   repository_contract.UserInterFace
 	db         database.Database
 	hasher     *hash.BcryptHasher
 }
 
 func NewRoleSeeder(
 	superAdmin bootstrap.SuperUser,
-	userRepo repository.UserInterFace,
+	userRepo repository_contract.UserInterFace,
 	db database.Database,
 	hasher *hash.BcryptHasher,
 ) *RoleSeeder {
@@ -60,7 +60,7 @@ func (s *RoleSeeder) seedPermissions(ctx context.Context) (map[enum.PermissionTy
 
 	for _, permType := range enum.GetAllPermissionTypes() {
 		permName := permType.String()
-		perm, err := s.userRepo.FindPermissionByName(ctx, s.db, permName)
+		perm, err := s.userRepo.FindPermissionByName(ctx, permName)
 		if err != nil {
 			return nil, err
 		}
@@ -72,7 +72,7 @@ func (s *RoleSeeder) seedPermissions(ctx context.Context) (map[enum.PermissionTy
 				Category:    permType.Category(),
 				Description: permType.Description(),
 			}
-			if err := s.userRepo.CreatePermission(ctx, s.db, perm); err != nil {
+			if err := s.userRepo.CreatePermission(ctx, perm); err != nil {
 				return nil, err
 			}
 		}
@@ -89,7 +89,7 @@ func (s *RoleSeeder) seedRolesWithPermissions(
 	roleMap := make(map[enum.RoleName]*entity.Role)
 
 	for _, roleEnum := range enum.GetAllRoles() {
-		role, err := s.userRepo.FindRoleByName(ctx, s.db, roleEnum.String())
+		role, err := s.userRepo.FindRoleByName(ctx, roleEnum.String())
 		if err != nil {
 			return nil, err
 		}
@@ -99,7 +99,7 @@ func (s *RoleSeeder) seedRolesWithPermissions(
 				Name:  roleEnum.String(),
 				Title: roleEnum.Title(),
 			}
-			if err := s.userRepo.CreateRole(ctx, s.db, role); err != nil {
+			if err := s.userRepo.CreateRole(ctx, role); err != nil {
 				return nil, err
 			}
 		}
@@ -124,18 +124,18 @@ func (s *RoleSeeder) seedRolesWithPermissions(
 }
 
 func (s *RoleSeeder) assignPermissionIfNotExist(ctx context.Context, roleID, permID int64) error {
-	hasPerm, err := s.userRepo.RoleHasPermission(ctx, s.db, roleID, permID)
+	hasPerm, err := s.userRepo.RoleHasPermission(ctx, roleID, permID)
 	if err != nil {
 		return err
 	}
 	if !hasPerm {
-		return s.userRepo.AssignPermissionToRole(ctx, s.db, roleID, permID)
+		return s.userRepo.AssignPermissionToRole(ctx, roleID, permID)
 	}
 	return nil
 }
 
 func (s *RoleSeeder) seedSuperAdmin(ctx context.Context, adminRole *entity.Role) error {
-	user, err := s.userRepo.FindUserByPhone(ctx, s.db, s.superAdmin.Phone)
+	user, err := s.userRepo.FindUserByPhone(ctx, s.superAdmin.Phone)
 	if err != nil {
 		return err
 	}
@@ -156,18 +156,18 @@ func (s *RoleSeeder) seedSuperAdmin(ctx context.Context, adminRole *entity.Role)
 			Status:        "ACTIVE",
 		}
 
-		user, err = s.userRepo.CreateUser(ctx, s.db, user)
+		user, err = s.userRepo.CreateUser(ctx, user)
 		if err != nil {
 			return err
 		}
 	}
 
-	hasRole, err := s.userRepo.UserHasRole(ctx, s.db, user.ID, adminRole.ID)
+	hasRole, err := s.userRepo.UserHasRole(ctx, user.ID, adminRole.ID)
 	if err != nil {
 		return err
 	}
 	if !hasRole {
-		if err := s.userRepo.AssignRoleToUser(ctx, s.db, user.ID, adminRole.ID); err != nil {
+		if err := s.userRepo.AssignRoleToUser(ctx, user.ID, adminRole.ID); err != nil {
 			return err
 		}
 	}

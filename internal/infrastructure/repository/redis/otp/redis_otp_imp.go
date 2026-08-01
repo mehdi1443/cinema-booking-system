@@ -6,9 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
-	redis_contract "github.com/mehdi1443/cinema-booking-system/internal/infrastructure/repository/redis"
-
 	"github.com/redis/go-redis/v9"
 )
 
@@ -39,7 +38,7 @@ func (r *OTPRepository) GetOTP(ctx context.Context, phone string) (string, error
 	val, err := r.client.GetRDB().Get(ctx, key).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
-			return "", redis_contract.ErrOtpKeyNotFound
+			return "", repository_contract.ErrOtpKeyNotFound
 		}
 		return "", fmt.Errorf("redis get otp error: %w", err)
 	}

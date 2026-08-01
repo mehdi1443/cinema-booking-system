@@ -1,4 +1,4 @@
-package redis
+package repository_contract
 
 // import (
 // 	"context"
