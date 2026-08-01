@@ -2,8 +2,26 @@ package repository_contract
 
 import (
 	"context"
+	"errors"
 
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
+)
+
+var (
+	// User Errors
+	ErrUserNotFound      = errors.New("user not found")
+	ErrUserAlreadyExists = errors.New("user already exists")
+
+	// Role Errors
+	ErrRoleNotFound      = errors.New("role not found")
+	ErrRoleAlreadyExists = errors.New("role already exists")
+
+	// Permission Errors
+	ErrPermissionNotFound      = errors.New("permission not found")
+	ErrPermissionAlreadyExists = errors.New("permission already exists")
+
+	// Generic Storage Error
+	ErrDatabase = errors.New("database operation failed")
 )
 
 type UserInterFace interface {

@@ -9,3 +9,13 @@ type Permission struct {
 	Category    enum.PermissionCategory `json:"category"`
 	Description string                  `json:"description"`
 }
+
+// ? enum : PermissionType 
+// example :
+/*
+var p PermissionType
+Name:        p.String()
+Title:       p.Description()
+Category:    permType.Category()
+Description: permType.Description()
+*/
