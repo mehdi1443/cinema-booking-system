@@ -7,9 +7,9 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
-	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/postgres"
+	repository "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/postgres"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
-	"github.com/mehdi1443/cinema-booking-system/pkg"
+	"github.com/mehdi1443/cinema-booking-system/pkg/hash"
 )
 
 func strPtr(s string) *string {
@@ -20,14 +20,14 @@ type RoleSeeder struct {
 	superAdmin bootstrap.SuperUser
 	userRepo   repository.UserInterFace
 	db         database.Database
-	hasher     *pkg.BcryptHasher
+	hasher     *hash.BcryptHasher
 }
 
 func NewRoleSeeder(
 	superAdmin bootstrap.SuperUser,
 	userRepo repository.UserInterFace,
 	db database.Database,
-	hasher *pkg.BcryptHasher,
+	hasher *hash.BcryptHasher,
 ) *RoleSeeder {
 	return &RoleSeeder{
 		superAdmin: superAdmin,

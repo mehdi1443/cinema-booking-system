@@ -13,7 +13,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/middleware"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/controller"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/routes"
-	"github.com/mehdi1443/cinema-booking-system/pkg"
+	"github.com/mehdi1443/cinema-booking-system/pkg/hash"
 )
 
 // comment types
@@ -27,6 +27,7 @@ import (
 // !
 // ?
 
+// TODO : REVIEW AND DESISIION MAKING ABOUT PROJECT STRUCTURE
 func main() {
 	ctx := context.Background()
 	config := bootstrap.Run()
@@ -42,7 +43,7 @@ func main() {
 	}
 
 	userRepo := postgres.NewUserRepositoryPostgres()
-	bcryptHasher := pkg.NewBcryptHasher()
+	bcryptHasher := hash.NewBcryptHasher()
 
 	seeder := seed.NewRoleSeeder(config.Constant.User, userRepo, pgDB, bcryptHasher)
 	if err := seeder.Seed(ctx); err != nil {

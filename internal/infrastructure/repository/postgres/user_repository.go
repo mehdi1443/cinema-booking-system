@@ -5,10 +5,20 @@ import (
 	"errors"
 
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
-	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/postgres"
+	repository "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/postgres"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
 	"gorm.io/gorm"
 )
+
+// import (
+// 	"context"
+// 	"errors"
+
+// 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
+// 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/postgres"
+// 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
+// 	"gorm.io/gorm"
+// )
 
 type userRepositoryPostgres struct{}
 
