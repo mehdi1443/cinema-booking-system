@@ -1,9 +1,28 @@
 package domainjwt
 
+import (
+	"time"
+)
+
+type TokenType string
+
+const (
+	AccessTokenTag  TokenType = "access"
+	RefreshTokenTag TokenType = "refresh"
+)
+
+const (
+	CtxUserIDKey  = "user_id"
+	CtxPayloadKey = "token_payload"
+)
+
 type TokenPayload struct {
-	UserID    int64    `json:"user_id"`
-	Roles     []string `json:"roles"`
-	TokenType string   `json:"token_type"`
-	ExpiresAt int64    `json:"expire_at"`
-	CreatedAt int64    `json:"created_at"`
+	UserID    int64     `json:"user_id"`
+	TokenType TokenType `json:"token_type"`
+	IssuedAt  time.Time `json:"issued_at"`  // Token issue time (iat)
+	ExpiresAt time.Time `json:"expired_at"` // Token expiration time (exp)
+}
+
+func (p *TokenPayload) IsExpired() bool {
+	return time.Now().After(p.ExpiresAt)
 }

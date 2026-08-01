@@ -27,6 +27,8 @@ func SetUpRouter(handler *Controllers, config *bootstrap.Config, limiter *middle
 
 	//HACK : this is just a exm for how to use limiter
 	// r.Use(limiter.PerSecond(config.Constant.Limiter.HighRate))
+	//FIXME : ADD AUTHORIZATION MIDDLEWARE!!!!!  exm :
+	// r.Use(middleware.ControlUserAccess(/*// FIXME permision list*/))
 
 	v1 := r.Group("/v1")
 

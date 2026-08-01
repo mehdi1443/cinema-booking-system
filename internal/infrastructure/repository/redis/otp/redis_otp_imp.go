@@ -20,17 +20,22 @@ func NewOTPRepository(client database.Cache) *OTPRepository {
 	return &OTPRepository{client: client}
 }
 
-func (r *OTPRepository) getKey(prefix, phone string) string {
+func (r *OTPRepository) getkeysignuture(prefix, phone string) string {
+	// otp:phone : REDIS_STRING
+	// otp:verified : REDIS_STRING(false|true)
 	return prefix + phone
 }
 
 func (r *OTPRepository) SaveOTP(ctx context.Context, phone string, code string, ttl time.Duration) error {
-	key := r.getKey(r.client.GetRedisConstant().PhoneOtpSignature, phone)
-	return r.client.GetRDB().Set(ctx, key, code, ttl).Err()
+	key := r.getkeysignuture(r.client.GetRedisConstant().PhoneOtpSignature, phone)
+	if err := r.client.GetRDB().Set(ctx, key, code, ttl).Err(); err != nil {
+		return fmt.Errorf("redis save otp error: %w", err)
+	}
+	return nil
 }
 
 func (r *OTPRepository) GetOTP(ctx context.Context, phone string) (string, error) {
-	key := r.getKey(r.client.GetRedisConstant().PhoneOtpSignature, phone)
+	key := r.getkeysignuture(r.client.GetRedisConstant().PhoneOtpSignature, phone)
 	val, err := r.client.GetRDB().Get(ctx, key).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
@@ -42,17 +47,23 @@ func (r *OTPRepository) GetOTP(ctx context.Context, phone string) (string, error
 }
 
 func (r *OTPRepository) DeleteOTP(ctx context.Context, phone string) error {
-	key := r.getKey(r.client.GetRedisConstant().PhoneOtpSignature, phone)
-	return r.client.GetRDB().Del(ctx, key).Err()
+	key := r.getkeysignuture(r.client.GetRedisConstant().PhoneOtpSignature, phone)
+	if err := r.client.GetRDB().Del(ctx, key).Err(); err != nil {
+		return fmt.Errorf("redis delete otp error: %w", err)
+	}
+	return nil
 }
 
 func (r *OTPRepository) SetVerified(ctx context.Context, phone string, ttl time.Duration) error {
-	key := r.getKey(r.client.GetRedisConstant().VerifiedOtpSignature, phone)
-	return r.client.GetRDB().Set(ctx, key, "true", ttl).Err()
+	key := r.getkeysignuture(r.client.GetRedisConstant().VerifiedOtpSignature, phone)
+	if err := r.client.GetRDB().Set(ctx, key, "true", ttl).Err(); err != nil {
+		return fmt.Errorf("redis set verified status error: %w", err)
+	}
+	return nil
 }
 
 func (r *OTPRepository) IsVerified(ctx context.Context, phone string) (bool, error) {
-	key := r.getKey(r.client.GetRedisConstant().VerifiedOtpSignature, phone)
+	key := r.getkeysignuture(r.client.GetRedisConstant().VerifiedOtpSignature, phone)
 	val, err := r.client.GetRDB().Get(ctx, key).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
@@ -64,6 +75,9 @@ func (r *OTPRepository) IsVerified(ctx context.Context, phone string) (bool, err
 }
 
 func (r *OTPRepository) DeleteVerified(ctx context.Context, phone string) error {
-	key := r.getKey(r.client.GetRedisConstant().VerifiedOtpSignature, phone)
-	return r.client.GetRDB().Del(ctx, key).Err()
+	key := r.getkeysignuture(r.client.GetRedisConstant().VerifiedOtpSignature, phone)
+	if err := r.client.GetRDB().Del(ctx, key).Err(); err != nil {
+		return fmt.Errorf("redis delete verified status error: %w", err)
+	}
+	return nil
 }

@@ -19,12 +19,13 @@ func NewRefreshTokenRepository(client database.Cache) *RefreshTokenRepository {
 	return &RefreshTokenRepository{client: client}
 }
 
-func (r *RefreshTokenRepository) getKey(userID string) string {
+func (r *RefreshTokenRepository) getkeysignuture(userID string) string {
+	//  token:refresh: REDIS_STRING
 	return r.client.GetRedisConstant().RefreshTokenSignature + userID
 }
 
 func (r *RefreshTokenRepository) SaveRefreshToken(ctx context.Context, userID string, token string, ttl time.Duration) error {
-	key := r.getKey(userID)
+	key := r.getkeysignuture(userID)
 	if err := r.client.GetRDB().Set(ctx, key, token, ttl).Err(); err != nil {
 		return fmt.Errorf("redis save refresh token error: %w", err)
 	}
@@ -32,7 +33,7 @@ func (r *RefreshTokenRepository) SaveRefreshToken(ctx context.Context, userID st
 }
 
 func (r *RefreshTokenRepository) GetRefreshToken(ctx context.Context, userID string) (string, error) {
-	key := r.getKey(userID)
+	key := r.getkeysignuture(userID)
 	val, err := r.client.GetRDB().Get(ctx, key).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
@@ -44,7 +45,7 @@ func (r *RefreshTokenRepository) GetRefreshToken(ctx context.Context, userID str
 }
 
 func (r *RefreshTokenRepository) DeleteRefreshToken(ctx context.Context, userID string) error {
-	key := r.getKey(userID)
+	key := r.getkeysignuture(userID)
 	if err := r.client.GetRDB().Del(ctx, key).Err(); err != nil {
 		return fmt.Errorf("redis delete refresh token error: %w", err)
 	}

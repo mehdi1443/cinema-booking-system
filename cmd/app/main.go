@@ -16,6 +16,17 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/pkg"
 )
 
+// comment types
+// TODO
+// BUG
+// FIXME
+// HACK
+// XXX
+// [ ]
+// [x]
+// !
+// ?
+
 func main() {
 	ctx := context.Background()
 	config := bootstrap.Run()
