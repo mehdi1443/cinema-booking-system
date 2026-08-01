@@ -1,6 +1,7 @@
 package jwtsrv
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -28,7 +29,6 @@ func (s *jwtService) GenerateAccessToken(req dto.GenerateTokenRequest) (string, 
 	now := time.Now()
 	payload := domainjwt.TokenPayload{
 		UserID:    req.UserID,
-		Roles:     req.Roles,
 		TokenType: domainjwt.AccessTokenTag,
 		IssuedAt:  now,
 		ExpiresAt: now.Add(s.cfg.AccessDuration()),
@@ -40,7 +40,6 @@ func (s *jwtService) GenerateRefreshToken(req dto.GenerateTokenRequest) (string,
 	now := time.Now()
 	payload := domainjwt.TokenPayload{
 		UserID:    req.UserID,
-		Roles:     req.Roles,
 		TokenType: domainjwt.RefreshTokenTag,
 		IssuedAt:  now,
 		ExpiresAt: now.Add(s.cfg.RefreshDuration()),
@@ -56,13 +55,20 @@ func (s *jwtService) ValidateToken(signedToken string) (*domainjwt.TokenPayload,
 		return s.rsaKeys.GetPublicKey(), nil
 	})
 
-	if err != nil || parsedToken == nil || !parsedToken.Valid {
-		return nil, fmt.Errorf("token validation failed: %w", err)
+	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return nil, service_contract.ErrTokenExpired
+		}
+		return nil, errors.Join(service_contract.ErrInvalidToken, err)
+	}
+
+	if parsedToken == nil || !parsedToken.Valid {
+		return nil, service_contract.ErrInvalidToken
 	}
 
 	claims, ok := parsedToken.Claims.(jwt.MapClaims)
 	if !ok {
-		return nil, fmt.Errorf("invalid token claims format")
+		return nil, service_contract.ErrInvalidToken
 	}
 
 	return s.parseClaimsToPayload(claims)
@@ -71,11 +77,10 @@ func (s *jwtService) ValidateToken(signedToken string) (*domainjwt.TokenPayload,
 // Private helper to sign claims with RS256
 func (s *jwtService) generateToken(payload domainjwt.TokenPayload) (string, error) {
 	claims := jwt.MapClaims{
-		"user_id":    payload.UserID,
-		"roles":      payload.Roles,
-		"token_type": string(payload.TokenType),
-		"iat":        payload.IssuedAt.Unix(),
-		"exp":        payload.ExpiresAt.Unix(),
+		service_contract.UserIDKeyMapClaims:    payload.UserID,
+		service_contract.TokenTypeKeyMapClaims: string(payload.TokenType),
+		service_contract.IssuedAtKeyMapClaims:  payload.IssuedAt.Unix(),
+		service_contract.ExpireAtKeyMapClaims:  payload.ExpiresAt.Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
@@ -90,31 +95,21 @@ func (s *jwtService) generateToken(payload domainjwt.TokenPayload) (string, erro
 func (s *jwtService) parseClaimsToPayload(claims jwt.MapClaims) (*domainjwt.TokenPayload, error) {
 	payload := &domainjwt.TokenPayload{}
 
-	if uid, ok := claims["user_id"].(float64); ok {
+	if uid, ok := claims[service_contract.UserIDKeyMapClaims].(float64); ok {
 		payload.UserID = int64(uid)
-	} else if uidInt, ok := claims["user_id"].(int64); ok {
+	} else if uidInt, ok := claims[service_contract.UserIDKeyMapClaims].(int64); ok {
 		payload.UserID = uidInt
 	}
 
-	if rawRoles, ok := claims["roles"].([]interface{}); ok {
-		roles := make([]string, len(rawRoles))
-		for i, r := range rawRoles {
-			if str, isStr := r.(string); isStr {
-				roles[i] = str
-			}
-		}
-		payload.Roles = roles
-	}
-
-	if tType, ok := claims["token_type"].(string); ok {
+	if tType, ok := claims[service_contract.TokenTypeKeyMapClaims].(string); ok {
 		payload.TokenType = domainjwt.TokenType(tType)
 	}
 
-	if exp, ok := claims["exp"].(float64); ok {
+	if exp, ok := claims[service_contract.ExpireAtKeyMapClaims].(float64); ok {
 		payload.ExpiresAt = time.Unix(int64(exp), 0)
 	}
 
-	if iat, ok := claims["iat"].(float64); ok {
+	if iat, ok := claims[service_contract.IssuedAtKeyMapClaims].(float64); ok {
 		payload.IssuedAt = time.Unix(int64(iat), 0)
 	}
 

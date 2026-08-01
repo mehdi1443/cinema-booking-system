@@ -11,9 +11,13 @@ const (
 	RefreshTokenTag TokenType = "refresh"
 )
 
+const (
+	CtxUserIDKey  = "user_id"
+	CtxPayloadKey = "token_payload"
+)
+
 type TokenPayload struct {
 	UserID    int64     `json:"user_id"`
-	Roles     []string  `json:"roles"`
 	TokenType TokenType `json:"token_type"`
 	IssuedAt  time.Time `json:"issued_at"`  // Token issue time (iat)
 	ExpiresAt time.Time `json:"expired_at"` // Token expiration time (exp)
