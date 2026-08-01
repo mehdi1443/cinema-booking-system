@@ -5,6 +5,8 @@ go 1.25.8
 require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-redis/redis_rate/v10 v10.0.1
+	github.com/golang-jwt/jwt v3.2.2+incompatible
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/redis/go-redis/v9 v9.18.0
 	github.com/spf13/viper v1.21.0
 	golang.org/x/crypto v0.48.0

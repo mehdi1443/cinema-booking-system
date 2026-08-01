@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -36,10 +37,19 @@ type Redis struct {
 }
 
 type JWT struct {
-	AccessSecret        string `mapstructure:"JWT_ACCESS_SECRET"         json:"access_secret"`
-	RefreshSecret       string `mapstructure:"JWT_REFRESH_SECRET"        json:"refresh_secret"`
+	AccessPrivateKey    string `json:"access_private_key"`
 	AccessExpireMinutes int    `mapstructure:"JWT_ACCESS_EXPIRE_MINUTES" json:"access_expire_minutes"`
-	RefreshExpireDays   int    `mapstructure:"JWT_REFRESH_EXPIRE_DAYS"   json:"refresh_expire_days"`
+
+	RefreshPrivateKey string `mapstructure:"JWT_REFRESH_PRIVATE"        json:"refresh_private_key"`
+	RefreshExpireDays int    `mapstructure:"JWT_REFRESH_EXPIRE_DAYS"   json:"refresh_expire_days"`
+}
+
+func (c *JWT) AccessDuration() time.Duration {
+	return time.Duration(c.AccessExpireMinutes) * time.Minute
+}
+
+func (c *JWT) RefreshDuration() time.Duration {
+	return time.Duration(c.RefreshExpireDays) * 24 * time.Hour
 }
 
 func NewEnvironment() *Environment {
