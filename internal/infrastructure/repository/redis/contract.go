@@ -7,8 +7,9 @@ import (
 )
 
 var (
-	ErrOtpKeyNotFound       = errors.New("otp key not found in redis")
-	ErrRefreshTokenNotFound = errors.New("refresh token not found in redis")
+	ErrOtpKeyNotFound         = errors.New("otp key not found in redis")
+	ErrRefreshTokenNotFound   = errors.New("refresh token not found in redis")
+	ErrUserPermissionNotFound = errors.New("user permission not found in redis")
 )
 
 type (
@@ -25,5 +26,13 @@ type (
 		SaveRefreshToken(ctx context.Context, userID string, token string, ttl time.Duration) error
 		GetRefreshToken(ctx context.Context, userID string) (string, error)
 		DeleteRefreshToken(ctx context.Context, userID string) error
+	}
+
+	UserPermissionCacheRepoInterface interface {
+		SaveUserPermissions(ctx context.Context, userID string, permission []string, ttl time.Duration) error
+		GetUserPermissions(ctx context.Context, userID string) ([]string, error)
+		DeleteUserPermission(ctx context.Context, userID string) error
+		DeleteAllUserPermission(ctx context.Context, userID []string) error
+		IsExistsUserPermissions(ctx context.Context, userID string) (*bool, error)
 	}
 )

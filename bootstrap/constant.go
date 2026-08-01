@@ -20,9 +20,11 @@ type DBConst struct {
 }
 
 type RedisConst struct {
-	PhoneOtpSignature     string `json:"phone_otp_signature"`
-	VerifiedOtpSignature  string `json:"verified_otp_signature"`
-	RefreshTokenSignature string `json:"refresh_token_signature"`
+	PhoneOtpSignature       string `json:"phone_otp_signature"`
+	VerifiedOtpSignature    string `json:"verified_otp_signature"`
+	RefreshTokenSignature   string `json:"refresh_token_signature"`
+	UserSignature           string `json:"user"`
+	UserPermissionSignature string `json:"user_permission_signature"`
 }
 
 type RedisLimiter struct { // Per Second
@@ -57,9 +59,11 @@ func NewConstant() *Constant {
 			LastName:  "Sharifipour",
 		},
 		Redis: RedisConst{
-			PhoneOtpSignature:     "otp:phone:",
-			VerifiedOtpSignature:  "otp:verified:",
-			RefreshTokenSignature: "token:refresh:",
+			PhoneOtpSignature:       "otp:phone:",
+			VerifiedOtpSignature:    "otp:verified:",
+			RefreshTokenSignature:   "token:refresh:",
+			UserSignature:           "user",
+			UserPermissionSignature: "permissions",
 		},
 		Limiter: RedisLimiter{
 			HighRate:   20,
