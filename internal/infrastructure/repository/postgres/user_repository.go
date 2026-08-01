@@ -12,7 +12,7 @@ import (
 
 type userRepositoryPostgres struct{}
 
-func NewUserRepositoryPostgres() repository.UserRepository {
+func NewUserRepositoryPostgres() repository.UserInterFace {
 	return &userRepositoryPostgres{}
 }
 

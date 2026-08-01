@@ -13,7 +13,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/middleware"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/controller"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/routes"
-	"github.com/mehdi1443/cinema-booking-system/pkg/hasher"
+	"github.com/mehdi1443/cinema-booking-system/pkg"
 )
 
 func main() {
@@ -31,7 +31,7 @@ func main() {
 	}
 
 	userRepo := postgres.NewUserRepositoryPostgres()
-	bcryptHasher := hasher.NewBcryptHasher()
+	bcryptHasher := pkg.NewBcryptHasher()
 
 	seeder := seed.NewRoleSeeder(config.Constant.User, userRepo, pgDB, bcryptHasher)
 	if err := seeder.Seed(ctx); err != nil {

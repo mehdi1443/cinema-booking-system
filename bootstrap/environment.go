@@ -45,7 +45,9 @@ type JWT struct {
 func NewEnvironment() *Environment {
 	v := viper.New()
 
-	v.AddConfigPath("../")
+	v.AddConfigPath(".")
+	v.AddConfigPath("..")
+	v.AddConfigPath("../..")
 	v.SetConfigType("env")
 	v.SetConfigName(".env")
 

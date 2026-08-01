@@ -7,7 +7,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
 )
 
-type UserRepository interface {
+type UserInterFace interface {
 	CreateUser(ctx context.Context, db database.Database, user *entity.User) (*entity.User, error)
 	FindUserByID(ctx context.Context, db database.Database, id int64) (*entity.User, error)
 	FindUserByPhone(ctx context.Context, db database.Database, phone string) (*entity.User, error)
