@@ -26,6 +26,8 @@ go.work.sum
 
 # env file
 # .env 
+debug.env 
+
 
 # Editor/IDE
 # .idea/
@@ -33,3 +35,6 @@ go.work.sum
 
 # db diagram
 database_digrams.pdf
+
+# matin notes :)
+matin_notes.txt
