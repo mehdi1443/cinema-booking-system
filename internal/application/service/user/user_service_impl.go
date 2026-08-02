@@ -3,9 +3,9 @@ package usersrv
 import (
 	"context"
 
-	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application"
+	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
-	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository"
 )
 
@@ -43,7 +43,7 @@ func (s *userService) GetUserByEmail(ctx context.Context, email string, hideOpt 
 	return dto.ToUserResponse(user, hideOpt), nil
 }
 
-func (s *userService) GetUsersByStatus(ctx context.Context, status entity.UserStatus, hideOpt *dto.HideFieldUserOption) ([]*dto.UserResponse, error) {
+func (s *userService) GetUsersByStatus(ctx context.Context, status enum.UserStatus, hideOpt *dto.HideFieldUserOption) ([]*dto.UserResponse, error) {
 	users, err := s.userRepo.FindUsersByStatus(ctx, status)
 	if err != nil {
 		return nil, err
@@ -93,7 +93,7 @@ func (s *userService) UpdateUserRoles(ctx context.Context, req dto.UpdateUserRol
 	return dto.ToUserResponse(updatedUser, &dto.HideFieldUserOption{WalletBalance: false}), nil
 }
 
-func (s *userService) ChangeStatus(ctx context.Context, userID int64, status entity.UserStatus) (*dto.UserResponse, error) {
+func (s *userService) ChangeStatus(ctx context.Context, userID int64, status enum.UserStatus) (*dto.UserResponse, error) {
 	user, err := s.userRepo.FindUserByID(ctx, userID)
 	if err != nil {
 		return nil, err

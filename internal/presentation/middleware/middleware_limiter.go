@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	
+
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis_rate/v10"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
@@ -31,7 +31,7 @@ func (rlm *RedisLimiter) PerMinute(limit int) gin.HandlerFunc {
 // TODO : Format Response With ResponseHandler(Not Implemented Yet...)
 func (rlm *RedisLimiter) buildMiddleware(limitRule redis_rate.Limit) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		clientIdentifier := c.ClientIP()
+		clientIdentifier := c.Request.URL.Host
 		if userID, exists := c.Get("user_id"); exists {
 			clientIdentifier = fmt.Sprintf("user:%v", userID)
 		}

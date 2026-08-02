@@ -1,4 +1,4 @@
-package refresh_token
+package redis_repo
 
 import (
 	"context"

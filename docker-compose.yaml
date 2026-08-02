@@ -21,7 +21,7 @@ services:
       timeout: 5s
       retries: 5
     env_file:
-      - debug.env
+      - .env
 
   redis:
     image: redis:${REDIS_VERSION:-7}-alpine
@@ -40,7 +40,7 @@ services:
       timeout: 5s
       retries: 5
     env_file:
-      - debug.env
+      - .env
 
   pgadmin:
     image: dpage/pgadmin4:${PGADMIN_VERSION:-latest}
@@ -58,7 +58,7 @@ services:
     networks:
       - cinema_network
     env_file:
-      - debug.env
+      - .env
 
 volumes:
   pgdata:

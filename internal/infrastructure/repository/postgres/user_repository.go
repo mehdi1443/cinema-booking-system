@@ -1,4 +1,4 @@
-package postgres
+package postgres_repo
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
 	"gorm.io/gorm"
@@ -270,7 +271,7 @@ func (r *userRepositoryPostgres) DecreaseBalance(ctx context.Context, userID int
 	return finalBalance, nil
 }
 
-func (r *userRepositoryPostgres) FindUsersByStatus(ctx context.Context, status entity.UserStatus) ([]*entity.User, error) {
+func (r *userRepositoryPostgres) FindUsersByStatus(ctx context.Context, status enum.UserStatus) ([]*entity.User, error) {
 	var users []*entity.User
 
 	err := r.db.GetDB().WithContext(ctx).

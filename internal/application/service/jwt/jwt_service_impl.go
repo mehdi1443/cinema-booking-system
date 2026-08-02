@@ -7,7 +7,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
-	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application"
+	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	domainjwt "github.com/mehdi1443/cinema-booking-system/internal/domain/jwt"
 	"github.com/mehdi1443/cinema-booking-system/pkg/rsa"

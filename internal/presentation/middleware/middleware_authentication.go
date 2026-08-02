@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application"
+	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	domainjwt "github.com/mehdi1443/cinema-booking-system/internal/domain/jwt"
 )
 

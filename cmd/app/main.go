@@ -8,10 +8,10 @@ import (
 
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
-	postgres "github.com/mehdi1443/cinema-booking-system/internal/infrastructure/repository/postgres/user"
+	postgres_repo "github.com/mehdi1443/cinema-booking-system/internal/infrastructure/repository/postgres"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/seed"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/middleware"
-	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/controller"
+	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/handler"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/routes"
 	"github.com/mehdi1443/cinema-booking-system/pkg/hash"
 )
@@ -42,7 +42,7 @@ func main() {
 		fmt.Println("Database and Redis connected successfully!")
 	}
 
-	userRepo := postgres.NewUserRepositoryPostgres(pgDB)
+	userRepo := postgres_repo.NewUserRepositoryPostgres(pgDB)
 	bcryptHasher := hash.NewBcryptHasher()
 
 	seeder := seed.NewRoleSeeder(config.Constant.User, userRepo, pgDB, bcryptHasher)
@@ -57,8 +57,8 @@ func main() {
 	// --- SERVICES ---
 
 	// --- CONTROLLER ---
-	auth_controller := controller.NewAuthController()
-	user_controller := controller.NewUserController()
+	auth_controller := handler.NewAuthController()
+	user_controller := handler.NewUserController()
 
 	// --- ROUTE ---
 	controllers := &routes.Controllers{

@@ -61,9 +61,9 @@ func NewEnvironment() *Environment {
 	v.SetConfigType("env")
 
 	if DEBUG_MODE_JUST_FOR_DEVELOPING {
-		v.SetConfigName("debug.env")
-	} else {
 		v.SetConfigName(".env")
+	} else {
+		v.SetConfigName(".env.example")
 	}
 
 	v.AutomaticEnv()
