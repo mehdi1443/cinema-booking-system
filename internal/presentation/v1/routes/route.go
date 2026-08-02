@@ -6,12 +6,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/middleware"
-	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/controller"
+	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/handler"
 )
 
 type Controllers struct {
-	Auth controller.AuthController
-	User controller.UserController
+	Auth handler.AuthController
+	User handler.UserController
 }
 
 func SetUpRouter(handler *Controllers, config *bootstrap.Config, limiter *middleware.RedisLimiter) *gin.Engine {

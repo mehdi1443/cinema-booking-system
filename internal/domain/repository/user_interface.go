@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 )
 
 var (
@@ -42,7 +43,7 @@ type UserInterFace interface {
 	CreatePermission(ctx context.Context, permission *entity.Permission) error // just used for seed!
 	FindPermissionByName(ctx context.Context, name string) (*entity.Permission, error)
 
-	FindUsersByStatus(ctx context.Context, status entity.UserStatus) ([]*entity.User, error)
+	FindUsersByStatus(ctx context.Context, status enum.UserStatus) ([]*entity.User, error)
 	DeleteUserByID(ctx context.Context, id int64) error
 	UpdateUserRoles(ctx context.Context, userID int64, roleIDs []int64) error
 

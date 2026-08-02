@@ -3,7 +3,7 @@ package rbacsrv
 import (
 	"context"
 
-	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application"
+	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository"
 )

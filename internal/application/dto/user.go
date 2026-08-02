@@ -5,20 +5,21 @@ import (
 
 	"github.com/mehdi1443/cinema-booking-system/internal/application/helper"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 )
 
 type UserResponse struct {
-	ID            int64             `json:"id"`
-	Phone         string            `json:"phone,omitempty"`
-	Email         string            `json:"email,omitempty"`
-	FirstName     string            `json:"first_name,omitempty"`
-	LastName      string            `json:"last_name,omitempty"`
-	Status        entity.UserStatus `json:"status,omitempty"`
-	WalletBalance *int64            `json:"wallet_balance,omitempty"`
-	CreatedAt     *time.Time        `json:"created_at,omitempty"`
-	UpdatedAt     *time.Time        `json:"updated_at,omitempty"`
-	DeletedAt     *time.Time        `json:"deleted_at,omitempty"`
-	Roles         []*RoleResponse   `json:"roles,omitempty"`
+	ID            int64           `json:"id"`
+	Phone         string          `json:"phone,omitempty"`
+	Email         string          `json:"email,omitempty"`
+	FirstName     string          `json:"first_name,omitempty"`
+	LastName      string          `json:"last_name,omitempty"`
+	Status        enum.UserStatus `json:"status,omitempty"`
+	WalletBalance *int64          `json:"wallet_balance,omitempty"`
+	CreatedAt     *time.Time      `json:"created_at,omitempty"`
+	UpdatedAt     *time.Time      `json:"updated_at,omitempty"`
+	DeletedAt     *time.Time      `json:"deleted_at,omitempty"`
+	Roles         []*RoleResponse `json:"roles,omitempty"`
 }
 
 func ToUserResponse(user *entity.User, hideOpt *HideFieldUserOption) *UserResponse {

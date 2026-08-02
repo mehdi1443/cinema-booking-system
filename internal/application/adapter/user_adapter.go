@@ -2,10 +2,25 @@ package service_contract
 
 import (
 	"context"
+	"errors"
 
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
-	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 	domainjwt "github.com/mehdi1443/cinema-booking-system/internal/domain/jwt"
+)
+
+// TODO : error handling in services
+var (
+	// jwt service errors
+	ErrTokenExpired = errors.New("token has expired")
+	ErrInvalidToken = errors.New("invalid or malformed token")
+)
+
+const (
+	UserIDKeyMapClaims    string = "user_id"
+	TokenTypeKeyMapClaims string = "token_type"
+	IssuedAtKeyMapClaims  string = "iat"
+	ExpireAtKeyMapClaims  string = "exp"
 )
 
 type (
@@ -20,10 +35,10 @@ type (
 		GetUserByPhone(ctx context.Context, phone string, hideOpt *dto.HideFieldUserOption) (*dto.UserResponse, error)
 		GetUserByEmail(ctx context.Context, email string, hideOpt *dto.HideFieldUserOption) (*dto.UserResponse, error)
 
-		GetUsersByStatus(ctx context.Context, status entity.UserStatus, hideOpt *dto.HideFieldUserOption) ([]*dto.UserResponse, error)
+		GetUsersByStatus(ctx context.Context, status enum.UserStatus, hideOpt *dto.HideFieldUserOption) ([]*dto.UserResponse, error)
 
 		UpdateProfile(ctx context.Context, dto dto.UpdateUserProfileDTO) (*dto.UserResponse, error)
-		ChangeStatus(ctx context.Context, userID int64, status entity.UserStatus) (*dto.UserResponse, error)
+		ChangeStatus(ctx context.Context, userID int64, status enum.UserStatus) (*dto.UserResponse, error)
 		UpdateUserRoles(ctx context.Context, request dto.UpdateUserRolesRequest) (*dto.UserResponse, error)
 
 		DeleteUserByID(ctx context.Context, id int64) error
