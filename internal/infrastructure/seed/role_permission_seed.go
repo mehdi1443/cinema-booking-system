@@ -148,10 +148,10 @@ func (s *RoleSeeder) seedSuperAdmin(ctx context.Context, adminRole *entity.Role)
 
 		user = &entity.User{
 			Phone:         s.superAdmin.Phone,
-			Email:         strPtr(s.superAdmin.Email),
-			PasswordHash:  strPtr(hashedPassword),
-			FirstName:     strPtr(s.superAdmin.FirstName),
-			LastName:      strPtr(s.superAdmin.LastName),
+			Email:         s.superAdmin.Email,
+			PasswordHash:  hashedPassword,
+			FirstName:     s.superAdmin.FirstName,
+			LastName:      s.superAdmin.LastName,
 			WalletBalance: s.superAdmin.Wallet,
 			Status:        "ACTIVE",
 		}

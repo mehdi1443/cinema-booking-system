@@ -8,7 +8,7 @@ import (
 
 var ErrUserPermissionNotFound = errors.New("user permission not found in redis")
 
-type UserPermissionCacheRepoInterface interface {
+type UserPermissionCacheInterface interface {
 	SaveUserPermissions(ctx context.Context, userID string, permission []string, ttl time.Duration) error
 	GetUserPermissions(ctx context.Context, userID string) ([]string, error)
 	DeleteUserPermission(ctx context.Context, userID string) error

@@ -8,7 +8,7 @@ import (
 
 var ErrOtpKeyNotFound = errors.New("otp key not found in redis")
 
-type OTPRepoInterface interface {
+type OTPInterface interface {
 	SaveOTP(ctx context.Context, phone string, code string, ttl time.Duration) error
 	GetOTP(ctx context.Context, phone string) (string, error)
 	DeleteOTP(ctx context.Context, phone string) error
