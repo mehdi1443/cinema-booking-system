@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+const DEBUG_MODE_JUST_FOR_DEVELOPING bool = true
+
 type Constant struct {
 	Database DBConst      `json:"database"`
 	User     SuperUser    `json:"user"`

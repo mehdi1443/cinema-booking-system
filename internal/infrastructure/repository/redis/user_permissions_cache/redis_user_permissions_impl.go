@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
-	redis_contract "github.com/mehdi1443/cinema-booking-system/internal/infrastructure/repository/redis"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -40,7 +40,7 @@ func (r *UserPermissionCacheRepository) GetUserPermissions(ctx context.Context, 
 	permissions, err := r.client.GetRDB().SMembers(ctx, key).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
-			return nil, redis_contract.ErrUserPermissionNotFound
+			return nil, repository_contract.ErrUserPermissionNotFound
 		}
 		return nil, fmt.Errorf("redis get user permissions error: %w", err)
 	}

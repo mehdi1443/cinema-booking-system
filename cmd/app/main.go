@@ -8,7 +8,7 @@ import (
 
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
-	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/repository/postgres"
+	postgres "github.com/mehdi1443/cinema-booking-system/internal/infrastructure/repository/postgres/user"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/seed"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/middleware"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/controller"
@@ -42,7 +42,7 @@ func main() {
 		fmt.Println("Database and Redis connected successfully!")
 	}
 
-	userRepo := postgres.NewUserRepositoryPostgres()
+	userRepo := postgres.NewUserRepositoryPostgres(pgDB)
 	bcryptHasher := hash.NewBcryptHasher()
 
 	seeder := seed.NewRoleSeeder(config.Constant.User, userRepo, pgDB, bcryptHasher)
