@@ -8,6 +8,7 @@ import (
 
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
+	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/repository/MinIO"
 	postgres_repo "github.com/mehdi1443/cinema-booking-system/internal/infrastructure/repository/postgres"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/seed"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/middleware"
@@ -34,11 +35,15 @@ func main() {
 
 	pgDB := database.NewPostgresDatabase(&config.Environment.DataBase, &config.Constant.Database)
 	redisClient := database.NewRedisDatabase(&config.Environment.Redis, &config.Constant.Redis)
+	storage, err := MinIO.NewS3Storage(config.Environment)
+	if err != nil {
+		log.Fatalf("failed to initialize storage: %v", err)
+	}
 
 	//TODO : Im not sure is this clean or not(that import middleware in main and routes package both)
 	limiter := middleware.NewRedisLimiter(redisClient)
 
-	if pgDB != nil && redisClient != nil {
+	if pgDB != nil && redisClient != nil && storage != nil {
 		fmt.Println("Database and Redis connected successfully!")
 	}
 

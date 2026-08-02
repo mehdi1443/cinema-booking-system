@@ -60,10 +60,29 @@ services:
     env_file:
       - .env
 
+  minio:
+    image: minio/minio:latest
+    container_name: ${MINIO_CONTAINER:-cinema_minio}
+    restart: always
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY}
+    ports:
+      - "${MINIO_PORT:-15018}:9000"
+      - "${MINIO_CONSOLE_PORT:-15019}:9001"
+    volumes:
+      - miniodata:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - cinema_network
+    env_file:
+      - .env
+
 volumes:
   pgdata:
   redisdata:
   pgadmin_data:
+  miniodata:
 
 networks:
   cinema_network:

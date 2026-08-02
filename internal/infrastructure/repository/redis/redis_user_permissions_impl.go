@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository"
+	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/cache"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
 	"github.com/redis/go-redis/v9"
 )

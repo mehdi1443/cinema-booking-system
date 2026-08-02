@@ -1,4 +1,4 @@
-package repository_contract
+package DB
 
 import (
 	"context"

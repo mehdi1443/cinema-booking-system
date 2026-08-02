@@ -4,7 +4,7 @@ import (
 	"context"
 
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
-	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository"
+	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
 )
 

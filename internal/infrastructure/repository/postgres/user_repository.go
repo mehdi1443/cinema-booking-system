@@ -7,7 +7,7 @@ import (
 
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
-	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository"
+	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"

@@ -1,4 +1,4 @@
-package repository_contract
+package cache
 
 import (
 	"context"
