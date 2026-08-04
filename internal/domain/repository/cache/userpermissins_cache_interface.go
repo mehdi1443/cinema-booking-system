@@ -2,11 +2,8 @@ package cache
 
 import (
 	"context"
-	"errors"
 	"time"
 )
-
-var ErrUserPermissionNotFound = errors.New("user permission not found in redis")
 
 type UserPermissionCacheInterface interface {
 	SaveUserPermissions(ctx context.Context, userID string, permission []string, ttl time.Duration) error

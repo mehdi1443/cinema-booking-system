@@ -2,11 +2,8 @@ package cache
 
 import (
 	"context"
-	"errors"
 	"time"
 )
-
-var ErrOtpKeyNotFound = errors.New("otp key not found in redis")
 
 type OTPInterface interface {
 	SaveOTP(ctx context.Context, phone string, code string, ttl time.Duration) error

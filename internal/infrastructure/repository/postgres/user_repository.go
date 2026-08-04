@@ -5,8 +5,11 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
+
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
 	"gorm.io/gorm"
@@ -27,9 +30,9 @@ func (r *userRepositoryPostgres) CreateUser(ctx context.Context, user *entity.Us
 	err := r.db.GetDB().WithContext(ctx).Create(user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return nil, repository_contract.ErrUserAlreadyExists
+			return nil, exception.ErrUserAlreadyExists
 		}
-		return nil, fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return user, nil
 }
@@ -39,9 +42,9 @@ func (r *userRepositoryPostgres) FindUserByID(ctx context.Context, id int64) (*e
 	err := r.db.GetDB().WithContext(ctx).First(&user, id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, repository_contract.ErrUserNotFound
+			return nil, exception.ErrUserNotFound
 		}
-		return nil, fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return &user, nil
 }
@@ -51,9 +54,9 @@ func (r *userRepositoryPostgres) FindUserByPhone(ctx context.Context, phone stri
 	err := r.db.GetDB().WithContext(ctx).Where("phone = ?", phone).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, repository_contract.ErrUserNotFound
+			return nil, exception.ErrUserNotFound
 		}
-		return nil, fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return &user, nil
 }
@@ -63,9 +66,9 @@ func (r *userRepositoryPostgres) FindUserByEmail(ctx context.Context, email stri
 	err := r.db.GetDB().WithContext(ctx).Where("email = ?", email).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, repository_contract.ErrUserNotFound
+			return nil, exception.ErrUserNotFound
 		}
-		return nil, fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return &user, nil
 }
@@ -74,13 +77,13 @@ func (r *userRepositoryPostgres) UpdateUser(ctx context.Context, user *entity.Us
 	res := r.db.GetDB().WithContext(ctx).Model(user).Where("id = ?", user.ID).Updates(user)
 	if res.Error != nil {
 		if errors.Is(res.Error, gorm.ErrDuplicatedKey) {
-			return nil, repository_contract.ErrUserAlreadyExists
+			return nil, exception.ErrUserAlreadyExists
 		}
-		return nil, fmt.Errorf("%w: %v", repository_contract.ErrDatabase, res.Error)
+		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, res.Error)
 	}
 
 	if res.RowsAffected == 0 {
-		return nil, repository_contract.ErrUserNotFound
+		return nil, exception.ErrUserNotFound
 	}
 
 	return user, nil
@@ -89,9 +92,9 @@ func (r *userRepositoryPostgres) CreateRole(ctx context.Context, role *entity.Ro
 	err := r.db.GetDB().WithContext(ctx).Create(role).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return repository_contract.ErrRoleAlreadyExists
+			return exception.ErrRoleAlreadyExists
 		}
-		return fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+		return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return nil
 }
@@ -101,9 +104,9 @@ func (r *userRepositoryPostgres) FindRoleByName(ctx context.Context, name string
 	err := r.db.GetDB().WithContext(ctx).Where("name = ?", name).First(&role).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, repository_contract.ErrRoleNotFound
+			return nil, exception.ErrRoleNotFound
 		}
-		return nil, fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return &role, nil
 }
@@ -113,9 +116,9 @@ func (r *userRepositoryPostgres) FindRoleByID(ctx context.Context, roleID int64)
 	err := r.db.GetDB().WithContext(ctx).First(&role, roleID).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, repository_contract.ErrRoleNotFound
+			return nil, exception.ErrRoleNotFound
 		}
-		return nil, fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return &role, nil
 }
@@ -124,9 +127,9 @@ func (r *userRepositoryPostgres) CreatePermission(ctx context.Context, permissio
 	err := r.db.GetDB().WithContext(ctx).Create(permission).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return repository_contract.ErrPermissionAlreadyExists
+			return exception.ErrPermissionAlreadyExists
 		}
-		return fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+		return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return nil
 }
@@ -136,9 +139,9 @@ func (r *userRepositoryPostgres) FindPermissionByName(ctx context.Context, name 
 	err := r.db.GetDB().WithContext(ctx).Where("name = ?", name).First(&perm).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, repository_contract.ErrPermissionNotFound
+			return nil, exception.ErrPermissionNotFound
 		}
-		return nil, fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return &perm, nil
 }
@@ -153,9 +156,9 @@ func (r *userRepositoryPostgres) AssignPermissionToRole(ctx context.Context, rol
 	err := r.db.GetDB().WithContext(ctx).Model(&role).Association("Permissions").Append(&perm)
 	if err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return repository_contract.ErrPermissionAlreadyExists
+			return exception.ErrPermissionAlreadyExists
 		}
-		return fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+		return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return nil
 }
@@ -170,9 +173,9 @@ func (r *userRepositoryPostgres) AssignRoleToUser(ctx context.Context, userID in
 	err := r.db.GetDB().WithContext(ctx).Model(&user).Association("Roles").Append(&role)
 	if err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return repository_contract.ErrRoleAlreadyExists
+			return exception.ErrRoleAlreadyExists
 		}
-		return fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+		return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return nil
 }
@@ -185,7 +188,7 @@ func (r *userRepositoryPostgres) RoleHasPermission(ctx context.Context, roleID i
 		Count(&count).Error
 
 	if err != nil {
-		return false, fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+		return false, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return count > 0, nil
 }
@@ -198,39 +201,15 @@ func (r *userRepositoryPostgres) UserHasRole(ctx context.Context, userID int64, 
 		Count(&count).Error
 
 	if err != nil {
-		return false, fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+		return false, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return count > 0, nil
 }
 
-// IncreaseBallance atomically adds funds to user's wallet.
-func (r *userRepositoryPostgres) IncreaseBallance(ctx context.Context, userID int64, amount int64) (int64, error) {
-	if amount <= 0 {
-		return 0, repository_contract.ErrInvalidAmount
-	}
-
-	var updatedUser entity.User
-	res := r.db.GetDB().WithContext(ctx).
-		Model(&updatedUser).
-		Clauses(clause.Returning{Columns: []clause.Column{{Name: "wallet_balance"}}}).
-		Where("id = ? AND deleted_at IS NULL", userID).
-		UpdateColumn("wallet_balance", gorm.Expr("wallet_balance + ?", amount))
-
-	if res.Error != nil {
-		return 0, fmt.Errorf("%w: %v", repository_contract.ErrDatabase, res.Error)
-	}
-
-	if res.RowsAffected == 0 {
-		return 0, repository_contract.ErrUserNotFound
-	}
-
-	return updatedUser.WalletBalance, nil
-}
-
 // DecreaseBalance atomically deducts funds inside a database transaction with explicit row locking.
-func (r *userRepositoryPostgres) DecreaseBalance(ctx context.Context, userID int64, amount int64) (int64, error) {
+func (r *userRepositoryPostgres) AddAmountToBalance(ctx context.Context, userID int64, amount int64) (int64, error) {
 	if amount <= 0 {
-		return 0, repository_contract.ErrInvalidAmount
+		return 0, exception.ErrInvalidAmount
 	}
 
 	var finalBalance int64
@@ -246,19 +225,21 @@ func (r *userRepositoryPostgres) DecreaseBalance(ctx context.Context, userID int
 
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return repository_contract.ErrUserNotFound
+				return exception.ErrUserNotFound
 			}
-			return fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+			return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 		}
 
-		if user.WalletBalance < amount {
-			return repository_contract.ErrInsufficientBalance
+		if user.WalletBalance+amount < 0 {
+			return exception.ErrInsufficientBalance
+		} else if user.WalletBalance+amount > entity.MaxWalletBalance {
+			return exception.ErrReachManBalance
 		}
 
-		finalBalance = user.WalletBalance - amount
+		finalBalance = user.WalletBalance + amount
 		err = tx.Model(&user).Update("wallet_balance", finalBalance).Error
 		if err != nil {
-			return fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+			return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 		}
 
 		return nil
@@ -280,7 +261,7 @@ func (r *userRepositoryPostgres) FindUsersByStatus(ctx context.Context, status e
 		Find(&users).Error
 
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 
 	return users, nil
@@ -289,11 +270,11 @@ func (r *userRepositoryPostgres) FindUsersByStatus(ctx context.Context, status e
 func (r *userRepositoryPostgres) DeleteUserByID(ctx context.Context, id int64) error {
 	res := r.db.GetDB().WithContext(ctx).Delete(&entity.User{}, id)
 	if res.Error != nil {
-		return fmt.Errorf("%w: %v", repository_contract.ErrDatabase, res.Error)
+		return fmt.Errorf("%w: %v", exception.ErrDatabase, res.Error)
 	}
 
 	if res.RowsAffected == 0 {
-		return repository_contract.ErrUserNotFound
+		return exception.ErrUserNotFound
 	}
 
 	return nil
@@ -319,7 +300,7 @@ func (r *userRepositoryPostgres) UpdateUserRoles(ctx context.Context, userID int
 		Replace(roles)
 
 	if err != nil {
-		return fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+		return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 
 	return nil
@@ -334,7 +315,7 @@ func (r *userRepositoryPostgres) AssignPermissionsToRole(ctx context.Context, ro
 
 	err := r.db.GetDB().WithContext(ctx).Model(&role).Association("Permissions").Append(perms)
 	if err != nil {
-		return fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+		return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return nil
 }
@@ -348,7 +329,7 @@ func (r *userRepositoryPostgres) DischargePermissionsOfRole(ctx context.Context,
 
 	err := r.db.GetDB().WithContext(ctx).Model(&role).Association("Permissions").Delete(perms)
 	if err != nil {
-		return fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+		return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return nil
 }
@@ -363,7 +344,7 @@ func (r *userRepositoryPostgres) UserHasPermission(ctx context.Context, userID i
 		Count(&count).Error
 
 	if err != nil {
-		return false, fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+		return false, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return count > 0, nil
 }
@@ -377,7 +358,7 @@ func (r *userRepositoryPostgres) UserHasRoleByName(ctx context.Context, userID i
 		Count(&count).Error
 
 	if err != nil {
-		return false, fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+		return false, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return count > 0, nil
 }
@@ -393,7 +374,7 @@ func (r *userRepositoryPostgres) GetUserPermissions(ctx context.Context, userID 
 		Find(&perms).Error
 
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return perms, nil
 }
@@ -408,7 +389,7 @@ func (r *userRepositoryPostgres) GetUserRoles(ctx context.Context, userID int64)
 		Find(&roles).Error
 
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return roles, nil
 }
@@ -426,7 +407,7 @@ func (r *userRepositoryPostgres) GetUsersByPermissionNames(ctx context.Context, 
 		Find(&users).Error
 
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return users, nil
 }
@@ -443,7 +424,7 @@ func (r *userRepositoryPostgres) GetUsersByRoleNames(ctx context.Context, roleNa
 		Find(&users).Error
 
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return users, nil
 }
@@ -458,7 +439,7 @@ func (r *userRepositoryPostgres) GetPermissionsByRoleName(ctx context.Context, r
 		Find(&perms).Error
 
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return perms, nil
 }
@@ -475,7 +456,7 @@ func (r *userRepositoryPostgres) GetRolesByPermissionNames(ctx context.Context, 
 		Find(&roles).Error
 
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return roles, nil
 }
@@ -485,9 +466,48 @@ func (r *userRepositoryPostgres) FindPermissionByID(ctx context.Context, pid int
 	err := r.db.GetDB().WithContext(ctx).First(&perm, pid).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, repository_contract.ErrPermissionNotFound
+			return nil, exception.ErrPermissionNotFound
 		}
-		return nil, fmt.Errorf("%w: %v", repository_contract.ErrDatabase, err)
+		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return &perm, nil
+}
+
+func (r *userRepositoryPostgres) FindUsers(ctx context.Context, filter *dto.GetUsersQueryDTO) ([]*entity.User, error) {
+	var users []*entity.User
+	query := r.db.GetDB().WithContext(ctx).Model(&entity.User{})
+
+	if filter.Phone != "" {
+		query = query.Where("phone LIKE ?", "%"+filter.Phone+"%")
+	}
+	if filter.Email != "" {
+		query = query.Where("email ILIKE ?", "%"+filter.Email+"%")
+	}
+	if filter.FirstName != "" {
+		query = query.Where("first_name ILIKE ?", "%"+filter.FirstName+"%")
+	}
+	if filter.LastName != "" {
+		query = query.Where("last_name ILIKE ?", "%"+filter.LastName+"%")
+	}
+	if filter.Status != "" {
+		query = query.Where("status = ?", filter.Status)
+	}
+	if len(filter.Roles) > 0 {
+		query = query.Joins("JOIN user_roles ON user_roles.user_id = users.id").
+			Joins("JOIN roles ON roles.id = user_roles.role_id").
+			Where("roles.name IN ?", filter.Roles)
+	}
+	if len(filter.Permissions) > 0 {
+		query = query.Joins("JOIN user_roles ON user_roles.user_id = users.id").
+			Joins("JOIN role_permissions ON role_permissions.role_id = user_roles.role_id").
+			Joins("JOIN permissions ON permissions.id = role_permissions.permission_id").
+			Where("permissions.name IN ?", filter.Permissions)
+	}
+
+	err := query.Distinct().Find(&users).Error
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+	}
+
+	return users, nil
 }

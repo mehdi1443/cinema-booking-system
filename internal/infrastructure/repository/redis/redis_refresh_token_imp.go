@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/cache"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
 	"github.com/redis/go-redis/v9"
 )
@@ -37,7 +37,7 @@ func (r *RefreshTokenRepository) GetRefreshToken(ctx context.Context, userID str
 	val, err := r.client.GetRDB().Get(ctx, key).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
-			return "", repository_contract.ErrRefreshTokenNotFound
+			return "", exception.ErrRefreshTokenNotFound
 		}
 		return "", fmt.Errorf("redis get refresh token error: %w", err)
 	}

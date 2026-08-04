@@ -8,6 +8,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
 	"github.com/mehdi1443/cinema-booking-system/pkg/hash"
@@ -62,11 +63,11 @@ func (s *RoleSeeder) seedPermissions(ctx context.Context) (map[enum.PermissionTy
 	for _, permType := range enum.GetAllPermissionTypes() {
 		permName := permType.String()
 		perm, err := s.userRepo.FindPermissionByName(ctx, permName)
-		if err != nil && !errors.Is(err, repository_contract.ErrPermissionNotFound) {
+		if err != nil && !errors.Is(err, exception.ErrPermissionNotFound) {
 			return nil, err
 		}
 
-		if errors.Is(err, repository_contract.ErrPermissionNotFound) {
+		if errors.Is(err, exception.ErrPermissionNotFound) {
 			perm = &entity.Permission{
 				Name:        permName,
 				Title:       permType.Description(),
@@ -91,11 +92,11 @@ func (s *RoleSeeder) seedRolesWithPermissions(
 
 	for _, roleEnum := range enum.GetAllRoles() {
 		role, err := s.userRepo.FindRoleByName(ctx, roleEnum.String())
-		if err != nil && !errors.Is(err, repository_contract.ErrRoleNotFound) {
+		if err != nil && !errors.Is(err, exception.ErrRoleNotFound) {
 			return nil, err
 		}
 
-		if errors.Is(err, repository_contract.ErrRoleNotFound) {
+		if errors.Is(err, exception.ErrRoleNotFound) {
 			role = &entity.Role{
 				Name:  roleEnum.String(),
 				Title: roleEnum.Title(),
@@ -137,11 +138,11 @@ func (s *RoleSeeder) assignPermissionIfNotExist(ctx context.Context, roleID, per
 
 func (s *RoleSeeder) seedSuperAdmin(ctx context.Context, adminRole *entity.Role) error {
 	user, err := s.userRepo.FindUserByPhone(ctx, s.superAdmin.Phone)
-	if err != nil && !errors.Is(err, repository_contract.ErrUserNotFound) {
+	if err != nil && !errors.Is(err, exception.ErrUserNotFound) {
 		return err
 	}
 
-	if errors.Is(err, repository_contract.ErrUserNotFound) {
+	if errors.Is(err, exception.ErrUserNotFound) {
 		hashedPassword, err := s.hasher.Hash(s.superAdmin.Password)
 		if err != nil {
 			return fmt.Errorf("failed to hash password: %w", err)

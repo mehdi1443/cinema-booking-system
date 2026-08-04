@@ -2,31 +2,10 @@ package DB
 
 import (
 	"context"
-	"errors"
 
+	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
-)
-
-var (
-	// User Errors
-	ErrUserNotFound      = errors.New("user not found")
-	ErrUserAlreadyExists = errors.New("user already exists")
-
-	// Role Errors
-	ErrRoleNotFound      = errors.New("role not found")
-	ErrRoleAlreadyExists = errors.New("role already exists")
-
-	// Permission Errors
-	ErrPermissionNotFound      = errors.New("permission not found")
-	ErrPermissionAlreadyExists = errors.New("permission already exists")
-
-	// Wallet Errors
-	ErrInvalidAmount       = errors.New("amount must be greater than zero")
-	ErrInsufficientBalance = errors.New("insufficient wallet balance")
-
-	// Generic Storage Error
-	ErrDatabase = errors.New("database operation failed")
 )
 
 type UserInterFace interface {
@@ -52,9 +31,7 @@ type UserInterFace interface {
 	RoleHasPermission(ctx context.Context, roleID int64, permissionID int64) (bool, error)
 	UserHasRole(ctx context.Context, userID int64, roleID int64) (bool, error)
 
-	IncreaseBallance(ctx context.Context, userID int64, amount int64) (int64, error)
-
-	DecreaseBalance(ctx context.Context, userID int64, amount int64) (int64, error)
+	AddAmountToBalance(ctx context.Context, userID int64, amount int64) (int64, error)
 
 	AssignPermissionsToRole(ctx context.Context, roleID int64, permissionIDs []*int64) error
 
@@ -77,4 +54,6 @@ type UserInterFace interface {
 	GetRolesByPermissionNames(ctx context.Context, permissionNames []string) ([]*entity.Role, error)
 
 	FindPermissionByID(ctx context.Context, pid int64) (*entity.Permission, error)
+
+	FindUsers(ctx context.Context, filter *dto.GetUsersQueryDTO) ([]*entity.User, error)
 }

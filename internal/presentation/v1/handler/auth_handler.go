@@ -1,18 +1,35 @@
 package handler
 
-// import (
-// 	"github.com/gin-gonic/gin"
-// 	"github.com/mehdi1443/cinema-booking-system/internal/application/auth"
-// )
+import "github.com/gin-gonic/gin"
 
-// type AuthHandler struct {
-// 	authService auth.MyAuthService
-// }
+type AuthController struct {
+	// authService *service.AuthService
+}
 
-// func NewAuthHandler(authService auth.MyAuthService) *AuthHandler {
-// 	return &AuthHandler{authService: authService}
-// }
+func NewAuthController() AuthController {
+	return AuthController{}
+}
 
-// func (a *AuthHandler) SendOTPHandler(c *gin.Context) {
+func (ac *AuthController) SendOTP(ctx *gin.Context) {
 
-// }
+}
+
+func (ac *AuthController) VerifyOTP(ctx *gin.Context) {
+
+}
+
+func (ac *AuthController) Register(ctx *gin.Context) {
+
+}
+
+func (ac *AuthController) Refresh(ctx *gin.Context) {
+
+}
+
+func (ac *AuthController) Login(ctx *gin.Context) {
+
+}
+
+func (ac *AuthController) Logout(ctx *gin.Context) {
+
+}

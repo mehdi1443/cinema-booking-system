@@ -13,6 +13,7 @@ const (
 
 const (
 	CtxUserIDKey  = "user_id"
+	CtxRolesKey   = "roles"
 	CtxPayloadKey = "token_payload"
 )
 

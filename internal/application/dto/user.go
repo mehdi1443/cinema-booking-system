@@ -22,6 +22,10 @@ type UserResponse struct {
 	Roles         []*RoleResponse `json:"roles,omitempty"`
 }
 
+type ChangeUserStatusRequest struct {
+	Status enum.UserStatus `json:"status" binding:"required"`
+}
+
 func ToUserResponse(user *entity.User, hideOpt *HideFieldUserOption) *UserResponse {
 	if user == nil {
 		return nil

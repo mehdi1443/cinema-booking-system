@@ -1,4 +1,4 @@
-package jwtsrv
+package service
 
 import (
 	"errors"
@@ -9,6 +9,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	domainjwt "github.com/mehdi1443/cinema-booking-system/internal/domain/jwt"
 	"github.com/mehdi1443/cinema-booking-system/pkg/rsa"
 )
@@ -57,18 +58,18 @@ func (s *jwtService) ValidateToken(signedToken string) (*domainjwt.TokenPayload,
 
 	if err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {
-			return nil, service_contract.ErrTokenExpired
+			return nil, exception.ErrTokenExpired
 		}
-		return nil, errors.Join(service_contract.ErrInvalidToken, err)
+		return nil, errors.Join(exception.ErrInvalidToken, err)
 	}
 
 	if parsedToken == nil || !parsedToken.Valid {
-		return nil, service_contract.ErrInvalidToken
+		return nil, exception.ErrInvalidToken
 	}
 
 	claims, ok := parsedToken.Claims.(jwt.MapClaims)
 	if !ok {
-		return nil, service_contract.ErrInvalidToken
+		return nil, exception.ErrInvalidToken
 	}
 
 	return s.parseClaimsToPayload(claims)
@@ -115,3 +116,4 @@ func (s *jwtService) parseClaimsToPayload(claims jwt.MapClaims) (*domainjwt.Toke
 
 	return payload, nil
 }
+

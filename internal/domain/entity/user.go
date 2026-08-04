@@ -1,6 +1,10 @@
 package entity
 
-import "github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
+import (
+	"math"
+
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
+)
 
 type User struct {
 	BaseEntity
@@ -14,3 +18,7 @@ type User struct {
 
 	Roles []*Role `json:"roles,omitempty" gorm:"many2many:user_roles;"`
 }
+
+var (
+	MaxWalletBalance int64 = math.MaxInt64
+)

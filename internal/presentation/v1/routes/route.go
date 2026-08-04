@@ -1,4 +1,4 @@
-package routes
+package router
 
 import (
 	"fmt"
@@ -9,12 +9,12 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/handler"
 )
 
-type Controllers struct {
+type Handlers struct {
 	Auth handler.AuthController
-	User handler.UserController
+	User handler.UserHandler
 }
 
-func SetUpRouter(handler *Controllers, config *bootstrap.Config, limiter *middleware.RedisLimiter) *gin.Engine {
+func SetUpRouter(handler *Handlers, config *bootstrap.Config, limiter *middleware.RedisLimiter) *gin.Engine {
 	r := gin.New()
 
 	r.Use(gin.Logger())

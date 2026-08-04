@@ -1,19 +1,49 @@
 package dto
 
 type UpdateUserProfileDTO struct {
-	UserID    int64
-	FirstName string
-	LastName  string
-	Email     string
+	UserID    int64  `json:"user_id"  binding:"required"`
+	FirstName string `json:"first_name" binding:"required"`
+	LastName  string `json:"last_name" binding:"required"`
+	Email     string `json:"email" binding:"required,email"`
 }
 
 type UpdateUserRolesRequest struct {
-	UserID  int64
-	RoleIDs []int64
+	UserID  int64   `json:"user_id"  binding:"required"`
+	RoleIDs []int64 `json:"role_ids" binding:"required"`
 }
 
 type HideFieldUserOption struct {
 	WalletBalance bool
+}
+
+type GetUsersQueryDTO struct {
+	Phone       string   `form:"phone"`
+	Email       string   `form:"email"`
+	FirstName   string   `form:"first_name"`
+	LastName    string   `form:"last_name"`
+	Status      string   `form:"status"`
+	Permissions []string `form:"permission"`
+	Roles       []string `form:"role"`
+	HideFieldUserOption
+}
+
+// IsEmpty checks if at least one filter criterion is provided
+func (q *GetUsersQueryDTO) IsEmpty() bool {
+	return q.Phone == "" &&
+		q.Email == "" &&
+		q.FirstName == "" &&
+		q.LastName == "" &&
+		q.Status == "" &&
+		len(q.Permissions) == 0 &&
+		len(q.Roles) == 0
+}
+
+type AssignPermissionsToRoleRequest struct {
+	PermissionIDs []*int64 `json:"permission_ids" binding:"required"`
+}
+
+type DischargePermissionsOfRoleRequest struct {
+	PermissionIDs []*int64 `json:"permission_ids" binding:"required"`
 }
 
 //
