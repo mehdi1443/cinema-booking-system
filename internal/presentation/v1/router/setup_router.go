@@ -39,7 +39,7 @@ func SetUpRouter(handler *Handlers, services *Services, config *bootstrap.Config
 	//FIXME : ADD AUTHORIZATION MIDDLEWARE!!!!!  exm :
 	// r.Use(middleware.ControlUserAccess(/*// FIXME permision list*/))
 
-	authMiddleware := middleware.JWTAuthentication(services.tokenService)
+	authMiddleware := middleware.JWTAuthentication(services.TokenService)
 
 	v1 := r.Group("/v1")
 	SetUpUserRouter(v1, &handler.User, &handler.RBAC, &handler.Wallet, authMiddleware)

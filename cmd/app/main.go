@@ -32,7 +32,7 @@ import (
 // !
 // ?
 
-// TODO : REVIEW AND DESISIION MAKING ABOUT PROJECT STRUCTURE
+// TODO : REVIEW AND DECISION MAKING ABOUT PROJECT STRUCTURE
 func main() {
 	// --- LOAD CONFIG & CONST
 	ctx := context.Background()
