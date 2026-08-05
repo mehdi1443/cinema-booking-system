@@ -16,7 +16,6 @@ func Run() *Config {
 	}
 }
 
-// TODO : Declare String() Func for Debug
 func (c *Config) String() string {
 	if c == nil {
 		return "<nil>"

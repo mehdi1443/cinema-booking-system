@@ -9,21 +9,25 @@ var (
 	ErrTokenExpired           = errors.New("token has expired")
 	ErrInvalidToken           = errors.New("invalid or malformed token")
 	ErrGetTokenFromContext    = errors.New("fail get keys from context")
+	ErrGetJWTDataFromContext  = errors.New("fail jwt get keys from context")
 
 	ErrNoteAccessible = errors.New("you have not enough access")
 	ErrInvalidFilter  = errors.New("invalid search filter criteria")
 
-	ErrInvalidPassword    = errors.New("invalid user password")
-	ErrInvalidPhone       = errors.New("invalid user phone")
-	ErrInvalidCredentials = errors.New("invalid user credentials")
-	ErrInvalidOTP         = errors.New("invalid otp code")
-	ErrOTPExpired         = errors.New("otp has expired")
+	ErrInvalidPassword        = errors.New("invalid user password")
+	ErrInvalidPhone           = errors.New("invalid user phone")
+	ErrInvalidCredentials     = errors.New("invalid user credentials")
+	ErrNotVerifiedPhoneNumber = errors.New("not verified phone number")
+
+	ErrInvalidOTP = errors.New("invalid otp code")
+	ErrOTPExpired = errors.New("otp has expired")
 
 	//================================================
 	// ErrDatabase
 	//================================================
 
 	ErrDatabase     = errors.New("database operation failed")
+	ErrCache        = errors.New("cache operation failed")
 	ErrDuplicateKey = errors.New("record already exists")
 
 	//================================================

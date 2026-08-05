@@ -6,8 +6,11 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/service"
+	"github.com/mehdi1443/cinema-booking-system/internal/application/validation"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/repository/MinIO"
 	postgres_repo "github.com/mehdi1443/cinema-booking-system/internal/infrastructure/repository/postgres"
@@ -32,7 +35,6 @@ import (
 // !
 // ?
 
-// TODO : REVIEW AND DECISION MAKING ABOUT PROJECT STRUCTURE
 func main() {
 	// --- LOAD CONFIG & CONST
 	ctx := context.Background()
@@ -74,7 +76,8 @@ func main() {
 	rbacRepo := postgres_repo.NewRABCRepositoryPostgres(pgDB)
 	otpRepo := redis_repo.NewOTPRepository(redisClient)
 	refreshtokenRepo := redis_repo.NewRefreshTokenRepository(redisClient)
-	// userpermissionRepo := redis_repo.NewUserPermissionCacheRepository(redisClient) //TODO USE IT!!!
+	userpermissionRepo := redis_repo.NewUserPermissionCacheRepository(redisClient) //TODO USE IT!! Actually Test it
+	blacklistRepo := redis_repo.NewTokenBlacklistRedis(redisClient)
 
 	// --- SEEDER ---
 	seeder := seed.NewRoleSeeder(config.Constant.User, userRepo, rbacRepo, pgDB, bcryptHasher)
@@ -85,20 +88,24 @@ func main() {
 	log.Println("Database seeded successfully!")
 
 	// --- SERVICES ---
-	jwtSrv := service.NewTokenService(accessKeys, refreshKeys, &config.Environment.JWT)
+	jwtSrv := service.NewTokenService(accessKeys, refreshKeys, &config.Environment.JWT, blacklistRepo)
 	smsSrv := service.NewSMSService()
-	userSrv := service.NewUserService(userRepo)
-	authSrv := service.NewAuthService(userRepo, otpRepo, refreshtokenRepo, jwtSrv, random.NewRandomGeneratorEngine(), &config.Environment.OTP, &config.Environment.JWT, smsSrv, hash.NewBcryptHasher())
+	emailSrv := service.NewEmailService()
+	userSrv := service.NewUserService(userRepo, bcryptHasher)
+	authSrv := service.NewAuthService(userRepo, otpRepo, refreshtokenRepo, jwtSrv, random.NewRandomGeneratorEngine(), &config.Environment.OTP, &config.Environment.JWT, smsSrv, emailSrv, hash.NewBcryptHasher())
 	walletSrv := service.NewWalletService(userRepo, walletRepo)
-	rbacSrv := service.NewRBACService(rbacRepo, userRepo)
+	rbacSrv := service.NewRBACService(rbacRepo, userRepo, userpermissionRepo, &config.Environment.UserPermissionCache)
 	contextokenSrv := service.NewContextTokenService()
 
 	services := router.Services{
-		TokenService: jwtSrv,
+		TokenService:        jwtSrv,
+		RBACService:         rbacSrv,
+		ContextTokenService: contextokenSrv,
+		UserService:         userSrv,
 	}
 
 	// --- HANDLERS ---
-	authHandler := *handler.NewAuthHandler(authSrv)
+	authHandler := *handler.NewAuthHandler(authSrv, contextokenSrv)
 	userHandler := *handler.NewUserHandler(userSrv, rbacSrv, contextokenSrv)
 	rbacHandler := *handler.NewRBACHandler(rbacSrv, contextokenSrv)
 	walletHandler := *handler.NewWalletHandler(walletSrv, contextokenSrv)
@@ -110,11 +117,19 @@ func main() {
 	}
 
 	// --- LIMITER ---
-	//TODO : Im not sure is this clean or not(that import middleware in main and routes package both)
 	limiter := middleware.NewRedisLimiter(redisClient)
 
 	// --- ROUTES ---
 	Engine := router.SetUpRouter(&handlers, &services, config, limiter)
+
+	// --- VALIDATIONS ---
+	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+		v.RegisterValidation("iranian-phone", validation.ValidateIranianPhone)
+		v.RegisterValidation("otp-code", validation.ValidateOTPCode(int(config.Environment.OTP.Digit)))
+		v.RegisterValidation("user-password", validation.ValidatePassword(&config.Environment.DebugModeOptions))
+		//HACK : gin handle email validation by default
+		// 	v.RegisterValidation("email", bookableDate)
+	}
 
 	log.Printf("server running on %s:%s\n", config.Environment.HttpServer.Domain, config.Environment.HttpServer.Port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:%s", config.Environment.HttpServer.Domain, config.Environment.HttpServer.Port), Engine))

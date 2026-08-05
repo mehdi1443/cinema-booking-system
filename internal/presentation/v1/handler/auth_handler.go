@@ -17,9 +17,10 @@ type AuthHandler struct {
 	contexttokenService service_contract.ContextTokenServiceInterface
 }
 
-func NewAuthHandler(authService service_contract.AuthenticationServiceInterface) *AuthHandler {
+func NewAuthHandler(authService service_contract.AuthenticationServiceInterface, contexttokenService service_contract.ContextTokenServiceInterface) *AuthHandler {
 	return &AuthHandler{
-		authService: authService,
+		authService:         authService,
+		contexttokenService: contexttokenService,
 	}
 }
 
@@ -31,8 +32,13 @@ func (h *AuthHandler) SendOTP(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "Invalid request payload", err)
 		return
 	}
+	log.Println(req)
+	if (req.Email == req.Phone && req.Email == "") || (req.Email != "" && req.Phone != "") {
+		response.Error(c, http.StatusBadRequest, "Just fill extract one field(email or phone)")
+		return
+	}
 
-	success, err := h.authService.SendOTP(c.Request.Context(), req.Phone)
+	success, err := h.authService.SendOTP(c.Request.Context(), req.Phone, req.Email)
 	if err != nil {
 		log.Printf("[SERVICE ERROR] SendOTP failed: %v", err)
 		switch {
@@ -64,7 +70,7 @@ func (h *AuthHandler) VerifyOTP(c *gin.Context) {
 		case errors.Is(err, exception.ErrInvalidOTP):
 			response.Error(c, http.StatusBadRequest, "Invalid OTP code", err)
 		case errors.Is(err, exception.ErrOTPExpired):
-			response.Error(c, http.StatusBadRequest, "OTP code has expired", err)
+			response.Error(c, http.StatusBadRequest, "OTP code has expired or phone not found", err)
 		default:
 			response.Error(c, http.StatusInternalServerError, "Failed to verify OTP", err)
 		}
@@ -84,10 +90,12 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	access, ref, err := h.authService.Login(c.Request.Context(), req.Phone, req.Password)
+	res, err := h.authService.Login(c.Request.Context(), req.Phone, req.Password)
 	if err != nil {
 		log.Printf("[SERVICE ERROR] Login failed: %v", err)
 		switch {
+		case errors.Is(err, exception.ErrNotVerifiedPhoneNumber):
+			response.Error(c, http.StatusUnauthorized, "Your phone number has not verified yet", err)
 		case errors.Is(err, exception.ErrInvalidCredentials):
 			response.Error(c, http.StatusUnauthorized, "Invalid phone number or password", err)
 		default:
@@ -96,10 +104,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, http.StatusOK, "Login successful", dto.AuthTokenResponse{
-		AccessToken:  access,
-		RefreshToken: ref,
-	})
+	response.Success(c, http.StatusOK, "Login successful", res)
 }
 
 // Register handles POST /auth/register
@@ -110,7 +115,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	access, ref, err := h.authService.Register(c.Request.Context(), req.Phone, req.Email, req.Password)
+	res, err := h.authService.Register(c.Request.Context(), req.Phone, req.Email, req.Password)
 	if err != nil {
 		log.Printf("[SERVICE ERROR] Register failed: %v", err)
 		switch {
@@ -126,18 +131,70 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, http.StatusCreated, "Registration successful", dto.AuthTokenResponse{
-		AccessToken:  access,
-		RefreshToken: ref,
-	})
+	response.Success(c, http.StatusCreated, "Registration successful", res)
 }
 
-func (h *AuthHandler) Refresh(ctx *gin.Context) {
+// Refresh handles POST /auth/refresh
+func (h *AuthHandler) Refresh(c *gin.Context) {
+	var req dto.RefreshTokenRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid request payload", err)
+		return
+	}
 
+	tokens, err := h.authService.RefreshToken(c.Request.Context(), &req)
+	if err != nil {
+		log.Printf("[SERVICE ERROR] Refresh token failed: %v", err)
+		switch {
+		case errors.Is(err, exception.ErrInvalidToken):
+			response.Error(c, http.StatusUnauthorized, "Invalid refresh token", err)
+		case errors.Is(err, exception.ErrTokenExpired):
+			response.Error(c, http.StatusUnauthorized, "Refresh token has expired", err)
+		case errors.Is(err, exception.ErrUserNotFound):
+			response.Error(c, http.StatusNotFound, "User not found", err)
+		default:
+			response.Error(c, http.StatusInternalServerError, "Failed to refresh token", err)
+		}
+		return
+	}
+
+	response.Success(c, http.StatusOK, "Token refreshed successfully", tokens)
 }
 
-func (h *AuthHandler) Logout(ctx *gin.Context) {
+// Logout handles POST /auth/logout
+func (h *AuthHandler) Logout(c *gin.Context) {
+	tokenData, err := h.contexttokenService.GetTokenFromGinContext(c)
+	if err != nil {
+		log.Printf("[AUTH ERROR] Failed to extract token context: %v", err)
+		response.Error(c, http.StatusUnauthorized, exception.ErrGetTokenFromContext.Error())
+		return
+	}
 
+	jwtData, err := h.contexttokenService.GetJWTFromGinContext(c)
+	if err != nil {
+		log.Printf("[AUTH ERROR] Failed to extract jwt context: %v", err)
+		response.Error(c, http.StatusUnauthorized, exception.ErrGetJWTDataFromContext.Error())
+		return
+	}
+
+	var req dto.LogoutRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid request payload", err)
+		return
+	}
+
+	if err := h.authService.Logout(c.Request.Context(), &tokenData, &jwtData, &req); err != nil {
+		log.Printf("[SERVICE ERROR] Logout failed: %v", err)
+		switch {
+		case errors.Is(err, exception.ErrInvalidToken):
+			response.Error(c, http.StatusBadRequest, "Invalid token", err)
+		default:
+			response.Error(c, http.StatusInternalServerError, "Failed to logout", err)
+		}
+		return
+	}
+
+	response.Success(c, http.StatusOK, "Logged out successfully", nil)
 }
 
 // VerifyPhone handles POST /auth/verify-phone

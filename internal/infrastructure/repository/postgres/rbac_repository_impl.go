@@ -226,6 +226,24 @@ func (r *rbacRepositoryPostgres) UserHasRoleByName(ctx context.Context, userID i
 	return count > 0, nil
 }
 
+func (r *rbacRepositoryPostgres) GetUserPermissionNames(ctx context.Context, userID int64) ([]string, error) {
+	perms := make([]string, 0)
+
+	err := r.db.GetDB().WithContext(ctx).
+		Table("permissions").
+		Joins("JOIN role_permissions ON role_permissions.permission_id = permissions.id").
+		Joins("JOIN user_roles ON user_roles.role_id = role_permissions.role_id").
+		Where("user_roles.user_id = ? AND permissions.deleted_at IS NULL", userID).
+		Distinct("permissions.name").
+		Pluck("permissions.name", &perms).
+		Error
+
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+	}
+	return perms, nil
+}
+
 func (r *rbacRepositoryPostgres) GetUserPermissions(ctx context.Context, userID int64) ([]*entity.Permission, error) {
 	var perms []*entity.Permission
 	err := r.db.GetDB().WithContext(ctx).
@@ -250,6 +268,19 @@ func (r *rbacRepositoryPostgres) GetUserRoles(ctx context.Context, userID int64)
 		Where("user_roles.user_id = ? AND roles.deleted_at IS NULL", userID).
 		Preload("Permissions").
 		Find(&roles).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+	}
+	return roles, nil
+}
+
+func (r *rbacRepositoryPostgres) GetRoleByID(ctx context.Context, roleID int64) (*entity.Role, error) {
+	var roles *entity.Role
+	err := r.db.GetDB().WithContext(ctx).
+		Table("roles").
+		Where("roles.id = ? AND roles.deleted_at IS NULL", roleID).
+		First(&roles).Error
 
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)

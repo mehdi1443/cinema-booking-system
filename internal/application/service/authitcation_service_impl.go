@@ -4,12 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
+	"strconv"
 
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
+	domainjwt "github.com/mehdi1443/cinema-booking-system/internal/domain/jwt"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	cache_repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/cache"
 	"github.com/mehdi1443/cinema-booking-system/pkg/hash"
@@ -25,6 +29,7 @@ type authService struct {
 	otpConfig     *bootstrap.OTP
 	jwtConfig     *bootstrap.JWT
 	smsProvider   service_contract.SMSServiceProviderInterface
+	emailProvider service_contract.EmailServiceProviderInterface
 	hasher        *hash.BcryptHasher
 }
 
@@ -37,6 +42,7 @@ func NewAuthService(
 	otpConfig *bootstrap.OTP,
 	jwtConfig *bootstrap.JWT,
 	smsProvider service_contract.SMSServiceProviderInterface,
+	emailProvider service_contract.EmailServiceProviderInterface,
 	hasher *hash.BcryptHasher,
 ) service_contract.AuthenticationServiceInterface {
 	return &authService{
@@ -48,29 +54,43 @@ func NewAuthService(
 		otpConfig:     otpConfig,
 		jwtConfig:     jwtConfig,
 		smsProvider:   smsProvider,
+		emailProvider: emailProvider,
 		hasher:        hasher,
 	}
 }
 
-func (s *authService) SendOTP(ctx context.Context, phone string) (*bool, error) {
-	if phone == "" {
-		return nil, exception.ErrInvalidPhone
+func (s *authService) SendOTP(ctx context.Context, phone string, email string) (*bool, error) {
+	if phone != "" {
+		code := strconv.Itoa(s.randomService.GenerateRandomNumber(int(s.otpConfig.Digit)))
+
+		err := s.otpRepo.SaveOTP(ctx, phone, code, s.otpConfig.ExpirationDuration())
+		if err != nil {
+			return nil, fmt.Errorf("failed to save OTP: %w", err)
+		}
+
+		s.smsProvider.SendSMS(dto.SendSMSRequest{
+			Phone: phone,
+			Text:  fmt.Sprintf("OTP:%s", code),
+		})
+		success := true
+		return &success, nil
+	} else if email != "" {
+		code := strconv.Itoa(s.randomService.GenerateRandomNumber(int(s.otpConfig.Digit)))
+
+		err := s.otpRepo.SaveOTP(ctx, email, code, s.otpConfig.ExpirationDuration())
+		if err != nil {
+			return nil, fmt.Errorf("failed to save OTP: %w", err)
+		}
+
+		s.emailProvider.SendEmail(dto.SendEmailRequest{
+			Email: email,
+			Text:  fmt.Sprintf("OTP:%s", code),
+		})
+		success := true
+		return &success, nil
 	}
+	return nil, fmt.Errorf("bad req to sendOTP service")
 
-	code := string(s.randomService.GenerateRandomNumber(int(s.otpConfig.Digit)))
-
-	err := s.otpRepo.SaveOTP(ctx, phone, code, s.otpConfig.ExpirationDuration())
-	if err != nil {
-		return nil, fmt.Errorf("failed to save OTP: %w", err)
-	}
-
-	//TODO: Send OTP via SMS provider logic here...
-	s.smsProvider.SendSMS(dto.SendSMSRequest{
-		Phone: phone,
-		Text:  fmt.Sprint("OTP:%s", code),
-	})
-	success := true
-	return &success, nil
 }
 
 func (s *authService) VerifyOTP(ctx context.Context, phone string, code string) (*bool, error) {
@@ -95,54 +115,73 @@ func (s *authService) VerifyOTP(ctx context.Context, phone string, code string) 
 	if err != nil {
 		return nil, err
 	}
+	err = s.otpRepo.SetVerified(ctx, phone, s.otpConfig.VerifyExpirationDuration())
+	if err != nil {
+		return nil, err
+	}
 
 	success := true
 	return &success, nil
 }
 
-func (s *authService) Login(ctx context.Context, phone string, password string) (access string, refresh string, err error) {
+func (s *authService) Login(ctx context.Context, phone string, password string) (*dto.StartAuthResponse, error) {
 	user, err := s.userRepo.FindUserByPhone(ctx, phone)
 	if err != nil {
 		if errors.Is(err, exception.ErrUserNotFound) {
-			return "", "", exception.ErrInvalidCredentials
+			log.Printf("loginsrv:%v\n", err)
+			return nil, exception.ErrInvalidCredentials
 		}
-		return "", "", err
+		return nil, err
 	}
+	// if user.IsPhoneVerified == false {
+	// 	return nil, exception.ErrNotVerifiedPhoneNumber
+	// }
 
 	err = s.hasher.Compare(password, user.PasswordHash)
 	if err != nil {
-		return "", "", exception.ErrInvalidCredentials
+		log.Printf("loginsrv:%v\n", err)
+		return nil, exception.ErrInvalidCredentials
 	}
 
-	access, refresh, err = s.tokenService.GenerateTokens(ctx, dto.GenerateTokenRequest{UserID: user.ID})
+	access, refresh, err := s.tokenService.GenerateTokens(ctx, dto.GenerateTokenRequest{UserID: user.ID})
 	if err != nil {
-		return "", "", fmt.Errorf("failed to generate token: %w", err)
+		return nil, fmt.Errorf("failed to generate token: %w", err)
 	}
-	s.refreshRepo.SaveRefreshToken(ctx, string(user.ID), refresh, s.jwtConfig.RefreshDuration())
+	strid := strconv.Itoa(int(user.ID))
+
+	err = s.refreshRepo.SaveRefreshToken(ctx, strid, refresh, s.jwtConfig.RefreshDuration())
 	if err != nil {
-		return "", "", fmt.Errorf("failed to save refresh token: %w", err)
+		return nil, fmt.Errorf("failed to save refresh token: %w", err)
 	}
-	return access, refresh, nil
+	return &dto.StartAuthResponse{
+		AccessToken:  access,
+		RefreshToken: refresh,
+		UserID:       user.ID,
+		Phone:        user.Phone,
+		Email:        user.Email,
+		FirstName:    user.FirstName,
+		LastName:     user.LastName,
+	}, nil
 }
 
-func (s *authService) Register(ctx context.Context, phone string, email string, password string) (access string, refresh string, err error) {
+func (s *authService) Register(ctx context.Context, phone string, email string, password string) (*dto.StartAuthResponse, error) {
 	existingUser, err := s.userRepo.FindUserByPhone(ctx, phone)
 	if err == nil && existingUser != nil {
-		return "", "", exception.ErrUserAlreadyExists
+		return nil, exception.ErrUserAlreadyExists
 	} else if err != nil && !errors.Is(err, exception.ErrUserNotFound) {
-		return "", "", err
+		return nil, err
 	}
 
-	existingUser, err = s.userRepo.FindUserByEmail(ctx, phone)
+	existingUser, err = s.userRepo.FindUserByEmail(ctx, email)
 	if err == nil && existingUser != nil {
-		return "", "", exception.ErrUserAlreadyExists
+		return nil, exception.ErrUserAlreadyExists
 	} else if err != nil && !errors.Is(err, exception.ErrUserNotFound) {
-		return "", "", err
+		return nil, err
 	}
 
 	hashedPassword, err := s.hasher.Hash(password)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to hash password: %w", err)
+		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
 	newUser := &entity.User{
@@ -150,6 +189,7 @@ func (s *authService) Register(ctx context.Context, phone string, email string, 
 		Email:           email,
 		FirstName:       "<Empty>",
 		LastName:        "<Empty>",
+		Status:          enum.UserStatusActive,
 		WalletBalance:   0,
 		IsPhoneVerified: false,
 		IsEmailVerified: false,
@@ -158,22 +198,38 @@ func (s *authService) Register(ctx context.Context, phone string, email string, 
 
 	createdUser, err := s.userRepo.CreateUser(ctx, newUser)
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 
-	access, refresh, err = s.tokenService.GenerateTokens(ctx, dto.GenerateTokenRequest{UserID: createdUser.ID})
+	access, refresh, err := s.tokenService.GenerateTokens(ctx, dto.GenerateTokenRequest{UserID: createdUser.ID})
 	if err != nil {
-		return "", "", fmt.Errorf("failed to generate token: %w", err)
+		return nil, fmt.Errorf("failed to generate token: %w", err)
 	}
 
-	return access, refresh, nil
+	return &dto.StartAuthResponse{
+		AccessToken:  access,
+		RefreshToken: refresh,
+		UserID:       newUser.ID,
+		Phone:        newUser.Phone,
+		Email:        newUser.Email,
+		FirstName:    newUser.FirstName,
+		LastName:     newUser.LastName}, nil
 }
 
 func (s *authService) VerifyPhone(ctx context.Context, tokenData *dto.TokenInContext, phone string, code string) (*bool, error) {
-	return s.VerifyOTP(ctx, phone, code)
+	_, err := s.VerifyOTP(ctx, phone, code)
+	if err != nil {
+		return nil, err
+	}
+	err = s.userRepo.VerifyUserPhone(ctx, tokenData.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	success := true
+	return &success, nil
 }
 
-// TODO : send otp email handler/srv
 func (s *authService) VerifyEmail(ctx context.Context, tokenData *dto.TokenInContext, email string, code string) (*bool, error) {
 	if email == "" || code == "" {
 		return nil, exception.ErrInvalidOTP
@@ -203,4 +259,72 @@ func (s *authService) VerifyEmail(ctx context.Context, tokenData *dto.TokenInCon
 
 	success := true
 	return &success, nil
+}
+
+// RefreshToken validates the refresh token and generates a new token pair.
+func (s *authService) RefreshToken(ctx context.Context, refreshToken *dto.RefreshTokenRequest) (*dto.StartAuthResponse, error) {
+	if refreshToken.RefreshToken == "" {
+		return nil, exception.ErrInvalidToken
+	}
+
+	claims, err := s.tokenService.ValidateToken(ctx, refreshToken.RefreshToken, string(domainjwt.RefreshTokenTag))
+	if err != nil {
+		return nil, exception.ErrTokenExpired
+	}
+
+	storedToken, err := s.refreshRepo.GetRefreshToken(ctx, strconv.Itoa(int(claims.UserID)))
+	if err != nil || storedToken != refreshToken.RefreshToken {
+		return nil, exception.ErrInvalidToken
+	}
+
+	user, err := s.userRepo.FindUserByID(ctx, claims.UserID)
+	if err != nil {
+		if errors.Is(err, exception.ErrUserNotFound) {
+			return nil, exception.ErrUserNotFound
+		}
+		return nil, err
+	}
+
+	newAccessToken, err := s.tokenService.GenerateAccessToken(ctx, dto.GenerateTokenRequest{UserID: user.ID})
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate access token: %w", err)
+	}
+
+	newRefreshToken, err := s.tokenService.GenerateRefreshToken(ctx, dto.GenerateTokenRequest{UserID: user.ID})
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
+	}
+
+	err = s.refreshRepo.SaveRefreshToken(ctx, strconv.Itoa(int(user.ID)), newRefreshToken, s.jwtConfig.RefreshDuration())
+	if err != nil {
+		return nil, fmt.Errorf("failed to store refresh token: %w", err)
+	}
+
+	return &dto.StartAuthResponse{
+		AccessToken:  newAccessToken,
+		RefreshToken: newRefreshToken,
+		UserID:       user.ID,
+		Phone:        user.Phone,
+		Email:        user.Email,
+		FirstName:    user.FirstName,
+		LastName:     user.LastName,
+	}, nil
+}
+
+// Logout invalidates the refresh token and terminates the session.
+func (s *authService) Logout(ctx context.Context, tokenData *dto.TokenInContext, jwtContext *dto.JWTTokenInContext, refreshToken *dto.LogoutRequest) error {
+	if tokenData == nil || tokenData.UserID == 0 {
+		return exception.ErrInvalidCredentials
+	}
+
+	err := s.refreshRepo.DeleteRefreshToken(ctx, strconv.Itoa(int(tokenData.UserID)))
+	if err != nil {
+		return fmt.Errorf("failed to revoke refresh token: %w", err)
+	}
+
+	err = s.tokenService.BlacklistToken(ctx, jwtContext.TheToken, jwtContext.TheTokenExpireAt.Unix())
+	if err != nil {
+		return err
+	}
+	return nil
 }

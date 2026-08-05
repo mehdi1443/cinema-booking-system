@@ -19,4 +19,7 @@ type JWTServiceInterface interface {
 	GenerateAccessToken(ctx context.Context, req dto.GenerateTokenRequest) (string, error)
 	GenerateRefreshToken(ctx context.Context, req dto.GenerateTokenRequest) (string, error)
 	ValidateToken(ctx context.Context, signedToken string, tokenType string) (*domainjwt.TokenPayload, error)
+
+	BlacklistToken(ctx context.Context, token string, expiresAt int64) error
+	IsBlacklisted(ctx context.Context, token string) (*bool, error)
 }

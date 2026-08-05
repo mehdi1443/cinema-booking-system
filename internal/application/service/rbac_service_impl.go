@@ -2,33 +2,91 @@ package service
 
 import (
 	"context"
+	"errors"
+	"strconv"
+	"time"
 
+	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/cache"
 )
 
 type rbacService struct {
-	rbacRepo repository_contract.RBACInterface
-	userRepo repository_contract.UserInterFace
+	rbacRepo                  repository_contract.RBACInterface
+	userRepo                  repository_contract.UserInterFace
+	userPermissionCacheRepo   cache.UserPermissionCacheInterface
+	userPermissionCacheConfig *bootstrap.UserPermissionCache
 }
 
-func NewRBACService(rbacRepo repository_contract.RBACInterface, userRepo repository_contract.UserInterFace) service_contract.RBACServiceInterface {
-	return &rbacService{rbacRepo: rbacRepo, userRepo: userRepo}
+func NewRBACService(
+	rbacRepo repository_contract.RBACInterface,
+	userRepo repository_contract.UserInterFace,
+	userPermissionCacheRepo cache.UserPermissionCacheInterface,
+	userPermissionCacheConfig *bootstrap.UserPermissionCache,
+) service_contract.RBACServiceInterface {
+	return &rbacService{rbacRepo: rbacRepo, userRepo: userRepo,
+		userPermissionCacheRepo: userPermissionCacheRepo, userPermissionCacheConfig: userPermissionCacheConfig}
 }
 
 func (s *rbacService) AssignPermissionsToRole(ctx context.Context, tokenData *dto.TokenInContext, roleID int64, permissionIDs []*int64) error {
 	if len(permissionIDs) == 0 {
 		return nil
 	}
-	return s.rbacRepo.AssignPermissionsToRole(ctx, roleID, permissionIDs)
+	err := s.rbacRepo.AssignPermissionsToRole(ctx, roleID, permissionIDs)
+	if err != nil {
+		return err
+	}
+
+	role, err := s.rbacRepo.GetRoleByID(ctx, roleID)
+	if err != nil {
+		return err
+	}
+	users, err := s.GetUsersByRoleNames(ctx, tokenData, []string{role.Name})
+	if err != nil {
+		return err
+	}
+	userIDs := make([]string, len(users))
+	for i := 0; i < len(users); i++ {
+		id := strconv.Itoa(int(users[i].ID))
+		userIDs = append(userIDs, id)
+	}
+	err = s.userPermissionCacheRepo.DeleteAllUserPermission(ctx, userIDs)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *rbacService) DischargePermissionsOfRole(ctx context.Context, tokenData *dto.TokenInContext, roleID int64, permissionIDs []*int64) error {
 	if len(permissionIDs) == 0 {
 		return nil
 	}
-	return s.rbacRepo.DischargePermissionsOfRole(ctx, roleID, permissionIDs)
+	err := s.rbacRepo.DischargePermissionsOfRole(ctx, roleID, permissionIDs)
+	if err != nil {
+		return err
+	}
+
+	role, err := s.rbacRepo.GetRoleByID(ctx, roleID)
+	if err != nil {
+		return err
+	}
+	users, err := s.GetUsersByRoleNames(ctx, tokenData, []string{role.Name})
+	if err != nil {
+		return err
+	}
+	userIDs := make([]string, len(users))
+	for i := 0; i < len(users); i++ {
+		id := strconv.Itoa(int(users[i].ID))
+		userIDs = append(userIDs, id)
+	}
+	err = s.userPermissionCacheRepo.DeleteAllUserPermission(ctx, userIDs)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *rbacService) UserHasPermission(ctx context.Context, tokenData *dto.TokenInContext, userID int64, permissionName string) (bool, error) {
@@ -37,6 +95,27 @@ func (s *rbacService) UserHasPermission(ctx context.Context, tokenData *dto.Toke
 
 func (s *rbacService) UserHasRole(ctx context.Context, tokenData *dto.TokenInContext, userID int64, roleName string) (bool, error) {
 	return s.rbacRepo.UserHasRoleByName(ctx, userID, roleName)
+}
+
+func (s *rbacService) GetUserPermissionNames(ctx context.Context, tokenData *dto.TokenInContext, userID int64) ([]string, error) {
+	permsStr, err := s.userPermissionCacheRepo.GetUserPermissions(ctx, strconv.Itoa(int(userID)))
+	if err != nil {
+		if errors.Is(err, exception.ErrUserPermissionNotFound) {
+			permsStr, err = s.rbacRepo.GetUserPermissionNames(ctx, userID)
+			if err != nil {
+				return nil, err
+			}
+			err := s.userPermissionCacheRepo.SaveUserPermissions(ctx, strconv.Itoa(int(userID)), permsStr, time.Duration(s.userPermissionCacheConfig.UserPermissionExpiredDuration)*time.Minute)
+			if err != nil {
+				return nil, err
+			}
+			return permsStr, nil
+		}
+		return nil, err
+
+	}
+	return permsStr, nil
+
 }
 
 func (s *rbacService) GetUserPermissions(ctx context.Context, tokenData *dto.TokenInContext, userID int64) ([]*dto.PermissionResponse, error) {
@@ -103,21 +182,25 @@ func (s *rbacService) GetRoleByID(ctx context.Context, tokenData *dto.TokenInCon
 	return dto.ToRoleResponse(role), nil
 }
 
-func (s *rbacService) UpdateUserRoles(ctx context.Context, ctxToken *dto.TokenInContext, req dto.UpdateUserRolesRequest) (*dto.UserResponse, error) {
+func (s *rbacService) UpdateUserRoles(ctx context.Context, ctxToken *dto.TokenInContext, userID int64, req dto.UpdateUserRolesRequest) (*dto.UserResponse, error) {
 	// 1. Verify user exists
-	_, err := s.userRepo.FindUserByID(ctx, req.UserID)
+	_, err := s.userRepo.FindUserByID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
 	// 2. Sync roles via repository
-	err = s.rbacRepo.UpdateUserRoles(ctx, req.UserID, req.RoleIDs)
+	err = s.rbacRepo.UpdateUserRoles(ctx, userID, req.RoleIDs)
+	if err != nil {
+		return nil, err
+	}
+	err = s.userPermissionCacheRepo.DeleteUserPermission(ctx, strconv.Itoa(int(userID)))
 	if err != nil {
 		return nil, err
 	}
 
 	// 3. Fetch reloaded user with new roles
-	updatedUser, err := s.userRepo.FindUserByID(ctx, req.UserID)
+	updatedUser, err := s.userRepo.FindUserByID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}

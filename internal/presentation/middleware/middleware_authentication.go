@@ -17,12 +17,14 @@ func JWTAuthentication(tokenService service_contract.JWTServiceInterface) gin.Ha
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
 			response.Error(c, http.StatusUnauthorized, "authorization_header_required")
+			c.Abort()
 			return
 		}
 
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || parts[0] != "Bearer" {
 			response.Error(c, http.StatusUnauthorized, "invalid_authorization_format")
+			c.Abort()
 			return
 		}
 
@@ -32,19 +34,31 @@ func JWTAuthentication(tokenService service_contract.JWTServiceInterface) gin.Ha
 		if err != nil {
 			if errors.Is(err, exception.ErrTokenExpired) {
 				response.Error(c, http.StatusUnauthorized, "access token has expired")
+				c.Abort()
 				return
 			}
 
 			response.Error(c, http.StatusUnauthorized, "token is malformed or invalid")
+			c.Abort()
 			return
 		}
 
 		if payload.TokenType != domainjwt.AccessTokenTag {
 			response.Error(c, http.StatusForbidden, "invalid_token_type")
+			c.Abort()
+			return
+		}
+
+		isBlacklisted, err := tokenService.IsBlacklisted(c.Request.Context(), tokenString)
+		if err != nil || (isBlacklisted != nil && *isBlacklisted) {
+			response.Error(c, http.StatusUnauthorized, "token has been revoked", err)
+			c.Abort()
 			return
 		}
 
 		c.Set(domainjwt.CtxUserIDKey, payload.UserID)
+		c.Set(domainjwt.CtxTheTokenKey, tokenString)
+		c.Set(domainjwt.CtxTheTokenExpireAtKey, payload.ExpiresAt)
 		c.Set(domainjwt.CtxPayloadKey, payload) // i don't know may be need it in future :)
 
 		c.Next()

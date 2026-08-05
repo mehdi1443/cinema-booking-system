@@ -7,4 +7,5 @@ import (
 
 type ContextTokenServiceInterface interface {
 	GetTokenFromGinContext(gctx *gin.Context) (dto.TokenInContext, error)
+	GetJWTFromGinContext(gctx *gin.Context) (dto.JWTTokenInContext, error)
 }
