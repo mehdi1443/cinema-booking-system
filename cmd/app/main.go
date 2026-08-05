@@ -53,15 +53,17 @@ func main() {
 	}
 
 	// --- RSA KEYS ---
-	accessRSA, err := rsa.NewRSAKeys(config.Environment.JWT.AccessPrivateKey)
+	accessKeys, err := rsa.LoadOrCreate(config.Environment.PEM.PrivateAccessPath, config.Environment.PEM.PublicAccessPath, 2048)
 	if err != nil {
-		log.Fatalf("build-access-rsa:WTF")
+		log.Fatalf("build-access-rsa:WTF:Key initialization failed: %v", err)
 	}
+	fmt.Println("build-access-rsa:ok")
 
-	refreshRSA, err := rsa.NewRSAKeys(config.Environment.JWT.RefreshPrivateKey)
+	refreshKeys, err := rsa.LoadOrCreate(config.Environment.PEM.PrivateRefreshPath, config.Environment.PEM.PublicRefreshPath, 2048)
 	if err != nil {
-		log.Fatalf("build-refresh-rsa:WTF")
+		log.Fatalf("build-refresh-rsa:WTF:Key initialization failed: %v", err)
 	}
+	fmt.Println("build-refresh-rsa:ok")
 
 	// --- HASHER ---
 	bcryptHasher := hash.NewBcryptHasher()
@@ -83,7 +85,7 @@ func main() {
 	log.Println("Database seeded successfully!")
 
 	// --- SERVICES ---
-	jwtSrv := service.NewTokenService(accessRSA, refreshRSA, &config.Environment.JWT)
+	jwtSrv := service.NewTokenService(accessKeys, refreshKeys, &config.Environment.JWT)
 	smsSrv := service.NewSMSService()
 	userSrv := service.NewUserService(userRepo)
 	authSrv := service.NewAuthService(userRepo, otpRepo, refreshtokenRepo, jwtSrv, random.NewRandomGeneratorEngine(), &config.Environment.OTP, &config.Environment.JWT, smsSrv, hash.NewBcryptHasher())
