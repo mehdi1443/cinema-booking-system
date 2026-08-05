@@ -28,7 +28,7 @@ func JWTAuthentication(tokenService service_contract.JWTServiceInterface) gin.Ha
 
 		tokenString := parts[1]
 
-		payload, err := tokenService.ValidateToken(tokenString)
+		payload, err := tokenService.ValidateToken(c.Request.Context(), tokenString)
 		if err != nil {
 			if errors.Is(err, exception.ErrTokenExpired) {
 				response.Error(c, http.StatusUnauthorized, "access token has expired")

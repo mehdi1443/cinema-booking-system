@@ -1,6 +1,8 @@
 package service_contract
 
 import (
+	"context"
+
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	domainjwt "github.com/mehdi1443/cinema-booking-system/internal/domain/jwt"
 )
@@ -13,7 +15,8 @@ const (
 )
 
 type JWTServiceInterface interface {
-	GenerateAccessToken(req dto.GenerateTokenRequest) (string, error)
-	GenerateRefreshToken(req dto.GenerateTokenRequest) (string, error)
-	ValidateToken(signedToken string) (*domainjwt.TokenPayload, error)
+	GenerateTokens(ctx context.Context,req dto.GenerateTokenRequest) (access string , refresh string , err error)
+	GenerateAccessToken(ctx context.Context,req dto.GenerateTokenRequest) (string, error)
+	GenerateRefreshToken(ctx context.Context,req dto.GenerateTokenRequest) (string, error)
+	ValidateToken(ctx context.Context,signedToken string) (*domainjwt.TokenPayload, error)
 }

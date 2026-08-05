@@ -2,16 +2,19 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
+	"github.com/mehdi1443/cinema-booking-system/pkg/hash"
 )
 
 type userService struct {
 	userRepo repository_contract.UserInterFace
+	hasher   *hash.BcryptHasher
 }
 
 func NewUserService(userRepo repository_contract.UserInterFace) service_contract.UserServiceInterface {
@@ -135,4 +138,31 @@ func (s *userService) GetUsers(ctx context.Context, tokenData *dto.TokenInContex
 	}
 
 	return dto.ToUserResponseSlice(users, &query.HideFieldUserOption), nil
+}
+
+func (s *userService) UpdatePassword(ctx context.Context, ctxToken *dto.TokenInContext, userId int64, password dto.UpdatePasswordRequest) (*bool, error) {
+	if password.Password == "" {
+		return nil, exception.ErrInvalidPassword
+	}
+
+	// 1. Verify user existence
+	_, err := s.userRepo.FindUserByID(ctx, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Hash the raw password
+	hashedPassword, err := s.hasher.Hash(password.Password)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	// 3. Update the password in the database
+	err = s.userRepo.UpdatePassword(ctx, userId, string(hashedPassword))
+	if err != nil {
+		return nil, err
+	}
+
+	success := true
+	return &success, nil
 }

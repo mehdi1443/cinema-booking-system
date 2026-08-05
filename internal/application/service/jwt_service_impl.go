@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -26,7 +27,19 @@ func NewTokenService(rsaKeys *rsa.RSAKeys, cfg *bootstrap.JWT) service_contract.
 	}
 }
 
-func (s *jwtService) GenerateAccessToken(req dto.GenerateTokenRequest) (string, error) {
+func (s *jwtService) GenerateTokens(ctx context.Context, req dto.GenerateTokenRequest) (access string, refresh string, err error) {
+	access, err = s.GenerateAccessToken(ctx, req)
+	if err != nil {
+		return "", "", err
+	}
+	refresh, err = s.GenerateRefreshToken(ctx, req)
+	if err != nil {
+		return "", "", err
+	}
+	return access, refresh, nil
+}
+
+func (s *jwtService) GenerateAccessToken(ctx context.Context, req dto.GenerateTokenRequest) (string, error) {
 	now := time.Now()
 	payload := domainjwt.TokenPayload{
 		UserID:    req.UserID,
@@ -37,7 +50,7 @@ func (s *jwtService) GenerateAccessToken(req dto.GenerateTokenRequest) (string, 
 	return s.generateToken(payload)
 }
 
-func (s *jwtService) GenerateRefreshToken(req dto.GenerateTokenRequest) (string, error) {
+func (s *jwtService) GenerateRefreshToken(ctx context.Context, req dto.GenerateTokenRequest) (string, error) {
 	now := time.Now()
 	payload := domainjwt.TokenPayload{
 		UserID:    req.UserID,
@@ -48,7 +61,7 @@ func (s *jwtService) GenerateRefreshToken(req dto.GenerateTokenRequest) (string,
 	return s.generateToken(payload)
 }
 
-func (s *jwtService) ValidateToken(signedToken string) (*domainjwt.TokenPayload, error) {
+func (s *jwtService) ValidateToken(ctx context.Context, signedToken string) (*domainjwt.TokenPayload, error) {
 	parsedToken, err := jwt.Parse(signedToken, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
@@ -116,4 +129,3 @@ func (s *jwtService) parseClaimsToPayload(claims jwt.MapClaims) (*domainjwt.Toke
 
 	return payload, nil
 }
-

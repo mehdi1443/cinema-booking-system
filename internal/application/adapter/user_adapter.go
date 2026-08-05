@@ -20,4 +20,6 @@ type UserServiceInterface interface {
 
 	DeleteUserByID(ctx context.Context, ctxToken *dto.TokenInContext, id int64) error
 	GetUsers(ctx context.Context, tokenData *dto.TokenInContext, query *dto.GetUsersQueryDTO) ([]*dto.UserResponse, error)
+
+	UpdatePassword(ctx context.Context, ctxToken *dto.TokenInContext, userId int64, password dto.UpdatePasswordRequest) (*bool, error)
 }

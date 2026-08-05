@@ -10,7 +10,7 @@ import (
 )
 
 type Handlers struct {
-	Auth handler.AuthController
+	Auth handler.AuthHandler
 	User handler.UserHandler
 }
 
@@ -30,15 +30,15 @@ func SetUpRouter(handler *Handlers, config *bootstrap.Config, limiter *middlewar
 	//FIXME : ADD AUTHORIZATION MIDDLEWARE!!!!!  exm :
 	// r.Use(middleware.ControlUserAccess(/*// FIXME permision list*/))
 
-	v1 := r.Group("/v1")
+	// v1 := r.Group("/v1")
 
-	v1.POST("/send-otp", handler.Auth.SendOTP)
-	v1.POST("/verify-otp", handler.Auth.VerifyOTP)
-	v1.POST("/register", handler.Auth.Register)
-	v1.POST("/login", handler.Auth.Login)
-	v1.POST("/refresh", handler.Auth.Refresh)
+	// v1.POST("/send-otp", handler.Auth.SendOTP)
+	// v1.POST("/verify-otp", handler.Auth.VerifyOTP)
+	// v1.POST("/register", handler.Auth.Register)
+	// v1.POST("/login", handler.Auth.Login)
+	// v1.POST("/refresh", handler.Auth.Refresh)
 
-	//FIXME : ADD AUTH MIDDLEWARE!!!!!
-	v1.POST("/logout", handler.Auth.Logout)
+	// //FIXME : ADD AUTH MIDDLEWARE!!!!!
+	// v1.POST("/logout", handler.Auth.Logout)
 	return r
 }

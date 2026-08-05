@@ -20,10 +20,17 @@ type UserResponse struct {
 	UpdatedAt     *time.Time      `json:"updated_at,omitempty"`
 	DeletedAt     *time.Time      `json:"deleted_at,omitempty"`
 	Roles         []*RoleResponse `json:"roles,omitempty"`
+
+	IsPhoneVerified bool `json:"is_verified_phone"`
+	IsEmailVerified bool `json:"is_verified_email"`
 }
 
 type ChangeUserStatusRequest struct {
 	Status enum.UserStatus `json:"status" binding:"required"`
+}
+
+type UpdatePasswordRequest struct {
+	Password string `json:"password" binding:"required,min=8"`
 }
 
 func ToUserResponse(user *entity.User, hideOpt *HideFieldUserOption) *UserResponse {
@@ -32,15 +39,17 @@ func ToUserResponse(user *entity.User, hideOpt *HideFieldUserOption) *UserRespon
 	}
 
 	res := &UserResponse{
-		ID:            user.ID,
-		Phone:         user.Phone,
-		Email:         user.Email,
-		FirstName:     user.FirstName,
-		LastName:      user.LastName,
-		Status:        user.Status,
-		WalletBalance: &user.WalletBalance,
-		CreatedAt:     helper.TimeToPtr(user.CreatedAt),
-		UpdatedAt:     helper.TimeToPtr(user.UpdatedAt),
+		ID:              user.ID,
+		Phone:           user.Phone,
+		Email:           user.Email,
+		FirstName:       user.FirstName,
+		LastName:        user.LastName,
+		Status:          user.Status,
+		WalletBalance:   &user.WalletBalance,
+		CreatedAt:       helper.TimeToPtr(user.CreatedAt),
+		UpdatedAt:       helper.TimeToPtr(user.UpdatedAt),
+		IsPhoneVerified: user.IsPhoneVerified,
+		IsEmailVerified: user.IsEmailVerified,
 	}
 
 	if hideOpt != nil {

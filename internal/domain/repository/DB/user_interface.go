@@ -56,4 +56,9 @@ type UserInterFace interface {
 	FindPermissionByID(ctx context.Context, pid int64) (*entity.Permission, error)
 
 	FindUsers(ctx context.Context, filter *dto.GetUsersQueryDTO) ([]*entity.User, error)
+
+	UpdatePassword(ctx context.Context, userID int64, hashedPassword string) error
+
+	VerifyUserPhone(ctx context.Context, userID int64) error
+	VerifyUserEmail(ctx context.Context, userID int64) error
 }

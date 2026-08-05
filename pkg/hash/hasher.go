@@ -15,7 +15,7 @@ func (b *BcryptHasher) Hash(password string) (string, error) {
 	return string(hash), err
 }
 
-func (b *BcryptHasher) Compare(password, hash string) bool {
+func (b *BcryptHasher) Compare(password, hash string) error {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-	return err == nil
+	return err
 }

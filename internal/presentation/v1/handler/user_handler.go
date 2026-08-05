@@ -289,3 +289,42 @@ func (h *UserHandler) GetUsers(c *gin.Context) {
 
 	response.Success(c, http.StatusOK, "Users retrieved successfully", users)
 }
+
+func (h *UserHandler) UpdatePassword(c *gin.Context) {
+	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid user ID", err)
+		return
+	}
+
+	tokenData, err := h.contexttokenService.GetTokenFromGinContext(c)
+	if err != nil {
+		log.Printf("[AUTH ERROR] Failed to extract token context: %v", err)
+		response.Error(c, http.StatusUnauthorized, exception.ErrGetTokenFromContext.Error())
+		return
+	}
+
+	var req dto.UpdatePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid request payload", err)
+		return
+	}
+
+	success, err := h.userService.UpdatePassword(c.Request.Context(), &tokenData, userID, req)
+	if err != nil {
+		log.Printf("[SERVICE ERROR] UpdatePassword failed: %v", err)
+		switch {
+		case errors.Is(err, exception.ErrUserNotFound):
+			response.Error(c, http.StatusNotFound, "User not found", err)
+		case errors.Is(err, exception.ErrInvalidPassword):
+			response.Error(c, http.StatusBadRequest, "Invalid password provided", err)
+		default:
+			response.Error(c, http.StatusInternalServerError, "Failed to update password", err)
+		}
+		return
+	}
+
+	response.Success(c, http.StatusOK, "Password updated successfully", gin.H{
+		"success": success,
+	})
+}

@@ -5,6 +5,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/handler"
 )
 
+// TODO : ignrore fileds for base response in each endpoints + permission&Accessibility + userpermission cache issue
 func RegisterRoutes(
 	rg *gin.RouterGroup,
 	userHandler *handler.UserHandler,
@@ -12,9 +13,10 @@ func RegisterRoutes(
 	walletHandler *handler.WalletHandler,
 ) {
 	// User Endpoints
-	users := rg.Group("/users") //TODO : errhttpcode + permission&Accessibility
+	users := rg.Group("/users")
 	{
 		//* specific
+		users.PATCH("/:id/password", userHandler.UpdatePassword)	
 
 		//profile
 		users.GET("/:id/profile", userHandler.GetProfile)

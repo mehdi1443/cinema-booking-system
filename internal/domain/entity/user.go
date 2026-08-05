@@ -2,6 +2,7 @@ package entity
 
 import (
 	"math"
+	"time"
 
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 )
@@ -15,6 +16,12 @@ type User struct {
 	LastName      string          `json:"last_name"`
 	WalletBalance int64           `json:"wallet_balance"`
 	Status        enum.UserStatus `json:"status"` // مشکل باهاش دارم چرا اینجاست و چرا باشه و چرا نباشه
+
+	IsPhoneVerified bool `json:"is_verified_phone"`
+	IsEmailVerified bool `json:"is_verified_email"`
+
+	PhoneVerifiedAt time.Time `json:"phone_verified_time"`
+	EmailVerifiedAt time.Time `json:"email_verified_time"`
 
 	Roles []*Role `json:"roles,omitempty" gorm:"many2many:user_roles;"`
 }

@@ -1,18 +1,18 @@
 package service_contract
 
-//  type AuthenticationServiceInterface interface {
-// 	ForgotPassword(forgotPasswordInfo userdto.ForgotPasswordRequest) error
-// 	VerifyOTP(verifyInfo userdto.VerifyPhoneRequest) (userdto.UserInfoResponse, error)
-// 	Register(registerInfo userdto.BasicRegisterRequest) error
-// 	VerifyPhone(verifyInfo userdto.VerifyPhoneRequest) error
-// 	Login(loginInfo userdto.LoginRequest) (userdto.UserInfoResponse, error)
-// 	CompleteRegister(completeRegisterInfo userdto.CompleteRegisterRequest) error
+import (
+	"context"
 
-// 	VerifyEmail(verifyOTPInfo userdto.VerifyEmailRequest) error
-// 	ResetPassword(resetPassInfo userdto.ResetPasswordRequest) error
+	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
+)
 
-// 	Register(ctx context.Context, dto RegisterDTO) (*entity.User, *AuthToken, error)
-// 	Login(ctx context.Context, dto LoginDTO) (*entity.User, *AuthToken, error)
-// 	RefreshToken(ctx context.Context, refreshToken string) (*AuthToken, error)
-// 	RefreshToken(refreshToken string) (userdto.UserInfoResponse, error)
-// }
+type AuthenticationServiceInterface interface {
+	SendOTP(ctx context.Context, phone string) (*bool, error)
+	VerifyOTP(ctx context.Context, phone string, code string) (*bool, error)
+
+	Login(ctx context.Context, phone string, password string) (access string, refresh string, err error)
+	Register(ctx context.Context, phone string, email string, password string) (access string, refresh string, err error)
+
+	VerifyPhone(ctx context.Context, tokenData *dto.TokenInContext, phone string, code string) (*bool, error)
+	VerifyEmail(ctx context.Context, tokenData *dto.TokenInContext, email string, code string) (*bool, error)
+}

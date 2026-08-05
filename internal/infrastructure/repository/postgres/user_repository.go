@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
@@ -510,4 +511,57 @@ func (r *userRepositoryPostgres) FindUsers(ctx context.Context, filter *dto.GetU
 	}
 
 	return users, nil
+}
+
+func (r *userRepositoryPostgres) UpdatePassword(ctx context.Context, userID int64, hashedPassword string) error {
+	res := r.db.GetDB().WithContext(ctx).
+		Model(&entity.User{}).
+		Where("id = ? AND deleted_at IS NULL", userID).
+		Update("password", hashedPassword)
+
+	if res.Error != nil {
+		return fmt.Errorf("%w: %v", exception.ErrDatabase, res.Error)
+	}
+
+	if res.RowsAffected == 0 {
+		return exception.ErrUserNotFound
+	}
+
+	return nil
+}
+
+func (r *userRepositoryPostgres) VerifyUserPhone(ctx context.Context, userID int64) error {
+	res := r.db.GetDB().WithContext(ctx).
+		Model(&entity.User{}).
+		Where("id = ? AND deleted_at IS NULL", userID).
+		Updates(map[string]interface{}{
+			"is_phone_verified": true,
+			"phone_verified_at": time.Now(),
+		})
+
+	if res.Error != nil {
+		return fmt.Errorf("%w: %v", exception.ErrDatabase, res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return exception.ErrUserNotFound
+	}
+	return nil
+}
+
+func (r *userRepositoryPostgres) VerifyUserEmail(ctx context.Context, userID int64) error {
+	res := r.db.GetDB().WithContext(ctx).
+		Model(&entity.User{}).
+		Where("id = ? AND deleted_at IS NULL", userID).
+		Updates(map[string]interface{}{
+			"is_email_verified": true,
+			"email_verified_at": time.Now(),
+		})
+
+	if res.Error != nil {
+		return fmt.Errorf("%w: %v", exception.ErrDatabase, res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return exception.ErrUserNotFound
+	}
+	return nil
 }

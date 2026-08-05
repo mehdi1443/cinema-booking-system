@@ -14,6 +14,8 @@ type Environment struct {
 	HttpServer HttpServer `mapstructure:",squash" json:"http_server"`
 	JWT        JWT        `mapstructure:",squash" json:"jwt"`
 	Storage    Storage    `mapstructure:",squash" json:"storage"`
+	Limiter    Limiter    `mapstructure:",squash" json:"limiter"`
+	OTP        OTP        `mapstructure:",squash" json:"otp"`
 }
 
 type HttpServer struct {
@@ -34,7 +36,7 @@ type Redis struct {
 	Host      string `mapstructure:"RDB_HOST"      json:"host"`
 	Port      string `mapstructure:"RDB_PORT"      json:"port"`
 	Password  string `mapstructure:"RDB_PASSWORD"  json:"password"`
-	RDBNumber string `mapstructure:"RDB_DB_NUMBER"  json:"db"`
+	RDBNumber string `mapstructure:"RDB_DB_NUMBER" json:"db"`
 }
 
 type JWT struct {
@@ -60,12 +62,28 @@ type BucketName struct {
 	CinemaPhoto  string `mapstructure:"S3_CINEMA_PHOTO_BUCKET"  json:"cinema_photo_bucket"`
 }
 
+type Limiter struct {
+	HighRate   int `mapstructure:"LIMITER_HIGH_RATE"   json:"high_rate"`
+	MediumRate int `mapstructure:"LIMITER_MEDIUM_RATE" json:"medium_rate"`
+	SmallRate  int `mapstructure:"LIMITER_SMALL_RATE"  json:"small_rate"`
+	TinyRate   int `mapstructure:"LIMITER_TINY_RATE"   json:"tiny_rate"`
+}
+
+type OTP struct {
+	Digit         int64 `mapstructure:"OTP_DIGIT_NUMBER"   json:"digit_number"`
+	ExpireMinutes int   `mapstructure:"OTP_EXPIRE_MINUTES" json:"expire_minutes"`
+}
+
 func (c *JWT) AccessDuration() time.Duration {
 	return time.Duration(c.AccessExpireMinutes) * time.Minute
 }
 
 func (c *JWT) RefreshDuration() time.Duration {
 	return time.Duration(c.RefreshExpireDays) * 24 * time.Hour
+}
+
+func (o *OTP) ExpirationDuration() time.Duration {
+	return time.Duration(o.ExpireMinutes) * time.Minute
 }
 
 func NewEnvironment() *Environment {
@@ -99,8 +117,8 @@ func (e *Environment) String() string {
 
 	data, err := json.MarshalIndent(e, "", "  ")
 	if err != nil {
-		return fmt.Sprintf("Environment{DataBase:%+v, Redis:%+v, HttpServer:%+v, JWT:%+v, Storage:%+v}",
-			e.DataBase, e.Redis, e.HttpServer, e.JWT, e.Storage)
+		return fmt.Sprintf("Environment{DataBase:%+v, Redis:%+v, HttpServer:%+v, JWT:%+v, Storage:%+v, Limiter:%+v, OTP:%+v}",
+			e.DataBase, e.Redis, e.HttpServer, e.JWT, e.Storage, e.Limiter, e.OTP)
 	}
 
 	return string(data)
