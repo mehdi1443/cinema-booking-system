@@ -28,65 +28,6 @@ func NewRBACHandler(
 	}
 }
 
-// GetUserPermissions handles GET /users/:id/permissions
-func (h *RBACHandler) GetUserPermissions(c *gin.Context) {
-	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		response.Error(c, http.StatusBadRequest, "Invalid user ID", err)
-		return
-	}
-
-	tokenData, err := h.contexttokenService.GetTokenFromGinContext(c)
-	if err != nil {
-		log.Printf("[AUTH ERROR] Failed to extract token context: %v", err)
-		response.Error(c, http.StatusUnauthorized, exception.ErrGetTokenFromContext.Error())
-		return
-	}
-
-	permissions, err := h.rbacService.GetUserPermissions(c.Request.Context(), &tokenData, userID)
-	if err != nil {
-		log.Printf("[SERVICE ERROR] GetUserPermissions failed: %v", err)
-		switch {
-		case errors.Is(err, exception.ErrUserNotFound):
-			response.Error(c, http.StatusNotFound, "User not found", err)
-		default:
-			response.Error(c, http.StatusInternalServerError, "Failed to retrieve user permissions", err)
-		}
-		return
-	}
-
-	response.Success(c, http.StatusOK, "User permissions retrieved successfully", permissions)
-}
-
-// GetUserRoles handles GET /users/:id/roles
-func (h *RBACHandler) GetUserRoles(c *gin.Context) {
-	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		response.Error(c, http.StatusBadRequest, "Invalid user ID", err)
-		return
-	}
-
-	tokenData, err := h.contexttokenService.GetTokenFromGinContext(c)
-	if err != nil {
-		log.Printf("[AUTH ERROR] Failed to extract token context: %v", err)
-		response.Error(c, http.StatusUnauthorized, exception.ErrGetTokenFromContext.Error())
-		return
-	}
-
-	roles, err := h.rbacService.GetUserRoles(c.Request.Context(), &tokenData, userID)
-	if err != nil {
-		log.Printf("[SERVICE ERROR] GetUserRoles failed: %v", err)
-		switch {
-		case errors.Is(err, exception.ErrUserNotFound):
-			response.Error(c, http.StatusNotFound, "User not found", err)
-		default:
-			response.Error(c, http.StatusInternalServerError, "Failed to retrieve user roles", err)
-		}
-		return
-	}
-
-	response.Success(c, http.StatusOK, "User roles retrieved successfully", roles)
-}
 
 // AssignPermissionsToRole handles POST /roles/:id/permissions
 func (h *RBACHandler) AssignPermissionsToRole(c *gin.Context) {

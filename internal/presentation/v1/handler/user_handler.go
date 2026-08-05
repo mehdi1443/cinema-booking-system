@@ -183,9 +183,8 @@ func (h *UserHandler) UpdateUserRoles(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "Invalid request payload", err)
 		return
 	}
-	req.UserID = id
 
-	updatedUser, err := h.rbacService.UpdateUserRoles(c.Request.Context(), &tokenData, req)
+	updatedUser, err := h.rbacService.UpdateUserRoles(c.Request.Context(), &tokenData, id, req)
 	if err != nil {
 		log.Printf("[SERVICE ERROR] UpdateUserRoles failed: %v", err)
 		switch {
@@ -327,4 +326,64 @@ func (h *UserHandler) UpdatePassword(c *gin.Context) {
 	response.Success(c, http.StatusOK, "Password updated successfully", gin.H{
 		"success": success,
 	})
+}
+
+// GetUserPermissions handles GET /users/:id/permissions
+func (h *UserHandler) GetUserPermissions(c *gin.Context) {
+	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid user ID", err)
+		return
+	}
+
+	tokenData, err := h.contexttokenService.GetTokenFromGinContext(c)
+	if err != nil {
+		log.Printf("[AUTH ERROR] Failed to extract token context: %v", err)
+		response.Error(c, http.StatusUnauthorized, exception.ErrGetTokenFromContext.Error())
+		return
+	}
+
+	permissions, err := h.rbacService.GetUserPermissions(c.Request.Context(), &tokenData, userID)
+	if err != nil {
+		log.Printf("[SERVICE ERROR] GetUserPermissions failed: %v", err)
+		switch {
+		case errors.Is(err, exception.ErrUserNotFound):
+			response.Error(c, http.StatusNotFound, "User not found", err)
+		default:
+			response.Error(c, http.StatusInternalServerError, "Failed to retrieve user permissions", err)
+		}
+		return
+	}
+
+	response.Success(c, http.StatusOK, "User permissions retrieved successfully", permissions)
+}
+
+// GetUserRoles handles GET /users/:id/roles
+func (h *UserHandler) GetUserRoles(c *gin.Context) {
+	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid user ID", err)
+		return
+	}
+
+	tokenData, err := h.contexttokenService.GetTokenFromGinContext(c)
+	if err != nil {
+		log.Printf("[AUTH ERROR] Failed to extract token context: %v", err)
+		response.Error(c, http.StatusUnauthorized, exception.ErrGetTokenFromContext.Error())
+		return
+	}
+
+	roles, err := h.rbacService.GetUserRoles(c.Request.Context(), &tokenData, userID)
+	if err != nil {
+		log.Printf("[SERVICE ERROR] GetUserRoles failed: %v", err)
+		switch {
+		case errors.Is(err, exception.ErrUserNotFound):
+			response.Error(c, http.StatusNotFound, "User not found", err)
+		default:
+			response.Error(c, http.StatusInternalServerError, "Failed to retrieve user roles", err)
+		}
+		return
+	}
+
+	response.Success(c, http.StatusOK, "User roles retrieved successfully", roles)
 }

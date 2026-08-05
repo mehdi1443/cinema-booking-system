@@ -25,10 +25,9 @@ go.work
 go.work.sum
 
 # env file
-# .env 
 .env 
 *.pem
-
+SEND_SMS.txt
 
 # Editor/IDE
 # .idea/

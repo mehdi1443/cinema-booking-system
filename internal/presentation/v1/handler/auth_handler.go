@@ -64,7 +64,7 @@ func (h *AuthHandler) VerifyOTP(c *gin.Context) {
 		case errors.Is(err, exception.ErrInvalidOTP):
 			response.Error(c, http.StatusBadRequest, "Invalid OTP code", err)
 		case errors.Is(err, exception.ErrOTPExpired):
-			response.Error(c, http.StatusBadRequest, "OTP code has expired", err)
+			response.Error(c, http.StatusBadRequest, "OTP code has expired or phone not found", err)
 		default:
 			response.Error(c, http.StatusInternalServerError, "Failed to verify OTP", err)
 		}
@@ -88,6 +88,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	if err != nil {
 		log.Printf("[SERVICE ERROR] Login failed: %v", err)
 		switch {
+		case errors.Is(err, exception.ErrNotVerifiedPhoneNumber):
+			response.Error(c, http.StatusUnauthorized, "Your phone number has not verified yet", err)
 		case errors.Is(err, exception.ErrInvalidCredentials):
 			response.Error(c, http.StatusUnauthorized, "Invalid phone number or password", err)
 		default:
@@ -132,6 +134,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	})
 }
 
+// TODO!!!!!!!!
 func (h *AuthHandler) Refresh(ctx *gin.Context) {
 
 }

@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
+	"strconv"
 
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	cache_repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/cache"
@@ -57,7 +60,7 @@ func (s *authService) SendOTP(ctx context.Context, phone string) (*bool, error) 
 		return nil, exception.ErrInvalidPhone
 	}
 
-	code := string(s.randomService.GenerateRandomNumber(int(s.otpConfig.Digit)))
+	code := strconv.Itoa(s.randomService.GenerateRandomNumber(int(s.otpConfig.Digit)))
 
 	err := s.otpRepo.SaveOTP(ctx, phone, code, s.otpConfig.ExpirationDuration())
 	if err != nil {
@@ -67,7 +70,7 @@ func (s *authService) SendOTP(ctx context.Context, phone string) (*bool, error) 
 	//TODO: Send OTP via SMS provider logic here...
 	s.smsProvider.SendSMS(dto.SendSMSRequest{
 		Phone: phone,
-		Text:  fmt.Sprint("OTP:%s", code),
+		Text:  fmt.Sprintf("OTP:%s", code),
 	})
 	success := true
 	return &success, nil
@@ -95,6 +98,10 @@ func (s *authService) VerifyOTP(ctx context.Context, phone string, code string) 
 	if err != nil {
 		return nil, err
 	}
+	err = s.otpRepo.SetVerified(ctx, phone, s.otpConfig.VerifyExpirationDuration())
+	if err != nil {
+		return nil, err
+	}
 
 	success := true
 	return &success, nil
@@ -104,13 +111,18 @@ func (s *authService) Login(ctx context.Context, phone string, password string) 
 	user, err := s.userRepo.FindUserByPhone(ctx, phone)
 	if err != nil {
 		if errors.Is(err, exception.ErrUserNotFound) {
+			log.Printf("loginsrv:%v\n", err)
 			return "", "", exception.ErrInvalidCredentials
 		}
 		return "", "", err
 	}
+	if user.IsPhoneVerified == false {
+		return "", "", exception.ErrNotVerifiedPhoneNumber
+	}
 
 	err = s.hasher.Compare(password, user.PasswordHash)
 	if err != nil {
+		log.Printf("loginsrv:%v\n", err)
 		return "", "", exception.ErrInvalidCredentials
 	}
 
@@ -118,7 +130,9 @@ func (s *authService) Login(ctx context.Context, phone string, password string) 
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate token: %w", err)
 	}
-	s.refreshRepo.SaveRefreshToken(ctx, string(user.ID), refresh, s.jwtConfig.RefreshDuration())
+	strid := strconv.Itoa(int(user.ID))
+
+	err = s.refreshRepo.SaveRefreshToken(ctx, strid, refresh, s.jwtConfig.RefreshDuration())
 	if err != nil {
 		return "", "", fmt.Errorf("failed to save refresh token: %w", err)
 	}
@@ -133,7 +147,7 @@ func (s *authService) Register(ctx context.Context, phone string, email string, 
 		return "", "", err
 	}
 
-	existingUser, err = s.userRepo.FindUserByEmail(ctx, phone)
+	existingUser, err = s.userRepo.FindUserByEmail(ctx, email)
 	if err == nil && existingUser != nil {
 		return "", "", exception.ErrUserAlreadyExists
 	} else if err != nil && !errors.Is(err, exception.ErrUserNotFound) {
@@ -150,6 +164,7 @@ func (s *authService) Register(ctx context.Context, phone string, email string, 
 		Email:           email,
 		FirstName:       "<Empty>",
 		LastName:        "<Empty>",
+		Status:          enum.UserStatusActive,
 		WalletBalance:   0,
 		IsPhoneVerified: false,
 		IsEmailVerified: false,
@@ -170,7 +185,17 @@ func (s *authService) Register(ctx context.Context, phone string, email string, 
 }
 
 func (s *authService) VerifyPhone(ctx context.Context, tokenData *dto.TokenInContext, phone string, code string) (*bool, error) {
-	return s.VerifyOTP(ctx, phone, code)
+	_, err := s.VerifyOTP(ctx, phone, code)
+	if err != nil {
+		return nil, err
+	}
+	err = s.userRepo.VerifyUserPhone(ctx, tokenData.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	success := true
+	return &success, nil
 }
 
 // TODO : send otp email handler/srv

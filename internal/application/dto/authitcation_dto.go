@@ -1,23 +1,23 @@
 package dto
 
 type SendOTPRequest struct {
-	Phone string `json:"phone" binding:"required"` // TODO : Vallation
+	Phone string `json:"phone" binding:"required,iranian-phone"` 
 }
 
 type VerifyOTPRequest struct {
-	Phone string `json:"phone" binding:"required"` 
-	Code  string `json:"code" binding:"required"`
+	Phone string `json:"phone" binding:"required,iranian-phone"`
+	Code  string `json:"code" binding:"required,otp-code"`
 }
 
 type LoginRequest struct {
-	Phone    string `json:"phone" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Phone    string `json:"phone" binding:"required,iranian-phone"`
+	Password string `json:"password" binding:"required,user-password"`
 }
 
 type RegisterRequest struct {
-	Phone    string `json:"phone" binding:"required"` // TODO : Vallation
-	Email    string `json:"email" binding:"required"` // TODO : Vallation
-	Password string `json:"password" binding:"required,min=8"`
+	Phone    string `json:"phone" binding:"required,iranian-phone"`  
+	Email    string `json:"email" binding:"required,email"`    
+	Password string `json:"password" binding:"required,user-password"` 
 }
 
 type AuthTokenResponse struct {
@@ -26,11 +26,11 @@ type AuthTokenResponse struct {
 }
 
 type VerifyPhoneRequest struct {
-	Phone string `json:"phone" binding:"required"`
-	Code  string `json:"code" binding:"required"`
+	Phone string `json:"phone" binding:"required,iranian-phone"`
+	Code  string `json:"code" binding:"required,otp-code"`
 }
 
 type VerifyEmailRequest struct {
 	Email string `json:"email" binding:"required,email"`
-	Code  string `json:"code" binding:"required"`
+	Code  string `json:"code" binding:"required,otp-code"`
 }

@@ -21,7 +21,7 @@ func NewOTPRepository(client database.Cache) *OTPRepository {
 
 func (r *OTPRepository) getkeysignuture(prefix, tagId string) string {
 	// otp:phone_email:tag|email : REDIS_STRING
-	// otp:verified : REDIS_STRING(false|true)
+	// otp:phone_email:verified : REDIS_STRING(false|true)
 	return prefix + tagId
 }
 

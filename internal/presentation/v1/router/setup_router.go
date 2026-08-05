@@ -18,7 +18,10 @@ type Handlers struct {
 }
 
 type Services struct {
-	TokenService service_contract.JWTServiceInterface
+	TokenService        service_contract.JWTServiceInterface
+	RBACService         service_contract.RBACServiceInterface
+	ContextTokenService service_contract.ContextTokenServiceInterface
+	UserService         service_contract.UserServiceInterface
 }
 
 func SetUpRouter(handler *Handlers, services *Services, config *bootstrap.Config, limiter *middleware.RedisLimiter) *gin.Engine {
@@ -36,15 +39,13 @@ func SetUpRouter(handler *Handlers, services *Services, config *bootstrap.Config
 
 	//HACK : this is just a exm for how to use limiter
 	// r.Use(limiter.PerSecond(config.Constant.Limiter.HighRate))
-	//FIXME : ADD AUTHORIZATION MIDDLEWARE!!!!!  exm :
-	// r.Use(middleware.ControlUserAccess(/*// FIXME permision list*/))
+
 
 	authMiddleware := middleware.JWTAuthentication(services.TokenService)
-
 	v1 := r.Group("/v1")
-	SetUpUserRouter(v1, &handler.User, &handler.RBAC, &handler.Wallet, authMiddleware)
-	SetUpAuthRouter(v1, &handler.Auth, authMiddleware)
-	SetUpRBACRouter(v1, &handler.RBAC, authMiddleware)
+	SetUpUserRouter(v1, &handler.User, &handler.RBAC, &handler.Wallet, authMiddleware, limiter, &config.Environment.Limiter, services.RBACService, services.ContextTokenService, services.UserService)
+	SetUpAuthRouter(v1, &handler.Auth, authMiddleware, limiter, &config.Environment.Limiter, services.RBACService, services.ContextTokenService, services.UserService)
+	SetUpRBACRouter(v1, &handler.RBAC, authMiddleware, limiter, &config.Environment.Limiter, services.RBACService, services.ContextTokenService, services.UserService)
 
 	return r
 }

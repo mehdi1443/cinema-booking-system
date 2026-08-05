@@ -9,14 +9,15 @@ import (
 )
 
 type Environment struct {
-	DataBase   DataBase   `mapstructure:",squash" json:"database"`
-	Redis      Redis      `mapstructure:",squash" json:"redis"`
-	HttpServer HttpServer `mapstructure:",squash" json:"http_server"`
-	JWT        JWT        `mapstructure:",squash" json:"jwt"`
-	Storage    Storage    `mapstructure:",squash" json:"storage"`
-	Limiter    Limiter    `mapstructure:",squash" json:"limiter"`
-	OTP        OTP        `mapstructure:",squash" json:"otp"`
-	PEM        PEM        `mapstructure:",squash" json:"pem"`
+	DataBase            DataBase            `mapstructure:",squash" json:"database"`
+	Redis               Redis               `mapstructure:",squash" json:"redis"`
+	HttpServer          HttpServer          `mapstructure:",squash" json:"http_server"`
+	JWT                 JWT                 `mapstructure:",squash" json:"jwt"`
+	Storage             Storage             `mapstructure:",squash" json:"storage"`
+	Limiter             Limiter             `mapstructure:",squash" json:"limiter"`
+	OTP                 OTP                 `mapstructure:",squash" json:"otp"`
+	PEM                 PEM                 `mapstructure:",squash" json:"pem"`
+	UserPermissionCache UserPermissionCache `mapstructure:",squash" json:"user_permission_cache"`
 }
 
 type HttpServer struct {
@@ -48,11 +49,8 @@ type PEM struct {
 }
 
 type JWT struct {
-	AccessPrivateKey    string `mapstructure:"JWT_ACCESS_PRIVATE"        json:"access_private_key"`
-	AccessExpireMinutes int    `mapstructure:"JWT_ACCESS_EXPIRE_MINUTES" json:"access_expire_minutes"`
-
-	RefreshPrivateKey string `mapstructure:"JWT_REFRESH_PRIVATE"        json:"refresh_private_key"`
-	RefreshExpireDays int    `mapstructure:"JWT_REFRESH_EXPIRE_DAYS"   json:"refresh_expire_days"`
+	AccessExpireMinutes int `mapstructure:"JWT_ACCESS_EXPIRE_MINUTES" json:"access_expire_minutes"`
+	RefreshExpireDays   int `mapstructure:"JWT_REFRESH_EXPIRE_DAYS"   json:"refresh_expire_days"`
 }
 
 type Storage struct {
@@ -78,8 +76,13 @@ type Limiter struct {
 }
 
 type OTP struct {
-	Digit         int64 `mapstructure:"OTP_DIGIT_NUMBER"   json:"digit_number"`
-	ExpireMinutes int   `mapstructure:"OTP_EXPIRE_MINUTES" json:"expire_minutes"`
+	Digit               int64 `mapstructure:"OTP_DIGIT_NUMBER"   json:"digit_number"`
+	ExpireMinutes       int   `mapstructure:"OTP_EXPIRE_MINUTES" json:"expire_minutes"`
+	VerifyExpireMinutes int   `mapstructure:"OTP_VERIFY_EXPIRE_MINUTES" json:"verify_expire_minutes"`
+}
+
+type UserPermissionCache struct {
+	UserPermissionExpiredDuration int `mapstructure:"USER_PERMISSION_CACHE_EXPIRE_MINUTES,squash" json:"expire_duration"`
 }
 
 func (c *JWT) AccessDuration() time.Duration {
@@ -92,6 +95,10 @@ func (c *JWT) RefreshDuration() time.Duration {
 
 func (o *OTP) ExpirationDuration() time.Duration {
 	return time.Duration(o.ExpireMinutes) * time.Minute
+}
+
+func (o *OTP) VerifyExpirationDuration() time.Duration {
+	return time.Duration(o.VerifyExpireMinutes) * time.Minute
 }
 
 func NewEnvironment() *Environment {

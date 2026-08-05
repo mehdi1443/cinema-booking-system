@@ -34,12 +34,18 @@ type ChangeUserStatusRequest struct {
 }
 
 type UpdatePasswordRequest struct {
-	Password string `json:"password" binding:"required,min=8"`
+	Password string `json:"password" binding:"required,user-password"`
+}
+
+type UpdateUserProfileDTO struct {
+	UserID    int64  `json:"user_id"  binding:"required"`
+	FirstName string `json:"first_name" binding:"required"`
+	LastName  string `json:"last_name" binding:"required"`
 }
 
 type GetUsersQueryDTO struct {
 	Phone       string   `form:"phone"`
-	Email       string   `form:"email"`
+	Email       string   `form:"email" binding:",email"`
 	FirstName   string   `form:"first_name"`
 	LastName    string   `form:"last_name"`
 	Status      string   `form:"status"`

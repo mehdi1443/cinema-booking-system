@@ -17,9 +17,13 @@ type userService struct {
 	hasher   *hash.BcryptHasher
 }
 
-func NewUserService(userRepo repository_contract.UserInterFace) service_contract.UserServiceInterface {
+func NewUserService(
+	userRepo repository_contract.UserInterFace,
+	hasher *hash.BcryptHasher,
+) service_contract.UserServiceInterface {
 	return &userService{
 		userRepo: userRepo,
+		hasher:   hasher,
 	}
 }
 
@@ -65,7 +69,7 @@ func (s *userService) UpdateProfile(ctx context.Context, ctxToken *dto.TokenInCo
 
 	user.FirstName = req.FirstName
 	user.LastName = req.LastName
-	user.Email = req.Email
+	// user.Email = req.Email
 
 	updatedUser, err := s.userRepo.UpdateUser(ctx, user)
 	if err != nil {
@@ -74,8 +78,6 @@ func (s *userService) UpdateProfile(ctx context.Context, ctxToken *dto.TokenInCo
 
 	return dto.ToUserResponse(updatedUser, &dto.HideFieldUserOption{WalletBalance: false}), nil
 }
-
-
 
 func (s *userService) ChangeStatus(ctx context.Context, ctxToken *dto.TokenInContext, userID int64, status enum.UserStatus) (*dto.UserResponse, error) {
 	user, err := s.userRepo.FindUserByID(ctx, userID)

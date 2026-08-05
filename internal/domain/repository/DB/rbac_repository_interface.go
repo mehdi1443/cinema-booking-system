@@ -23,12 +23,14 @@ type RBACInterface interface {
 	UserHasRoleByName(ctx context.Context, userID int64, roleName string) (bool, error)
 
 	GetUserPermissions(ctx context.Context, userID int64) ([]*entity.Permission, error)
+	GetUserPermissionNames(ctx context.Context, userID int64) ([]string, error)
 
 	GetUserRoles(ctx context.Context, userID int64) ([]*entity.Role, error)
 
 	GetUsersByPermissionNames(ctx context.Context, permissionNames []string) ([]*entity.User, error)
 
 	GetUsersByRoleNames(ctx context.Context, roleNames []string) ([]*entity.User, error)
+	GetRoleByID(ctx context.Context, roleID int64) (*entity.Role, error)
 
 	GetPermissionsByRoleName(ctx context.Context, roleName string) ([]*entity.Permission, error)
 
