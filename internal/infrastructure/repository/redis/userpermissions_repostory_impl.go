@@ -27,9 +27,10 @@ func (r *UserPermissionCacheRepository) getkeysignuture(userID string) string {
 func (r *UserPermissionCacheRepository) SaveUserPermissions(ctx context.Context, userID string, permissions []string, ttl time.Duration) error {
 	key := r.getkeysignuture(userID)
 
-	if err := r.client.GetRDB().SAdd(ctx, key, permissions, ttl).Err(); err != nil {
+	if err := r.client.GetRDB().SAdd(ctx, key, permissions).Err(); err != nil {
 		return fmt.Errorf("redis save user permissions error: %w", err)
 	}
+	r.client.GetRDB().Expire(ctx, key, ttl)
 
 	return nil
 }
@@ -38,8 +39,8 @@ func (r *UserPermissionCacheRepository) GetUserPermissions(ctx context.Context, 
 	key := r.getkeysignuture(userID)
 
 	permissions, err := r.client.GetRDB().SMembers(ctx, key).Result()
-	if err != nil {
-		if errors.Is(err, redis.Nil) {
+	if err != nil || len(permissions) == 0 {
+		if errors.Is(err, redis.Nil) || len(permissions) == 0 {
 			return nil, exception.ErrUserPermissionNotFound
 		}
 		return nil, fmt.Errorf("redis get user permissions error: %w", err)

@@ -52,7 +52,7 @@ func (s *contexttokenService) GetTokenFromGinContext(gctx *gin.Context) (dto.Tok
 	}
 
 	// 2. Extract Permissions
-	rawPermissions := getContextValue(gctx, domainjwt.CtxPermissionsKey, "roles")
+	rawPermissions := getContextValue(gctx, domainjwt.CtxPermissionsKey, "permissions")
 	if rawPermissions == nil {
 		return dto.TokenInContext{}, ErrPermissionsNotFoundInContext
 	}
@@ -98,6 +98,44 @@ func (s *contexttokenService) GetJWTFromGinContext(gctx *gin.Context) (dto.JWTTo
 		TheToken:         T,
 		TheTokenExpireAt: TXTime,
 	}, nil
+}
+
+// GetUserIDFromGinContext extracts only the User ID from context
+func (s *contexttokenService) GetUserIDFromGinContext(gctx *gin.Context) (int64, error) {
+	if gctx == nil {
+		return 0, errors.New("gin context is nil")
+	}
+
+	rawUserID := getContextValue(gctx, domainjwt.CtxUserIDKey, "user_id")
+	if rawUserID == nil {
+		return 0, ErrUserIDNotFoundInContext
+	}
+
+	userID, ok := rawUserID.(int64)
+	if !ok {
+		return 0, ErrInvalidUserIDType
+	}
+
+	return userID, nil
+}
+
+// GetPermissionFromGinContext extracts only the Permissions slice from context
+func (s *contexttokenService) GetPermissionFromGinContext(gctx *gin.Context) ([]string, error) {
+	if gctx == nil {
+		return nil, errors.New("gin context is nil")
+	}
+
+	rawPermissions := getContextValue(gctx, domainjwt.CtxPermissionsKey, "permissions")
+	if rawPermissions == nil {
+		return nil, ErrPermissionsNotFoundInContext
+	}
+
+	permissionNames, ok := rawPermissions.([]string)
+	if !ok {
+		return nil, ErrInvalidPermissionsType
+	}
+
+	return permissionNames, nil
 }
 
 // Helper to look up values across Gin's c.Set() map AND Request Context

@@ -20,7 +20,7 @@ type userRepositoryPostgres struct {
 	db database.Database
 }
 
-func NewUserRepositoryPostgres(db database.Database) repository_contract.UserInterFace {
+func NewUserRepositoryPostgres(db database.Database) repository_contract.UserInterface {
 	return &userRepositoryPostgres{
 		db: db,
 	}
@@ -160,7 +160,7 @@ func (r *userRepositoryPostgres) UpdatePassword(ctx context.Context, userID int6
 	res := r.db.GetDB().WithContext(ctx).
 		Model(&entity.User{}).
 		Where("id = ? AND deleted_at IS NULL", userID).
-		Update("password", hashedPassword)
+		Update("password_hash", hashedPassword)
 
 	if res.Error != nil {
 		return fmt.Errorf("%w: %v", exception.ErrDatabase, res.Error)

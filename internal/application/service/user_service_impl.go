@@ -13,12 +13,12 @@ import (
 )
 
 type userService struct {
-	userRepo repository_contract.UserInterFace
+	userRepo repository_contract.UserInterface
 	hasher   *hash.BcryptHasher
 }
 
 func NewUserService(
-	userRepo repository_contract.UserInterFace,
+	userRepo repository_contract.UserInterface,
 	hasher *hash.BcryptHasher,
 ) service_contract.UserServiceInterface {
 	return &userService{
@@ -61,8 +61,8 @@ func (s *userService) GetUsersByStatus(ctx context.Context, ctxToken *dto.TokenI
 	return responses, nil
 }
 
-func (s *userService) UpdateProfile(ctx context.Context, ctxToken *dto.TokenInContext, req dto.UpdateUserProfileDTO) (*dto.UserResponse, error) {
-	user, err := s.userRepo.FindUserByID(ctx, req.UserID)
+func (s *userService) UpdateProfile(ctx context.Context, ctxToken *dto.TokenInContext, userID int64, req dto.UpdateUserProfileDTO) (*dto.UserResponse, error) {
+	user, err := s.userRepo.FindUserByID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}

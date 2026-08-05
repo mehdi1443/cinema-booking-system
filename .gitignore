@@ -30,7 +30,7 @@ go.work.sum
 SEND_SMS.txt
 
 # Editor/IDE
-# .idea/
+.idea/
 .vscode/
 
 # db diagram

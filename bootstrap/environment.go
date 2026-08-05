@@ -102,6 +102,10 @@ func (o *OTP) ExpirationDuration() time.Duration {
 	return time.Duration(o.ExpireMinutes) * time.Minute
 }
 
+func (o *UserPermissionCache) ExpirationDuration() time.Duration {
+	return time.Duration(o.UserPermissionExpiredDuration) * time.Minute
+}
+
 func (o *OTP) VerifyExpirationDuration() time.Duration {
 	return time.Duration(o.VerifyExpireMinutes) * time.Minute
 }

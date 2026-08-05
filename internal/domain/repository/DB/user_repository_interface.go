@@ -8,7 +8,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 )
 
-type UserInterFace interface {
+type UserInterface interface {
 	CreateUser(ctx context.Context, user *entity.User) (*entity.User, error)
 	FindUserByID(ctx context.Context, id int64) (*entity.User, error)
 	FindUserByPhone(ctx context.Context, phone string) (*entity.User, error)

@@ -79,10 +79,16 @@ func main() {
 	userpermissionRepo := redis_repo.NewUserPermissionCacheRepository(redisClient) //TODO USE IT!! Actually Test it
 	blacklistRepo := redis_repo.NewTokenBlacklistRedis(redisClient)
 
+	repositories := router.Repositories{
+		UserRepo:                userRepo,
+		RBACRepo:                rbacRepo,
+		UserPermissionCacheRepo: userpermissionRepo,
+	}
+
 	// --- SEEDER ---
 	seeder := seed.NewRoleSeeder(config.Constant.User, userRepo, rbacRepo, pgDB, bcryptHasher)
 	if err := seeder.Seed(ctx); err != nil {
-		log.Fatalf("Failed to run seeders: %v", err)
+		log.Printf("Failed to run seeders: %v\n", err) // TODO : NEED EDIT WHEN USER ALREADY EXISTS
 	}
 
 	log.Println("Database seeded successfully!")
@@ -120,7 +126,7 @@ func main() {
 	limiter := middleware.NewRedisLimiter(redisClient)
 
 	// --- ROUTES ---
-	Engine := router.SetUpRouter(&handlers, &services, config, limiter)
+	Engine := router.SetUpRouter(&handlers, &services, &repositories, config, limiter)
 
 	// --- VALIDATIONS ---
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
