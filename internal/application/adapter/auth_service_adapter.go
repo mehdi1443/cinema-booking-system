@@ -13,9 +13,9 @@ type AuthenticationServiceInterface interface {
 	Login(ctx context.Context, phone string, password string) (*dto.StartAuthResponse, error)
 	Register(ctx context.Context, phone string, email string, password string) (*dto.StartAuthResponse, error)
 
-	VerifyPhone(ctx context.Context, tokenData *dto.TokenInContext, phone string, code string) (*bool, error)
+	VerifyPhone(ctx context.Context, userId int64, phone string, code string) (*bool, error)
 	VerifyEmail(ctx context.Context, tokenData *dto.TokenInContext, email string, code string) (*bool, error)
 
 	RefreshToken(ctx context.Context, refreshToken *dto.RefreshTokenRequest) (*dto.StartAuthResponse, error)
-	Logout(ctx context.Context, tokenData *dto.TokenInContext, jwtContext *dto.JWTTokenInContext, refreshToken *dto.LogoutRequest) error
+	Logout(ctx context.Context, userID int64, jwtContext *dto.JWTTokenInContext, refreshToken *dto.LogoutRequest) error
 }

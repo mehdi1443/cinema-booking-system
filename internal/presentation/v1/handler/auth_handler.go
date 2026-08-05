@@ -120,7 +120,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		log.Printf("[SERVICE ERROR] Register failed: %v", err)
 		switch {
 		case errors.Is(err, exception.ErrUserAlreadyExists):
-			response.Error(c, http.StatusConflict, "User with this phone number already exists", err)
+			response.Error(c, http.StatusConflict, "User already exists", err)
 		case errors.Is(err, exception.ErrInvalidPhone):
 			response.Error(c, http.StatusBadRequest, "Invalid phone number", err)
 		case errors.Is(err, exception.ErrInvalidPassword):
@@ -163,7 +163,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 
 // Logout handles POST /auth/logout
 func (h *AuthHandler) Logout(c *gin.Context) {
-	tokenData, err := h.contexttokenService.GetTokenFromGinContext(c)
+	userid, err := h.contexttokenService.GetUserIDFromGinContext(c)
 	if err != nil {
 		log.Printf("[AUTH ERROR] Failed to extract token context: %v", err)
 		response.Error(c, http.StatusUnauthorized, exception.ErrGetTokenFromContext.Error())
@@ -183,7 +183,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		return
 	}
 
-	if err := h.authService.Logout(c.Request.Context(), &tokenData, &jwtData, &req); err != nil {
+	if err := h.authService.Logout(c.Request.Context(), userid, &jwtData, &req); err != nil {
 		log.Printf("[SERVICE ERROR] Logout failed: %v", err)
 		switch {
 		case errors.Is(err, exception.ErrInvalidToken):
@@ -199,7 +199,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 
 // VerifyPhone handles POST /auth/verify-phone
 func (h *AuthHandler) VerifyPhone(c *gin.Context) {
-	tokenData, err := h.contexttokenService.GetTokenFromGinContext(c)
+	userid, err := h.contexttokenService.GetUserIDFromGinContext(c)
 	if err != nil {
 		log.Printf("[AUTH ERROR] Failed to extract token context: %v", err)
 		response.Error(c, http.StatusUnauthorized, exception.ErrGetTokenFromContext.Error())
@@ -212,7 +212,7 @@ func (h *AuthHandler) VerifyPhone(c *gin.Context) {
 		return
 	}
 
-	success, err := h.authService.VerifyPhone(c.Request.Context(), &tokenData, req.Phone, req.Code)
+	success, err := h.authService.VerifyPhone(c.Request.Context(), userid, req.Phone, req.Code)
 	if err != nil {
 		log.Printf("[SERVICE ERROR] VerifyPhone failed: %v", err)
 		switch {

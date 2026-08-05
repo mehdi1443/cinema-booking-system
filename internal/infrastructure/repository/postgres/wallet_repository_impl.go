@@ -25,9 +25,6 @@ func NewWalletRepositoryPostgres(db database.Database) repository_contract.Walle
 
 // DecreaseBalance atomically deducts funds inside a database transaction with explicit row locking.
 func (r *walletRepositoryPostgres) AddAmountToBalance(ctx context.Context, userID int64, amount int64) (int64, error) {
-	if amount <= 0 {
-		return 0, exception.ErrInvalidAmount
-	}
 
 	var finalBalance int64
 

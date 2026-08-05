@@ -61,8 +61,8 @@ func (s *userService) GetUsersByStatus(ctx context.Context, ctxToken *dto.TokenI
 	return responses, nil
 }
 
-func (s *userService) UpdateProfile(ctx context.Context, ctxToken *dto.TokenInContext, req dto.UpdateUserProfileDTO) (*dto.UserResponse, error) {
-	user, err := s.userRepo.FindUserByID(ctx, req.UserID)
+func (s *userService) UpdateProfile(ctx context.Context, ctxToken *dto.TokenInContext, userID int64, req dto.UpdateUserProfileDTO) (*dto.UserResponse, error) {
+	user, err := s.userRepo.FindUserByID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}

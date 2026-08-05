@@ -13,6 +13,7 @@ import (
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
 	"github.com/mehdi1443/cinema-booking-system/pkg/hash"
+	"gorm.io/gorm"
 )
 
 func strPtr(s string) *string {
@@ -168,6 +169,9 @@ func (s *RoleSeeder) seedSuperAdmin(ctx context.Context, adminRole *entity.Role)
 
 		user, err = s.userRepo.CreateUser(ctx, user)
 		if err != nil {
+			if errors.Is(err, exception.ErrUserAlreadyExists) || errors.Is(err, gorm.ErrDuplicatedKey) {
+				return nil
+			}
 			return err
 		}
 	}

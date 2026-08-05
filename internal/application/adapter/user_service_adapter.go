@@ -14,7 +14,7 @@ type UserServiceInterface interface {
 
 	GetUsersByStatus(ctx context.Context, ctxToken *dto.TokenInContext, status enum.UserStatus, hideOpt *dto.HideFieldUserOption) ([]*dto.UserResponse, error)
 
-	UpdateProfile(ctx context.Context, ctxToken *dto.TokenInContext, dto dto.UpdateUserProfileDTO) (*dto.UserResponse, error)
+	UpdateProfile(ctx context.Context, ctxToken *dto.TokenInContext, userID int64, dto dto.UpdateUserProfileDTO) (*dto.UserResponse, error)
 	ChangeStatus(ctx context.Context, ctxToken *dto.TokenInContext, userID int64, status enum.UserStatus) (*dto.UserResponse, error)
 
 	DeleteUserByID(ctx context.Context, ctxToken *dto.TokenInContext, id int64) error

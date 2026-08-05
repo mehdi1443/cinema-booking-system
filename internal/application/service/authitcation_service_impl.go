@@ -216,12 +216,12 @@ func (s *authService) Register(ctx context.Context, phone string, email string, 
 		LastName:     newUser.LastName}, nil
 }
 
-func (s *authService) VerifyPhone(ctx context.Context, tokenData *dto.TokenInContext, phone string, code string) (*bool, error) {
+func (s *authService) VerifyPhone(ctx context.Context, userID int64, phone string, code string) (*bool, error) {
 	_, err := s.VerifyOTP(ctx, phone, code)
 	if err != nil {
 		return nil, err
 	}
-	err = s.userRepo.VerifyUserPhone(ctx, tokenData.UserID)
+	err = s.userRepo.VerifyUserPhone(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -312,12 +312,12 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken *dto.Refres
 }
 
 // Logout invalidates the refresh token and terminates the session.
-func (s *authService) Logout(ctx context.Context, tokenData *dto.TokenInContext, jwtContext *dto.JWTTokenInContext, refreshToken *dto.LogoutRequest) error {
-	if tokenData == nil || tokenData.UserID == 0 {
+func (s *authService) Logout(ctx context.Context, userID int64, jwtContext *dto.JWTTokenInContext, refreshToken *dto.LogoutRequest) error {
+	if userID == 0 {
 		return exception.ErrInvalidCredentials
 	}
 
-	err := s.refreshRepo.DeleteRefreshToken(ctx, strconv.Itoa(int(tokenData.UserID)))
+	err := s.refreshRepo.DeleteRefreshToken(ctx, strconv.Itoa(int(userID)))
 	if err != nil {
 		return fmt.Errorf("failed to revoke refresh token: %w", err)
 	}

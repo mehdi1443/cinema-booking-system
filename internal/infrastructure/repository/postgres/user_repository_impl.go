@@ -160,7 +160,7 @@ func (r *userRepositoryPostgres) UpdatePassword(ctx context.Context, userID int6
 	res := r.db.GetDB().WithContext(ctx).
 		Model(&entity.User{}).
 		Where("id = ? AND deleted_at IS NULL", userID).
-		Update("password", hashedPassword)
+		Update("password_hash", hashedPassword)
 
 	if res.Error != nil {
 		return fmt.Errorf("%w: %v", exception.ErrDatabase, res.Error)

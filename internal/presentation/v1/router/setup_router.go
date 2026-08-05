@@ -7,6 +7,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/cache"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/middleware"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/handler"
 )
@@ -19,8 +20,9 @@ type Handlers struct {
 }
 
 type Repositories struct {
-	UserRepo DB.UserInterface
-	RBACRepo DB.RBACInterface
+	UserRepo                DB.UserInterface
+	RBACRepo                DB.RBACInterface
+	UserPermissionCacheRepo cache.UserPermissionCacheInterface
 }
 
 type Services struct {
@@ -43,14 +45,49 @@ func SetUpRouter(handler *Handlers, services *Services, repositories *Repositori
 		fmt.Sprintf("%s:%s", config.Environment.HttpServer.Domain, config.Environment.HttpServer.Port),
 	}))
 
-	//HACK : this is just a exm for how to use limiter
-	// r.Use(limiter.PerSecond(config.Constant.Limiter.HighRate))
-
 	authMiddleware := middleware.JWTAuthentication(services.TokenService)
 	v1 := r.Group("/v1")
-	SetUpUserRouter(v1, &handler.User, &handler.RBAC, &handler.Wallet, authMiddleware, limiter, &config.Environment.Limiter, repositories.RBACRepo, services.ContextTokenService, repositories.UserRepo)
-	SetUpAuthRouter(v1, &handler.Auth, authMiddleware, limiter, &config.Environment.Limiter, repositories.RBACRepo, services.ContextTokenService, repositories.UserRepo)
-	SetUpRBACRouter(v1, &handler.RBAC, authMiddleware, limiter, &config.Environment.Limiter, repositories.RBACRepo, services.ContextTokenService, repositories.UserRepo)
+
+	SetUpUserRouter(
+		v1,
+		&handler.User,
+		&handler.RBAC,
+		&handler.Wallet,
+		authMiddleware,
+		limiter,
+		&config.Environment.Limiter,
+		repositories.RBACRepo,
+		repositories.UserPermissionCacheRepo,
+		services.ContextTokenService,
+		repositories.UserRepo,
+		&config.Environment.UserPermissionCache,
+	)
+
+	SetUpAuthRouter(
+		v1,
+		&handler.Auth,
+		authMiddleware,
+		limiter,
+		&config.Environment.Limiter,
+		repositories.RBACRepo,
+		repositories.UserPermissionCacheRepo,
+		services.ContextTokenService,
+		repositories.UserRepo,
+		&config.Environment.UserPermissionCache,
+	)
+
+	SetUpRBACRouter(
+		v1,
+		&handler.RBAC,
+		authMiddleware,
+		limiter,
+		&config.Environment.Limiter,
+		repositories.RBACRepo,
+		repositories.UserPermissionCacheRepo,
+		services.ContextTokenService,
+		repositories.UserRepo,
+		&config.Environment.UserPermissionCache,
+	)
 
 	return r
 }

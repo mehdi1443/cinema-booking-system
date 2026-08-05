@@ -38,7 +38,6 @@ type UpdatePasswordRequest struct {
 }
 
 type UpdateUserProfileDTO struct {
-	UserID    int64  `json:"user_id"  binding:"required"`
 	FirstName string `json:"first_name" binding:"required"`
 	LastName  string `json:"last_name" binding:"required"`
 }

@@ -31,6 +31,7 @@ func NewUserHandler(
 	}
 }
 
+// TODO : define and decide userStatus BussiznesLogic
 // GET /users/:id/profile
 func (h *UserHandler) GetProfile(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
@@ -90,9 +91,8 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "Invalid request payload", err)
 		return
 	}
-	req.UserID = id
 
-	updatedUser, err := h.userService.UpdateProfile(c.Request.Context(), &tokenData, req)
+	updatedUser, err := h.userService.UpdateProfile(c.Request.Context(), &tokenData, id, req)
 	if err != nil {
 		log.Printf("[SERVICE ERROR] UpdateProfile failed: %v", err)
 		switch {

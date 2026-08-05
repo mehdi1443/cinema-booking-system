@@ -80,14 +80,15 @@ func main() {
 	blacklistRepo := redis_repo.NewTokenBlacklistRedis(redisClient)
 
 	repositories := router.Repositories{
-		UserRepo: userRepo,
-		RBACRepo: rbacRepo,
+		UserRepo:                userRepo,
+		RBACRepo:                rbacRepo,
+		UserPermissionCacheRepo: userpermissionRepo,
 	}
 
 	// --- SEEDER ---
 	seeder := seed.NewRoleSeeder(config.Constant.User, userRepo, rbacRepo, pgDB, bcryptHasher)
 	if err := seeder.Seed(ctx); err != nil {
-		log.Fatalf("Failed to run seeders: %v", err)
+		log.Printf("Failed to run seeders: %v\n", err) // TODO : NEED EDIT WHEN USER ALREADY EXISTS
 	}
 
 	log.Println("Database seeded successfully!")

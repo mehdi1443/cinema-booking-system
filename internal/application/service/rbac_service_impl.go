@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"strconv"
-	"time"
 
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
@@ -105,7 +104,7 @@ func (s *rbacService) GetUserPermissionNames(ctx context.Context, tokenData *dto
 			if err != nil {
 				return nil, err
 			}
-			err := s.userPermissionCacheRepo.SaveUserPermissions(ctx, strconv.Itoa(int(userID)), permsStr, time.Duration(s.userPermissionCacheConfig.UserPermissionExpiredDuration)*time.Minute)
+			err := s.userPermissionCacheRepo.SaveUserPermissions(ctx, strconv.Itoa(int(userID)), permsStr, s.userPermissionCacheConfig.ExpirationDuration())
 			if err != nil {
 				return nil, err
 			}

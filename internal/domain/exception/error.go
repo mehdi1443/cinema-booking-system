@@ -47,7 +47,7 @@ var (
 	// ErrInvalidAmount
 	//================================================
 
-	ErrInvalidAmount       = errors.New("amount must be greater than zero")
+	ErrInvalidAmount       = errors.New("amount must be greater or less than zero")
 	ErrInsufficientBalance = errors.New("insufficient wallet balance")
 	ErrReachManBalance     = errors.New("are you reach or something?!")
 

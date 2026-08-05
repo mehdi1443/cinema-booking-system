@@ -5,6 +5,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/cache"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/middleware"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/handler"
 )
@@ -16,13 +17,15 @@ func SetUpAuthRouter(
 	limiter *middleware.RedisLimiter,
 	limiterConfig *bootstrap.Limiter,
 	rbacRepo DB.RBACInterface,
+	userPermissionCacheRepo cache.UserPermissionCacheInterface,
 	contexTokenService service_contract.ContextTokenServiceInterface,
 	userRepo DB.UserInterface,
+	userCacheConfig *bootstrap.UserPermissionCache,
 ) {
 	auth := router.Group("/auth")
 	auth.Use(limiter.PerMinute(limiterConfig.HighRate))
 	{
-		auth.POST("/otp/send", authHandler.SendOTP) //TODO: Captcha Handling
+		auth.POST("/otp/send", authHandler.SendOTP) // TODO: Captcha Handling
 		auth.POST("/otp/verify", authHandler.VerifyOTP)
 		auth.POST("/login", authHandler.Login)
 		auth.POST("/register", authHandler.Register)
@@ -30,17 +33,18 @@ func SetUpAuthRouter(
 
 		auth.POST("/logout",
 			authMiddleware,
-			middleware.ControlUserAccess(rbacRepo, contexTokenService, userRepo, "auth:..."),
-			authHandler.Logout)
+			//! NOTICE: DONT EVEN THINK TO TOUCH IT !!! : middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "auth:logout"),
+			authHandler.Logout,
+		)
 
 		auth.POST("/verify-phone",
 			authMiddleware,
-			//! middleware.ControlUserAccess(rbacRepo, contexTokenService, userRepo, "auth:verify_phone"),
+			//! NOTICE: DONT EVEN THINK TO TOUCH IT !!! : middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "auth:verify_phone"),
 			authHandler.VerifyPhone,
 		)
 		auth.POST("/verify-email",
 			authMiddleware,
-			middleware.ControlUserAccess(rbacRepo, contexTokenService, userRepo, "auth:verify_email"),
+			middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "auth:verify_email"),
 			authHandler.VerifyEmail,
 		)
 	}
