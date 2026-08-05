@@ -13,7 +13,6 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
 
-// FIXME : Response Format
 func ControlUserAccess(
 	rbacService service_contract.RBACServiceInterface,
 	contexTokenService service_contract.ContextTokenServiceInterface,
@@ -60,6 +59,12 @@ func ControlUserAccess(
 			c.Abort()
 			return
 		}
+
+		myRealPermissionsNames := make([]string, len(myRealPermissions))
+		for i := 0; i < len(myRealPermissions); i++ {
+			myRealPermissionsNames = append(myRealPermissionsNames, myRealPermissions[i].Name)
+		}
+		c.Set(domainjwt.CtxPermissionsKey, myRealPermissionsNames)
 
 		c.Next()
 	}

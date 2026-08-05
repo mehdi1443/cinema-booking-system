@@ -68,7 +68,6 @@ func (s *authService) SendOTP(ctx context.Context, phone string, email string) (
 			return nil, fmt.Errorf("failed to save OTP: %w", err)
 		}
 
-		//TODO: Send OTP via SMS provider logic here...
 		s.smsProvider.SendSMS(dto.SendSMSRequest{
 			Phone: phone,
 			Text:  fmt.Sprintf("OTP:%s", code),
@@ -83,7 +82,6 @@ func (s *authService) SendOTP(ctx context.Context, phone string, email string) (
 			return nil, fmt.Errorf("failed to save OTP: %w", err)
 		}
 
-		//TODO: Send OTP via email provider logic here...
 		s.emailProvider.SendEmail(dto.SendEmailRequest{
 			Email: email,
 			Text:  fmt.Sprintf("OTP:%s", code),
@@ -232,7 +230,6 @@ func (s *authService) VerifyPhone(ctx context.Context, tokenData *dto.TokenInCon
 	return &success, nil
 }
 
-// TODO : send otp email handler/srv
 func (s *authService) VerifyEmail(ctx context.Context, tokenData *dto.TokenInContext, email string, code string) (*bool, error) {
 	if email == "" || code == "" {
 		return nil, exception.ErrInvalidOTP

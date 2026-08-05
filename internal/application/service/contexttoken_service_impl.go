@@ -18,10 +18,10 @@ func NewContextTokenService() service_contract.ContextTokenServiceInterface {
 }
 
 var (
-	ErrUserIDNotFoundInContext = errors.New("user ID not found in context")
-	ErrInvalidUserIDType       = errors.New("user ID in context has invalid type")
-	ErrRolesNotFoundInContext  = errors.New("user roles not found in context")
-	ErrInvalidRolesType        = errors.New("user roles in context have invalid type")
+	ErrUserIDNotFoundInContext      = errors.New("user ID not found in context")
+	ErrInvalidUserIDType            = errors.New("user ID in context has invalid type")
+	ErrPermissionsNotFoundInContext = errors.New("user permissions not found in context")
+	ErrInvalidPermissionsType       = errors.New("user permissions in context have invalid type")
 
 	ErrAccessTokenNotFoundInContext  = errors.New("access token not found in context")
 	ErrInvalidAccessTokenType        = errors.New("access token in context has invalid type")
@@ -51,22 +51,21 @@ func (s *contexttokenService) GetTokenFromGinContext(gctx *gin.Context) (dto.Tok
 		return dto.TokenInContext{}, ErrInvalidUserIDType
 	}
 
-	//TODO : ?!
-	// 2. Extract Roles
-	// rawRoles := getContextValue(gctx, domainjwt.CtxRolesKey, "roles")
-	// if rawRoles == nil {
-	// 	return dto.TokenInContext{}, ErrRolesNotFoundInContext
-	// }
+	// 2. Extract Permissions
+	rawPermissions := getContextValue(gctx, domainjwt.CtxPermissionsKey, "roles")
+	if rawPermissions == nil {
+		return dto.TokenInContext{}, ErrPermissionsNotFoundInContext
+	}
 
-	// roles, ok := rawRoles.([]entity.Role)
-	// if !ok {
-	// 	return dto.TokenInContext{}, ErrInvalidRolesType
-	// }
+	permissionNames, ok := rawPermissions.([]string)
+	if !ok {
+		return dto.TokenInContext{}, ErrInvalidPermissionsType
+	}
 
 	// 3. Construct and return DTO
 	return dto.TokenInContext{
-		UserID: userID,
-		// Roles:  roles,
+		UserID:          userID,
+		PermissionNames: permissionNames,
 	}, nil
 }
 

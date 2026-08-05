@@ -35,7 +35,6 @@ import (
 // !
 // ?
 
-// TODO : REVIEW AND DECISION MAKING ABOUT PROJECT STRUCTURE
 func main() {
 	// --- LOAD CONFIG & CONST
 	ctx := context.Background()
@@ -77,7 +76,7 @@ func main() {
 	rbacRepo := postgres_repo.NewRABCRepositoryPostgres(pgDB)
 	otpRepo := redis_repo.NewOTPRepository(redisClient)
 	refreshtokenRepo := redis_repo.NewRefreshTokenRepository(redisClient)
-	userpermissionRepo := redis_repo.NewUserPermissionCacheRepository(redisClient) //TODO USE IT!!
+	userpermissionRepo := redis_repo.NewUserPermissionCacheRepository(redisClient) //TODO USE IT!! Actually Test it
 	blacklistRepo := redis_repo.NewTokenBlacklistRedis(redisClient)
 
 	// --- SEEDER ---
@@ -128,7 +127,7 @@ func main() {
 		v.RegisterValidation("iranian-phone", validation.ValidateIranianPhone)
 		v.RegisterValidation("otp-code", validation.ValidateOTPCode(int(config.Environment.OTP.Digit)))
 		v.RegisterValidation("user-password", validation.ValidatePassword(&config.Environment.DebugModeOptions))
-		//HACK : perhaps gin handle email validation by default BUT check it
+		//HACK : gin handle email validation by default
 		// 	v.RegisterValidation("email", bookableDate)
 	}
 

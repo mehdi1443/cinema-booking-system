@@ -2,8 +2,6 @@ package dto
 
 import (
 	"time"
-
-	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 )
 
 type GenerateTokenRequest struct {
@@ -11,8 +9,8 @@ type GenerateTokenRequest struct {
 }
 
 type TokenInContext struct {
-	UserID int64         `json:"user_id"`
-	Roles  []entity.Role `json:"roles"`
+	UserID          int64    `json:"user_id"`
+	PermissionNames []string `json:"permission_names"`
 }
 
 type JWTTokenInContext struct {
