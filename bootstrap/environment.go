@@ -16,6 +16,7 @@ type Environment struct {
 	Storage    Storage    `mapstructure:",squash" json:"storage"`
 	Limiter    Limiter    `mapstructure:",squash" json:"limiter"`
 	OTP        OTP        `mapstructure:",squash" json:"otp"`
+	PEM        PEM        `mapstructure:",squash" json:"pem"`
 }
 
 type HttpServer struct {
@@ -37,6 +38,13 @@ type Redis struct {
 	Port      string `mapstructure:"RDB_PORT"      json:"port"`
 	Password  string `mapstructure:"RDB_PASSWORD"  json:"password"`
 	RDBNumber string `mapstructure:"RDB_DB_NUMBER" json:"db"`
+}
+
+type PEM struct {
+	PrivateAccessPath  string `json:"private_access_path" mapstructure:"PRIVATE_ACCESS_PEM_PATH"`
+	PrivateRefreshPath string `json:"private_refresh_path" mapstructure:"PRIVATE_REFRESH_PEM_PATH"`
+	PublicAccessPath   string `json:"public_access_path" mapstructure:"PUBLIC_ACCESS_PEM_PATH"`
+	PublicRefreshPath  string `json:"public_refresh_path" mapstructure:"PUBLIC_REFRESH_PEM_PATH"`
 }
 
 type JWT struct {
