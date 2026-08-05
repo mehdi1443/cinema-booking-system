@@ -16,14 +16,14 @@ import (
 
 type rbacService struct {
 	rbacRepo                  repository_contract.RBACInterface
-	userRepo                  repository_contract.UserInterFace
+	userRepo                  repository_contract.UserInterface
 	userPermissionCacheRepo   cache.UserPermissionCacheInterface
 	userPermissionCacheConfig *bootstrap.UserPermissionCache
 }
 
 func NewRBACService(
 	rbacRepo repository_contract.RBACInterface,
-	userRepo repository_contract.UserInterFace,
+	userRepo repository_contract.UserInterface,
 	userPermissionCacheRepo cache.UserPermissionCacheInterface,
 	userPermissionCacheConfig *bootstrap.UserPermissionCache,
 ) service_contract.RBACServiceInterface {

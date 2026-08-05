@@ -8,4 +8,6 @@ import (
 type ContextTokenServiceInterface interface {
 	GetTokenFromGinContext(gctx *gin.Context) (dto.TokenInContext, error)
 	GetJWTFromGinContext(gctx *gin.Context) (dto.JWTTokenInContext, error)
+	GetPermissionFromGinContext(gctx *gin.Context) ([]string, error)
+	GetUserIDFromGinContext(gctx *gin.Context) (int64, error)
 }

@@ -13,12 +13,12 @@ import (
 )
 
 type userService struct {
-	userRepo repository_contract.UserInterFace
+	userRepo repository_contract.UserInterface
 	hasher   *hash.BcryptHasher
 }
 
 func NewUserService(
-	userRepo repository_contract.UserInterFace,
+	userRepo repository_contract.UserInterface,
 	hasher *hash.BcryptHasher,
 ) service_contract.UserServiceInterface {
 	return &userService{

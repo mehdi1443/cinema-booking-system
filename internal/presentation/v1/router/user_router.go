@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/middleware"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/handler"
 )
@@ -17,9 +18,9 @@ func SetUpUserRouter(
 	authMiddleware gin.HandlerFunc,
 	limiter *middleware.RedisLimiter,
 	limiterConfig *bootstrap.Limiter,
-	rbacService service_contract.RBACServiceInterface,
+	rbacRepo DB.RBACInterface,
 	contexTokenService service_contract.ContextTokenServiceInterface,
-	userService service_contract.UserServiceInterface,
+	userRepo DB.UserInterface,
 ) {
 	// User Endpoints
 	users := rg.Group("/users")
@@ -28,69 +29,69 @@ func SetUpUserRouter(
 		//* specific
 		users.PATCH("/:id/password",
 
-			middleware.ControlUserAccess(rbacService, contexTokenService, userService, "users:update_password"),
+			middleware.ControlUserAccess(rbacRepo, contexTokenService, userRepo, "users:update_password"),
 			userHandler.UpdatePassword,
 		)
 
 		//profile
 		users.GET("/:id/profile",
 
-			middleware.ControlUserAccess(rbacService, contexTokenService, userService, "users:read_profile"),
+			middleware.ControlUserAccess(rbacRepo, contexTokenService, userRepo, "users:read_profile"),
 			userHandler.GetProfile,
 		)
 		users.PUT("/:id/profile",
 
-			middleware.ControlUserAccess(rbacService, contexTokenService, userService, "users:update_profile"),
+			middleware.ControlUserAccess(rbacRepo, contexTokenService, userRepo, "users:update_profile"),
 			userHandler.UpdateProfile,
 		)
 
 		//status
 		users.PATCH("/:id/status",
 
-			middleware.ControlUserAccess(rbacService, contexTokenService, userService, "users:change_status"),
+			middleware.ControlUserAccess(rbacRepo, contexTokenService, userRepo, "users:change_status"),
 			userHandler.ChangeStatus,
 		)
 
 		//roles
 		users.GET("/:id/roles",
 
-			middleware.ControlUserAccess(rbacService, contexTokenService, userService, "users:read_roles"),
+			middleware.ControlUserAccess(rbacRepo, contexTokenService, userRepo, "users:read_roles"),
 			userHandler.GetUserRoles,
 		)
 		users.PUT("/:id/roles",
 
-			middleware.ControlUserAccess(rbacService, contexTokenService, userService, "users:update_roles"),
+			middleware.ControlUserAccess(rbacRepo, contexTokenService, userRepo, "users:update_roles"),
 			userHandler.UpdateUserRoles,
 		)
 
 		//permission
 		users.GET("/:id/permissions",
 
-			middleware.ControlUserAccess(rbacService, contexTokenService, userService, "users:read_permissions"),
+			middleware.ControlUserAccess(rbacRepo, contexTokenService, userRepo, "users:read_permissions"),
 			userHandler.GetUserPermissions,
 		)
 		users.DELETE("/:id",
 
-			middleware.ControlUserAccess(rbacService, contexTokenService, userService, "users:delete"),
+			middleware.ControlUserAccess(rbacRepo, contexTokenService, userRepo, "users:delete"),
 			userHandler.DeleteUserByID,
 		)
 
 		//* all
 		users.GET("",
 
-			middleware.ControlUserAccess(rbacService, contexTokenService, userService, "users:list"),
+			middleware.ControlUserAccess(rbacRepo, contexTokenService, userRepo, "users:list"),
 			userHandler.GetUsers,
 		) // query
 
 		//* wallet
 		users.GET("/:id/wallet/balance",
 
-			middleware.ControlUserAccess(rbacService, contexTokenService, userService, "wallet:read_balance"),
+			middleware.ControlUserAccess(rbacRepo, contexTokenService, userRepo, "wallet:read_balance"),
 			walletHandler.GetBalance,
 		)
 		users.POST("/:id/wallet/balance",
 
-			middleware.ControlUserAccess(rbacService, contexTokenService, userService, "wallet:change_balance"),
+			middleware.ControlUserAccess(rbacRepo, contexTokenService, userRepo, "wallet:change_balance"),
 			walletHandler.ChangeBalance,
 		)
 	}

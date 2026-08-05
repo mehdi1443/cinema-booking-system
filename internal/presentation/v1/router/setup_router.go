@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/middleware"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/handler"
 )
@@ -17,6 +18,11 @@ type Handlers struct {
 	Wallet handler.WalletHandler
 }
 
+type Repositories struct {
+	UserRepo DB.UserInterface
+	RBACRepo DB.RBACInterface
+}
+
 type Services struct {
 	TokenService        service_contract.JWTServiceInterface
 	RBACService         service_contract.RBACServiceInterface
@@ -24,7 +30,7 @@ type Services struct {
 	UserService         service_contract.UserServiceInterface
 }
 
-func SetUpRouter(handler *Handlers, services *Services, config *bootstrap.Config, limiter *middleware.RedisLimiter) *gin.Engine {
+func SetUpRouter(handler *Handlers, services *Services, repositories *Repositories, config *bootstrap.Config, limiter *middleware.RedisLimiter) *gin.Engine {
 	r := gin.New()
 
 	// gin logger
@@ -40,12 +46,11 @@ func SetUpRouter(handler *Handlers, services *Services, config *bootstrap.Config
 	//HACK : this is just a exm for how to use limiter
 	// r.Use(limiter.PerSecond(config.Constant.Limiter.HighRate))
 
-
 	authMiddleware := middleware.JWTAuthentication(services.TokenService)
 	v1 := r.Group("/v1")
-	SetUpUserRouter(v1, &handler.User, &handler.RBAC, &handler.Wallet, authMiddleware, limiter, &config.Environment.Limiter, services.RBACService, services.ContextTokenService, services.UserService)
-	SetUpAuthRouter(v1, &handler.Auth, authMiddleware, limiter, &config.Environment.Limiter, services.RBACService, services.ContextTokenService, services.UserService)
-	SetUpRBACRouter(v1, &handler.RBAC, authMiddleware, limiter, &config.Environment.Limiter, services.RBACService, services.ContextTokenService, services.UserService)
+	SetUpUserRouter(v1, &handler.User, &handler.RBAC, &handler.Wallet, authMiddleware, limiter, &config.Environment.Limiter, repositories.RBACRepo, services.ContextTokenService, repositories.UserRepo)
+	SetUpAuthRouter(v1, &handler.Auth, authMiddleware, limiter, &config.Environment.Limiter, repositories.RBACRepo, services.ContextTokenService, repositories.UserRepo)
+	SetUpRBACRouter(v1, &handler.RBAC, authMiddleware, limiter, &config.Environment.Limiter, repositories.RBACRepo, services.ContextTokenService, repositories.UserRepo)
 
 	return r
 }

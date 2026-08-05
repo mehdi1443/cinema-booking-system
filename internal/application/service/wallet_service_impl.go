@@ -11,11 +11,11 @@ import (
 )
 
 type walletService struct {
-	userRepo   repository_contract.UserInterFace
+	userRepo   repository_contract.UserInterface
 	walletRepo repository_contract.WalletInterface
 }
 
-func NewWalletService(userRepo repository_contract.UserInterFace, walletRepo repository_contract.WalletInterface) service_contract.WalletServiceInterface {
+func NewWalletService(userRepo repository_contract.UserInterface, walletRepo repository_contract.WalletInterface) service_contract.WalletServiceInterface {
 	return &walletService{
 		userRepo:   userRepo,
 		walletRepo: walletRepo,

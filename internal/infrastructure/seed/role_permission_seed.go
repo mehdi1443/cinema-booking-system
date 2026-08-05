@@ -21,7 +21,7 @@ func strPtr(s string) *string {
 
 type RoleSeeder struct {
 	superAdmin bootstrap.SuperUser
-	userRepo   repository_contract.UserInterFace
+	userRepo   repository_contract.UserInterface
 	rbacRepo   repository_contract.RBACInterface
 	db         database.Database
 	hasher     *hash.BcryptHasher
@@ -29,7 +29,7 @@ type RoleSeeder struct {
 
 func NewRoleSeeder(
 	superAdmin bootstrap.SuperUser,
-	userRepo repository_contract.UserInterFace,
+	userRepo repository_contract.UserInterface,
 	rbacRepo repository_contract.RBACInterface,
 	db database.Database,
 	hasher *hash.BcryptHasher,

@@ -20,7 +20,7 @@ type userRepositoryPostgres struct {
 	db database.Database
 }
 
-func NewUserRepositoryPostgres(db database.Database) repository_contract.UserInterFace {
+func NewUserRepositoryPostgres(db database.Database) repository_contract.UserInterface {
 	return &userRepositoryPostgres{
 		db: db,
 	}

@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/middleware"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/handler"
 )
@@ -14,9 +15,9 @@ func SetUpAuthRouter(
 	authMiddleware gin.HandlerFunc,
 	limiter *middleware.RedisLimiter,
 	limiterConfig *bootstrap.Limiter,
-	rbacService service_contract.RBACServiceInterface,
+	rbacRepo DB.RBACInterface,
 	contexTokenService service_contract.ContextTokenServiceInterface,
-	userService service_contract.UserServiceInterface,
+	userRepo DB.UserInterface,
 ) {
 	auth := router.Group("/auth")
 	auth.Use(limiter.PerMinute(limiterConfig.HighRate))
@@ -29,17 +30,17 @@ func SetUpAuthRouter(
 
 		auth.POST("/logout",
 			authMiddleware,
-			middleware.ControlUserAccess(rbacService, contexTokenService, userService, "auth:..."),
+			middleware.ControlUserAccess(rbacRepo, contexTokenService, userRepo, "auth:..."),
 			authHandler.Logout)
 
 		auth.POST("/verify-phone",
 			authMiddleware,
-			//! middleware.ControlUserAccess(rbacService, contexTokenService, userService, "auth:verify_phone"),
+			//! middleware.ControlUserAccess(rbacRepo, contexTokenService, userRepo, "auth:verify_phone"),
 			authHandler.VerifyPhone,
 		)
 		auth.POST("/verify-email",
 			authMiddleware,
-			middleware.ControlUserAccess(rbacService, contexTokenService, userService, "auth:verify_email"),
+			middleware.ControlUserAccess(rbacRepo, contexTokenService, userRepo, "auth:verify_email"),
 			authHandler.VerifyEmail,
 		)
 	}

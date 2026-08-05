@@ -21,7 +21,7 @@ import (
 )
 
 type authService struct {
-	userRepo      repository_contract.UserInterFace
+	userRepo      repository_contract.UserInterface
 	otpRepo       cache_repository_contract.OTPInterface
 	refreshRepo   cache_repository_contract.RefreshTokenInterface
 	tokenService  service_contract.JWTServiceInterface
@@ -34,7 +34,7 @@ type authService struct {
 }
 
 func NewAuthService(
-	userRepo repository_contract.UserInterFace,
+	userRepo repository_contract.UserInterface,
 	otpRepo cache_repository_contract.OTPInterface,
 	refreshRepo cache_repository_contract.RefreshTokenInterface,
 	tokenService service_contract.JWTServiceInterface,

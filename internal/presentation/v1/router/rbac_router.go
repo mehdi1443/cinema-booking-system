@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/middleware"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/handler"
 )
@@ -14,9 +15,9 @@ func SetUpRBACRouter(
 	authMiddleware gin.HandlerFunc,
 	limiter *middleware.RedisLimiter,
 	limiterConfig *bootstrap.Limiter,
-	rbacService service_contract.RBACServiceInterface,
+	rbacRepo DB.RBACInterface,
 	contexTokenService service_contract.ContextTokenServiceInterface,
-	userService service_contract.UserServiceInterface,
+	userRepo DB.UserInterface,
 ) {
 
 	// Role Management
@@ -24,15 +25,15 @@ func SetUpRBACRouter(
 	roles.Use(limiter.PerMinute(limiterConfig.HighRate), authMiddleware)
 	{
 		roles.GET("/:id",
-			middleware.ControlUserAccess(rbacService, contexTokenService, userService, "roles:read"),
+			middleware.ControlUserAccess(rbacRepo, contexTokenService, userRepo, "roles:read"),
 			rbacHandler.GetRoleByID,
 		)
 		roles.POST("/:id/permissions",
-			middleware.ControlUserAccess(rbacService, contexTokenService, userService, "roles:assign_permissions"),
+			middleware.ControlUserAccess(rbacRepo, contexTokenService, userRepo, "roles:assign_permissions"),
 			rbacHandler.AssignPermissionsToRole,
 		)
 		roles.DELETE("/:id/permissions",
-			middleware.ControlUserAccess(rbacService, contexTokenService, userService, "roles:revoke_permissions"),
+			middleware.ControlUserAccess(rbacRepo, contexTokenService, userRepo, "roles:revoke_permissions"),
 			rbacHandler.DischargePermissionsOfRole,
 		)
 	}
@@ -42,11 +43,11 @@ func SetUpRBACRouter(
 	permissions.Use(limiter.PerMinute(1), authMiddleware)
 	{
 		permissions.GET("/:id",
-			middleware.ControlUserAccess(rbacService, contexTokenService, userService, "permissions:read"),
+			middleware.ControlUserAccess(rbacRepo, contexTokenService, userRepo, "permissions:read"),
 			rbacHandler.GetPermissionByID,
 		)
 		permissions.GET("/role/:name",
-			middleware.ControlUserAccess(rbacService, contexTokenService, userService, "permissions:read_by_role"),
+			middleware.ControlUserAccess(rbacRepo, contexTokenService, userRepo, "permissions:read_by_role"),
 			rbacHandler.GetPermissionsByRoleName,
 		)
 	}
