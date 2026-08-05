@@ -13,6 +13,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
+	domainjwt "github.com/mehdi1443/cinema-booking-system/internal/domain/jwt"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	cache_repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/cache"
 	"github.com/mehdi1443/cinema-booking-system/pkg/hash"
@@ -228,4 +229,67 @@ func (s *authService) VerifyEmail(ctx context.Context, tokenData *dto.TokenInCon
 
 	success := true
 	return &success, nil
+}
+
+// RefreshToken validates the refresh token and generates a new token pair.
+func (s *authService) RefreshToken(ctx context.Context, refreshToken *dto.RefreshTokenRequest) (*dto.AuthTokenResponse, error) {
+	if refreshToken.RefreshToken == "" {
+		return nil, exception.ErrInvalidToken
+	}
+
+	claims, err := s.tokenService.ValidateToken(ctx, refreshToken.RefreshToken, string(domainjwt.RefreshTokenTag))
+	if err != nil {
+		return nil, exception.ErrTokenExpired
+	}
+
+	storedToken, err := s.refreshRepo.GetRefreshToken(ctx, strconv.Itoa(int(claims.UserID)))
+	if err != nil || storedToken != refreshToken.RefreshToken {
+		return nil, exception.ErrInvalidToken
+	}
+
+	user, err := s.userRepo.FindUserByID(ctx, claims.UserID)
+	if err != nil {
+		if errors.Is(err, exception.ErrUserNotFound) {
+			return nil, exception.ErrUserNotFound
+		}
+		return nil, err
+	}
+
+	newAccessToken, err := s.tokenService.GenerateAccessToken(ctx, dto.GenerateTokenRequest{UserID: user.ID})
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate access token: %w", err)
+	}
+
+	newRefreshToken, err := s.tokenService.GenerateRefreshToken(ctx, dto.GenerateTokenRequest{UserID: user.ID})
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
+	}
+
+	err = s.refreshRepo.SaveRefreshToken(ctx, strconv.Itoa(int(user.ID)), newRefreshToken, s.jwtConfig.RefreshDuration())
+	if err != nil {
+		return nil, fmt.Errorf("failed to store refresh token: %w", err)
+	}
+
+	return &dto.AuthTokenResponse{
+		AccessToken:  newAccessToken,
+		RefreshToken: newRefreshToken,
+	}, nil
+}
+
+// Logout invalidates the refresh token and terminates the session.
+func (s *authService) Logout(ctx context.Context, tokenData *dto.TokenInContext, jwtContext *dto.JWTTokenInContext, refreshToken *dto.LogoutRequest) error {
+	if tokenData == nil || tokenData.UserID == 0 {
+		return exception.ErrInvalidCredentials
+	}
+
+	err := s.refreshRepo.DeleteRefreshToken(ctx, strconv.Itoa(int(tokenData.UserID)))
+	if err != nil {
+		return fmt.Errorf("failed to revoke refresh token: %w", err)
+	}
+
+	err = s.tokenService.BlacklistToken(ctx, jwtContext.TheToken, jwtContext.TheTokenExpireAt.Unix())
+	if err != nil {
+		return err
+	}
+	return nil
 }

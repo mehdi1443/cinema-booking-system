@@ -12,6 +12,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	domainjwt "github.com/mehdi1443/cinema-booking-system/internal/domain/jwt"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/cache"
 	"github.com/mehdi1443/cinema-booking-system/pkg/rsa"
 )
 
@@ -19,13 +20,15 @@ type jwtService struct {
 	accessRSAKeys  *rsa.RSAKeys
 	refreshRSAKeys *rsa.RSAKeys
 	cfg            *bootstrap.JWT
+	blacklistRepo  cache.TokenBlacklistInterface
 }
 
-func NewTokenService(accessRSAKeys *rsa.RSAKeys, refreshRSAKeys *rsa.RSAKeys, cfg *bootstrap.JWT) service_contract.JWTServiceInterface {
+func NewTokenService(accessRSAKeys *rsa.RSAKeys, refreshRSAKeys *rsa.RSAKeys, cfg *bootstrap.JWT, blacklistRepo cache.TokenBlacklistInterface) service_contract.JWTServiceInterface {
 	return &jwtService{
 		accessRSAKeys:  accessRSAKeys,
 		refreshRSAKeys: refreshRSAKeys,
 		cfg:            cfg,
+		blacklistRepo:  blacklistRepo,
 	}
 }
 
@@ -145,4 +148,31 @@ func (s *jwtService) parseClaimsToPayload(claims jwt.MapClaims) (*domainjwt.Toke
 	}
 
 	return payload, nil
+}
+
+// BlacklistToken calculates the remaining time-to-live (TTL) for the token and stores it in cache.
+func (s *jwtService) BlacklistToken(ctx context.Context, token string, expiresAt int64) error {
+	if token == "" {
+		return nil
+	}
+
+	// Calculate remaining TTL until expiration
+	expirationTime := time.Unix(expiresAt, 0)
+	ttl := time.Until(expirationTime)
+
+	// Token is already expired; no need to store it in cache
+	if ttl <= 0 {
+		return nil
+	}
+
+	return s.blacklistRepo.BlacklistToken(ctx, token, ttl)
+}
+
+// IsBlacklisted checks if the token has been revoked.
+func (s *jwtService) IsBlacklisted(ctx context.Context, token string) (*bool, error) {
+	if token == "" {
+		success := false
+		return &success, nil
+	}
+	return s.blacklistRepo.IsBlacklisted(ctx, token)
 }

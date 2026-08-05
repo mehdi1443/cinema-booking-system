@@ -25,6 +25,12 @@ func SetUpAuthRouter(
 		auth.POST("/otp/verify", authHandler.VerifyOTP)
 		auth.POST("/login", authHandler.Login)
 		auth.POST("/register", authHandler.Register)
+		auth.POST("/refresh", authHandler.Refresh)
+
+		auth.POST("/logout",
+			authMiddleware,
+			middleware.ControlUserAccess(rbacService, contexTokenService, userService, "auth:..."),
+			authHandler.Logout)
 
 		auth.POST("/verify-phone",
 			authMiddleware,

@@ -15,4 +15,7 @@ type AuthenticationServiceInterface interface {
 
 	VerifyPhone(ctx context.Context, tokenData *dto.TokenInContext, phone string, code string) (*bool, error)
 	VerifyEmail(ctx context.Context, tokenData *dto.TokenInContext, email string, code string) (*bool, error)
+
+	RefreshToken(ctx context.Context, refreshToken *dto.RefreshTokenRequest) (*dto.AuthTokenResponse, error)
+	Logout(ctx context.Context, tokenData *dto.TokenInContext, jwtContext *dto.JWTTokenInContext, refreshToken *dto.LogoutRequest) error
 }

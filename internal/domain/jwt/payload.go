@@ -12,9 +12,11 @@ const (
 )
 
 const (
-	CtxUserIDKey  = "user_id"
-	CtxRolesKey   = "roles"
-	CtxPayloadKey = "token_payload"
+	CtxUserIDKey           = "user_id"
+	CtxRolesKey            = "roles"
+	CtxPayloadKey          = "token_payload"
+	CtxTheTokenKey         = "the_token"
+	CtxTheTokenExpireAtKey = "the_token_expire_at"
 )
 
 type TokenPayload struct {

@@ -44,7 +44,15 @@ func JWTAuthentication(tokenService service_contract.JWTServiceInterface) gin.Ha
 			return
 		}
 
+		isBlacklisted, err := tokenService.IsBlacklisted(c.Request.Context(), tokenString)
+		if err != nil || (isBlacklisted != nil && *isBlacklisted) {
+			response.Error(c, http.StatusUnauthorized, "token has been revoked", err)
+			return
+		}
+
 		c.Set(domainjwt.CtxUserIDKey, payload.UserID)
+		c.Set(domainjwt.CtxTheTokenKey, tokenString)
+		c.Set(domainjwt.CtxTheTokenExpireAtKey, payload.ExpiresAt)
 		c.Set(domainjwt.CtxPayloadKey, payload) // i don't know may be need it in future :)
 
 		c.Next()

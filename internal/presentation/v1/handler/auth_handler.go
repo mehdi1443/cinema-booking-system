@@ -134,13 +134,67 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	})
 }
 
-// TODO!!!!!!!!
-func (h *AuthHandler) Refresh(ctx *gin.Context) {
+// Refresh handles POST /auth/refresh
+func (h *AuthHandler) Refresh(c *gin.Context) {
+	var req dto.RefreshTokenRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid request payload", err)
+		return
+	}
 
+	tokens, err := h.authService.RefreshToken(c.Request.Context(), &req)
+	if err != nil {
+		log.Printf("[SERVICE ERROR] Refresh token failed: %v", err)
+		switch {
+		case errors.Is(err, exception.ErrInvalidToken):
+			response.Error(c, http.StatusUnauthorized, "Invalid refresh token", err)
+		case errors.Is(err, exception.ErrTokenExpired):
+			response.Error(c, http.StatusUnauthorized, "Refresh token has expired", err)
+		case errors.Is(err, exception.ErrUserNotFound):
+			response.Error(c, http.StatusNotFound, "User not found", err)
+		default:
+			response.Error(c, http.StatusInternalServerError, "Failed to refresh token", err)
+		}
+		return
+	}
+
+	response.Success(c, http.StatusOK, "Token refreshed successfully", tokens)
 }
 
-func (h *AuthHandler) Logout(ctx *gin.Context) {
+// Logout handles POST /auth/logout
+func (h *AuthHandler) Logout(c *gin.Context) {
+	tokenData, err := h.contexttokenService.GetTokenFromGinContext(c)
+	if err != nil {
+		log.Printf("[AUTH ERROR] Failed to extract token context: %v", err)
+		response.Error(c, http.StatusUnauthorized, exception.ErrGetTokenFromContext.Error())
+		return
+	}
 
+		jwtData, err := h.contexttokenService.GetJWTFromGinContext(c)
+	if err != nil {
+		log.Printf("[AUTH ERROR] Failed to extract jwt context: %v", err)
+		response.Error(c, http.StatusUnauthorized, exception.ErrGetJWTDataFromContext.Error())
+		return
+	}
+
+	var req dto.LogoutRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid request payload", err)
+		return
+	}
+
+	if err := h.authService.Logout(c.Request.Context(), &tokenData, &jwtData,&req); err != nil {
+		log.Printf("[SERVICE ERROR] Logout failed: %v", err)
+		switch {
+		case errors.Is(err, exception.ErrInvalidToken):
+			response.Error(c, http.StatusBadRequest, "Invalid token", err)
+		default:
+			response.Error(c, http.StatusInternalServerError, "Failed to logout", err)
+		}
+		return
+	}
+
+	response.Success(c, http.StatusOK, "Logged out successfully", nil)
 }
 
 // VerifyPhone handles POST /auth/verify-phone

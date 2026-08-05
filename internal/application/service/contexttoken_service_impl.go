@@ -2,11 +2,11 @@ package service
 
 import (
 	"errors"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
-	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	domainjwt "github.com/mehdi1443/cinema-booking-system/internal/domain/jwt"
 )
 
@@ -22,6 +22,17 @@ var (
 	ErrInvalidUserIDType       = errors.New("user ID in context has invalid type")
 	ErrRolesNotFoundInContext  = errors.New("user roles not found in context")
 	ErrInvalidRolesType        = errors.New("user roles in context have invalid type")
+
+	ErrAccessTokenNotFoundInContext  = errors.New("access token not found in context")
+	ErrInvalidAccessTokenType        = errors.New("access token in context has invalid type")
+	ErrInvalidRefreshTokenType       = errors.New("refresh token in context has invalid type")
+	ErrRefreshTokenNotFoundInContext = errors.New("refresh token not found in context")
+
+	ErrAccessTokenExpNotFoundInContext = errors.New("access token expiration time not found in context")
+	ErrInvalidAccessTokenExpType       = errors.New("access token expiration time in context has invalid type")
+
+	ErrRefreshTokenExpNotFoundInContext = errors.New("refresh token expiration time not found in context")
+	ErrInvalidRefreshTokenExpType       = errors.New("refresh token expiration time in context has invalid type")
 )
 
 func (s *contexttokenService) GetTokenFromGinContext(gctx *gin.Context) (dto.TokenInContext, error) {
@@ -40,21 +51,53 @@ func (s *contexttokenService) GetTokenFromGinContext(gctx *gin.Context) (dto.Tok
 		return dto.TokenInContext{}, ErrInvalidUserIDType
 	}
 
+	//TODO : ?!
 	// 2. Extract Roles
-	rawRoles := getContextValue(gctx, domainjwt.CtxRolesKey, "roles")
-	if rawRoles == nil {
-		return dto.TokenInContext{}, ErrRolesNotFoundInContext
-	}
+	// rawRoles := getContextValue(gctx, domainjwt.CtxRolesKey, "roles")
+	// if rawRoles == nil {
+	// 	return dto.TokenInContext{}, ErrRolesNotFoundInContext
+	// }
 
-	roles, ok := rawRoles.([]entity.Role)
-	if !ok {
-		return dto.TokenInContext{}, ErrInvalidRolesType
-	}
+	// roles, ok := rawRoles.([]entity.Role)
+	// if !ok {
+	// 	return dto.TokenInContext{}, ErrInvalidRolesType
+	// }
 
 	// 3. Construct and return DTO
 	return dto.TokenInContext{
 		UserID: userID,
-		Roles:  roles,
+		// Roles:  roles,
+	}, nil
+}
+
+func (s *contexttokenService) GetJWTFromGinContext(gctx *gin.Context) (dto.JWTTokenInContext, error) {
+	if gctx == nil {
+		return dto.JWTTokenInContext{}, errors.New("gin context is nil")
+	}
+
+	// 1. Extract User ID
+	rawT := getContextValue(gctx, domainjwt.CtxTheTokenKey)
+	if rawT == nil {
+		return dto.JWTTokenInContext{}, ErrAccessTokenNotFoundInContext
+	}
+	T, ok := rawT.(string)
+	if !ok {
+		return dto.JWTTokenInContext{}, ErrInvalidAccessTokenType
+	}
+
+	rawTXTime := getContextValue(gctx, domainjwt.CtxTheTokenExpireAtKey)
+	if rawTXTime == nil {
+		return dto.JWTTokenInContext{}, ErrAccessTokenExpNotFoundInContext
+	}
+	TXTime, ok := rawTXTime.(time.Time)
+	if !ok {
+		return dto.JWTTokenInContext{}, ErrInvalidAccessTokenExpType
+	}
+
+	// 2. Construct and return DTO
+	return dto.JWTTokenInContext{
+		TheToken:         T,
+		TheTokenExpireAt: TXTime,
 	}, nil
 }
 

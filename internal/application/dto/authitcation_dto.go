@@ -1,7 +1,7 @@
 package dto
 
 type SendOTPRequest struct {
-	Phone string `json:"phone" binding:"required,iranian-phone"` 
+	Phone string `json:"phone" binding:"required,iranian-phone"`
 }
 
 type VerifyOTPRequest struct {
@@ -15,9 +15,9 @@ type LoginRequest struct {
 }
 
 type RegisterRequest struct {
-	Phone    string `json:"phone" binding:"required,iranian-phone"`  
-	Email    string `json:"email" binding:"required,email"`    
-	Password string `json:"password" binding:"required,user-password"` 
+	Phone    string `json:"phone" binding:"required,iranian-phone"`
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required,user-password"`
 }
 
 type AuthTokenResponse struct {
@@ -33,4 +33,12 @@ type VerifyPhoneRequest struct {
 type VerifyEmailRequest struct {
 	Email string `json:"email" binding:"required,email"`
 	Code  string `json:"code" binding:"required,otp-code"`
+}
+
+type RefreshTokenRequest struct {
+	RefreshToken string `json:"refresh_token" binding:"required"`
+}
+
+type LogoutRequest struct {
+	RefreshToken string `json:"refresh_token,omitempty"`
 }

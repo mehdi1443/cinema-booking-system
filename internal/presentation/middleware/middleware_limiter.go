@@ -2,12 +2,14 @@ package middleware
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis_rate/v10"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
+	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
 
 type RedisLimiter struct {
@@ -28,7 +30,6 @@ func (rlm *RedisLimiter) PerMinute(limit int) gin.HandlerFunc {
 	return rlm.buildMiddleware(redis_rate.PerMinute(limit))
 }
 
-// TODO : Format Response With ResponseHandler(Not Implemented Yet...)
 func (rlm *RedisLimiter) buildMiddleware(limitRule redis_rate.Limit) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		clientIdentifier := c.Request.URL.Host
@@ -56,11 +57,15 @@ func (rlm *RedisLimiter) buildMiddleware(limitRule redis_rate.Limit) gin.Handler
 			}
 			c.Header("Retry-After", strconv.Itoa(retryAfterSec))
 
-			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
-				"error":       "Too Many Requests",
-				"message":     "Rate limit exceeded. Please try again later.",
-				"retry_after": res.RetryAfter.String(),
-			})
+			log.Printf("too-many-request:%s\n", key)
+			log.Printf("retry_after:%s\n", res.RetryAfter.String())
+
+			response.Error(
+				c,
+				http.StatusTooManyRequests,
+				"Rate limit exceeded. Please try again later...",
+				fmt.Errorf("too many requests"),
+			)
 			return
 		}
 

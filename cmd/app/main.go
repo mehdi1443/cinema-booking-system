@@ -77,7 +77,8 @@ func main() {
 	rbacRepo := postgres_repo.NewRABCRepositoryPostgres(pgDB)
 	otpRepo := redis_repo.NewOTPRepository(redisClient)
 	refreshtokenRepo := redis_repo.NewRefreshTokenRepository(redisClient)
-	userpermissionRepo := redis_repo.NewUserPermissionCacheRepository(redisClient) //TODO USE IT!!!
+	userpermissionRepo := redis_repo.NewUserPermissionCacheRepository(redisClient) //TODO USE IT!!
+	blacklistRepo := redis_repo.NewTokenBlacklistRedis(redisClient)
 
 	// --- SEEDER ---
 	seeder := seed.NewRoleSeeder(config.Constant.User, userRepo, rbacRepo, pgDB, bcryptHasher)
@@ -88,7 +89,7 @@ func main() {
 	log.Println("Database seeded successfully!")
 
 	// --- SERVICES ---
-	jwtSrv := service.NewTokenService(accessKeys, refreshKeys, &config.Environment.JWT)
+	jwtSrv := service.NewTokenService(accessKeys, refreshKeys, &config.Environment.JWT, blacklistRepo)
 	smsSrv := service.NewSMSService()
 	userSrv := service.NewUserService(userRepo, bcryptHasher)
 	authSrv := service.NewAuthService(userRepo, otpRepo, refreshtokenRepo, jwtSrv, random.NewRandomGeneratorEngine(), &config.Environment.OTP, &config.Environment.JWT, smsSrv, hash.NewBcryptHasher())

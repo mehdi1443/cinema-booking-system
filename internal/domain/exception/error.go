@@ -9,6 +9,7 @@ var (
 	ErrTokenExpired           = errors.New("token has expired")
 	ErrInvalidToken           = errors.New("invalid or malformed token")
 	ErrGetTokenFromContext    = errors.New("fail get keys from context")
+	ErrGetJWTDataFromContext  = errors.New("fail jwt get keys from context")
 
 	ErrNoteAccessible = errors.New("you have not enough access")
 	ErrInvalidFilter  = errors.New("invalid search filter criteria")
@@ -26,6 +27,7 @@ var (
 	//================================================
 
 	ErrDatabase     = errors.New("database operation failed")
+	ErrCache        = errors.New("cache operation failed")
 	ErrDuplicateKey = errors.New("record already exists")
 
 	//================================================
