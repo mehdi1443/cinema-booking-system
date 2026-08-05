@@ -66,6 +66,7 @@ func (rlm *RedisLimiter) buildMiddleware(limitRule redis_rate.Limit) gin.Handler
 				"Rate limit exceeded. Please try again later...",
 				fmt.Errorf("too many requests"),
 			)
+			c.Abort()
 			return
 		}
 

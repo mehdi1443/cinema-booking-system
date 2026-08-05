@@ -6,7 +6,6 @@ import (
 	"time"
 )
 
-const DEBUG_MODE_FOR_DEVELOPING bool = true
 
 type Constant struct {
 	Database DBConst    `json:"database"`
@@ -21,7 +20,7 @@ type DBConst struct {
 }
 
 type RedisConst struct {
-	PhoneOtpSignature       string `json:"phone_otp_signature"`
+	PhoneEmailOtpSignature  string `json:"phone_otp_signature"`
 	VerifiedOtpSignature    string `json:"verified_otp_signature"`
 	RefreshTokenSignature   string `json:"refresh_token_signature"`
 	UserSignature           string `json:"user"`
@@ -53,7 +52,7 @@ func NewConstant() *Constant {
 			LastName:  "Sharifipour",
 		},
 		Redis: RedisConst{
-			PhoneOtpSignature:       "otp:phone_email:",
+			PhoneEmailOtpSignature:  "otp:phone_email:",
 			VerifiedOtpSignature:    "otp:phone_email:verified:",
 			RefreshTokenSignature:   "token:refresh:",
 			UserSignature:           "user",

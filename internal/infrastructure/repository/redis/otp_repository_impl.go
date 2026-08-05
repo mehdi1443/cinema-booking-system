@@ -26,7 +26,7 @@ func (r *OTPRepository) getkeysignuture(prefix, tagId string) string {
 }
 
 func (r *OTPRepository) SaveOTP(ctx context.Context, tagId string, code string, ttl time.Duration) error {
-	key := r.getkeysignuture(r.client.GetRedisConstant().PhoneOtpSignature, tagId)
+	key := r.getkeysignuture(r.client.GetRedisConstant().PhoneEmailOtpSignature, tagId)
 	if err := r.client.GetRDB().Set(ctx, key, code, ttl).Err(); err != nil {
 		return fmt.Errorf("redis save otp error: %w", err)
 	}
@@ -34,7 +34,7 @@ func (r *OTPRepository) SaveOTP(ctx context.Context, tagId string, code string, 
 }
 
 func (r *OTPRepository) GetOTP(ctx context.Context, tagId string) (string, error) {
-	key := r.getkeysignuture(r.client.GetRedisConstant().PhoneOtpSignature, tagId)
+	key := r.getkeysignuture(r.client.GetRedisConstant().PhoneEmailOtpSignature, tagId)
 	val, err := r.client.GetRDB().Get(ctx, key).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
@@ -46,7 +46,7 @@ func (r *OTPRepository) GetOTP(ctx context.Context, tagId string) (string, error
 }
 
 func (r *OTPRepository) DeleteOTP(ctx context.Context, tagId string) error {
-	key := r.getkeysignuture(r.client.GetRedisConstant().PhoneOtpSignature, tagId)
+	key := r.getkeysignuture(r.client.GetRedisConstant().PhoneEmailOtpSignature, tagId)
 	if err := r.client.GetRDB().Del(ctx, key).Err(); err != nil {
 		return fmt.Errorf("redis delete otp error: %w", err)
 	}

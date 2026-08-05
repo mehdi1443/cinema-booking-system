@@ -34,7 +34,7 @@ func SetUpAuthRouter(
 
 		auth.POST("/verify-phone",
 			authMiddleware,
-			middleware.ControlUserAccess(rbacService, contexTokenService, userService, "auth:verify_phone"),
+			//! middleware.ControlUserAccess(rbacService, contexTokenService, userService, "auth:verify_phone"),
 			authHandler.VerifyPhone,
 		)
 		auth.POST("/verify-email",

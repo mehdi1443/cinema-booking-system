@@ -5,6 +5,7 @@ import (
 	"unicode"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 )
 
 var (
@@ -20,10 +21,10 @@ func ValidateIranianPhone(fl validator.FieldLevel) bool {
 
 // validatePassword enforces min 8 characters, at least 1 uppercase letter,
 // 1 lowercase letter, and 1 digit.
-func ValidatePassword(debugMode bool) func(fl validator.FieldLevel) bool {
+func ValidatePassword(debugMode *bootstrap.DebugModeOptions) func(fl validator.FieldLevel) bool {
 	return func(fl validator.FieldLevel) bool {
 		password := fl.Field().String()
-		if debugMode == true {
+		if debugMode.Enable == true {
 			if password != "" {
 				return true
 			}

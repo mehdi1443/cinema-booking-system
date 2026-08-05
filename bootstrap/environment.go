@@ -9,6 +9,7 @@ import (
 )
 
 type Environment struct {
+	DebugModeOptions    DebugModeOptions    `mapstructure:",squash" json:"debug_mode_options"`
 	DataBase            DataBase            `mapstructure:",squash" json:"database"`
 	Redis               Redis               `mapstructure:",squash" json:"redis"`
 	HttpServer          HttpServer          `mapstructure:",squash" json:"http_server"`
@@ -18,6 +19,10 @@ type Environment struct {
 	OTP                 OTP                 `mapstructure:",squash" json:"otp"`
 	PEM                 PEM                 `mapstructure:",squash" json:"pem"`
 	UserPermissionCache UserPermissionCache `mapstructure:",squash" json:"user_permission_cache"`
+}
+
+type DebugModeOptions struct {
+	Enable bool `mapstructure:"DEBUG_MODE_ENABLE"   json:"enable_debug_mode"`
 }
 
 type HttpServer struct {
@@ -82,7 +87,7 @@ type OTP struct {
 }
 
 type UserPermissionCache struct {
-	UserPermissionExpiredDuration int `mapstructure:"USER_PERMISSION_CACHE_EXPIRE_MINUTES,squash" json:"expire_duration"`
+	UserPermissionExpiredDuration int `mapstructure:"USER_PERMISSION_CACHE_EXPIRE_MINUTES" json:"expire_duration"`
 }
 
 func (c *JWT) AccessDuration() time.Duration {

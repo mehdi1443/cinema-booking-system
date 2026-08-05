@@ -43,17 +43,22 @@ func ControlUserAccess(
 		if err != nil {
 			log.Printf("[AUTH ERROR] Failed to extract token context: %v", err)
 			response.Error(c, http.StatusUnauthorized, exception.ErrGetTokenFromContext.Error())
+			c.Abort()
 			return
 		}
 
 		myRealPermissions, err := rbacService.GetUserPermissions(c.Request.Context(), &tokenData, tokenData.UserID)
-		if len(myRealPermissions) <= 0 { //FIXME!!!!!!
+		if len(myRealPermissions) < 0 { //FIXME!!!!!!
 			response.Error(c, http.StatusUnauthorized, "You have not enough access permission")
+			c.Abort()
+			return
 		}
 
 		user, err := userService.GetUserByID(c.Request.Context(), &tokenData, tokenData.UserID, &dto.HideFieldUserOption{WalletBalance: true})
 		if !user.IsPhoneVerified {
 			response.Error(c, http.StatusUnauthorized, "You are not had been Verified your phone number")
+			c.Abort()
+			return
 		}
 
 		c.Next()

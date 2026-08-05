@@ -91,18 +91,22 @@ func main() {
 	// --- SERVICES ---
 	jwtSrv := service.NewTokenService(accessKeys, refreshKeys, &config.Environment.JWT, blacklistRepo)
 	smsSrv := service.NewSMSService()
+	emailSrv := service.NewEmailService()
 	userSrv := service.NewUserService(userRepo, bcryptHasher)
-	authSrv := service.NewAuthService(userRepo, otpRepo, refreshtokenRepo, jwtSrv, random.NewRandomGeneratorEngine(), &config.Environment.OTP, &config.Environment.JWT, smsSrv, hash.NewBcryptHasher())
+	authSrv := service.NewAuthService(userRepo, otpRepo, refreshtokenRepo, jwtSrv, random.NewRandomGeneratorEngine(), &config.Environment.OTP, &config.Environment.JWT, smsSrv, emailSrv, hash.NewBcryptHasher())
 	walletSrv := service.NewWalletService(userRepo, walletRepo)
 	rbacSrv := service.NewRBACService(rbacRepo, userRepo, userpermissionRepo, &config.Environment.UserPermissionCache)
 	contextokenSrv := service.NewContextTokenService()
 
 	services := router.Services{
-		TokenService: jwtSrv,
+		TokenService:        jwtSrv,
+		RBACService:         rbacSrv,
+		ContextTokenService: contextokenSrv,
+		UserService:         userSrv,
 	}
 
 	// --- HANDLERS ---
-	authHandler := *handler.NewAuthHandler(authSrv)
+	authHandler := *handler.NewAuthHandler(authSrv, contextokenSrv)
 	userHandler := *handler.NewUserHandler(userSrv, rbacSrv, contextokenSrv)
 	rbacHandler := *handler.NewRBACHandler(rbacSrv, contextokenSrv)
 	walletHandler := *handler.NewWalletHandler(walletSrv, contextokenSrv)
@@ -123,7 +127,7 @@ func main() {
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("iranian-phone", validation.ValidateIranianPhone)
 		v.RegisterValidation("otp-code", validation.ValidateOTPCode(int(config.Environment.OTP.Digit)))
-		v.RegisterValidation("user-password", validation.ValidatePassword(bootstrap.DEBUG_MODE_FOR_DEVELOPING))
+		v.RegisterValidation("user-password", validation.ValidatePassword(&config.Environment.DebugModeOptions))
 		//HACK : perhaps gin handle email validation by default BUT check it
 		// 	v.RegisterValidation("email", bookableDate)
 	}

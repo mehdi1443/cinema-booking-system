@@ -17,9 +17,10 @@ type AuthHandler struct {
 	contexttokenService service_contract.ContextTokenServiceInterface
 }
 
-func NewAuthHandler(authService service_contract.AuthenticationServiceInterface) *AuthHandler {
+func NewAuthHandler(authService service_contract.AuthenticationServiceInterface, contexttokenService service_contract.ContextTokenServiceInterface) *AuthHandler {
 	return &AuthHandler{
-		authService: authService,
+		authService:         authService,
+		contexttokenService: contexttokenService,
 	}
 }
 
@@ -31,8 +32,13 @@ func (h *AuthHandler) SendOTP(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "Invalid request payload", err)
 		return
 	}
+	log.Println(req)
+	if (req.Email == req.Phone && req.Email == "") || (req.Email != "" && req.Phone != "") {
+		response.Error(c, http.StatusBadRequest, "Just fill extract one field(email or phone)")
+		return
+	}
 
-	success, err := h.authService.SendOTP(c.Request.Context(), req.Phone)
+	success, err := h.authService.SendOTP(c.Request.Context(), req.Phone, req.Email)
 	if err != nil {
 		log.Printf("[SERVICE ERROR] SendOTP failed: %v", err)
 		switch {
@@ -84,7 +90,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	access, ref, err := h.authService.Login(c.Request.Context(), req.Phone, req.Password)
+	res, err := h.authService.Login(c.Request.Context(), req.Phone, req.Password)
 	if err != nil {
 		log.Printf("[SERVICE ERROR] Login failed: %v", err)
 		switch {
@@ -98,10 +104,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, http.StatusOK, "Login successful", dto.AuthTokenResponse{
-		AccessToken:  access,
-		RefreshToken: ref,
-	})
+	response.Success(c, http.StatusOK, "Login successful", res)
 }
 
 // Register handles POST /auth/register
@@ -112,7 +115,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	access, ref, err := h.authService.Register(c.Request.Context(), req.Phone, req.Email, req.Password)
+	res, err := h.authService.Register(c.Request.Context(), req.Phone, req.Email, req.Password)
 	if err != nil {
 		log.Printf("[SERVICE ERROR] Register failed: %v", err)
 		switch {
@@ -128,10 +131,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, http.StatusCreated, "Registration successful", dto.AuthTokenResponse{
-		AccessToken:  access,
-		RefreshToken: ref,
-	})
+	response.Success(c, http.StatusCreated, "Registration successful", res)
 }
 
 // Refresh handles POST /auth/refresh
@@ -170,7 +170,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		return
 	}
 
-		jwtData, err := h.contexttokenService.GetJWTFromGinContext(c)
+	jwtData, err := h.contexttokenService.GetJWTFromGinContext(c)
 	if err != nil {
 		log.Printf("[AUTH ERROR] Failed to extract jwt context: %v", err)
 		response.Error(c, http.StatusUnauthorized, exception.ErrGetJWTDataFromContext.Error())
@@ -183,7 +183,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		return
 	}
 
-	if err := h.authService.Logout(c.Request.Context(), &tokenData, &jwtData,&req); err != nil {
+	if err := h.authService.Logout(c.Request.Context(), &tokenData, &jwtData, &req); err != nil {
 		log.Printf("[SERVICE ERROR] Logout failed: %v", err)
 		switch {
 		case errors.Is(err, exception.ErrInvalidToken):
