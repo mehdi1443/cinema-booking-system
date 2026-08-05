@@ -12,6 +12,14 @@ type RSAKeys struct {
 	publicKey  *rsa.PublicKey
 }
 
+func NewRSAKeys(salt string) (*RSAKeys, error) {
+	keys, err := ParsePrivateKey([]byte(salt))
+	if err != nil {
+		return nil, err
+	}
+	return keys, nil
+}
+
 func ParsePrivateKey(pemBytes []byte) (*RSAKeys, error) {
 	parsedKey, err := jwt.ParseRSAPrivateKeyFromPEM(pemBytes)
 	if err != nil {

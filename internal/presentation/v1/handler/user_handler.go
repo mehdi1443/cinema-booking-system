@@ -185,7 +185,7 @@ func (h *UserHandler) UpdateUserRoles(c *gin.Context) {
 	}
 	req.UserID = id
 
-	updatedUser, err := h.userService.UpdateUserRoles(c.Request.Context(), &tokenData, req)
+	updatedUser, err := h.rbacService.UpdateUserRoles(c.Request.Context(), &tokenData, req)
 	if err != nil {
 		log.Printf("[SERVICE ERROR] UpdateUserRoles failed: %v", err)
 		switch {

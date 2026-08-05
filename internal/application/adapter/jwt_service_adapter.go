@@ -15,8 +15,8 @@ const (
 )
 
 type JWTServiceInterface interface {
-	GenerateTokens(ctx context.Context,req dto.GenerateTokenRequest) (access string , refresh string , err error)
-	GenerateAccessToken(ctx context.Context,req dto.GenerateTokenRequest) (string, error)
-	GenerateRefreshToken(ctx context.Context,req dto.GenerateTokenRequest) (string, error)
-	ValidateToken(ctx context.Context,signedToken string) (*domainjwt.TokenPayload, error)
+	GenerateTokens(ctx context.Context, req dto.GenerateTokenRequest) (access string, refresh string, err error)
+	GenerateAccessToken(ctx context.Context, req dto.GenerateTokenRequest) (string, error)
+	GenerateRefreshToken(ctx context.Context, req dto.GenerateTokenRequest) (string, error)
+	ValidateToken(ctx context.Context, signedToken string, tokenType string) (*domainjwt.TokenPayload, error)
 }

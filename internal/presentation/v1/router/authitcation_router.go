@@ -5,7 +5,8 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/handler"
 )
 
-func RegisterAuthRoutes(router *gin.RouterGroup, authHandler *handler.AuthHandler) {
+func SetUpAuthRouter(router *gin.RouterGroup, authHandler *handler.AuthHandler,
+	authMiddleware gin.HandlerFunc) {
 	auth := router.Group("/auth")
 	{
 		auth.POST("/otp/send", authHandler.SendOTP)

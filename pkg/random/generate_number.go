@@ -8,7 +8,7 @@ import (
 
 type RandomGeneratorEngine struct{}
 
-func NewBcryptHasher() *RandomGeneratorEngine {
+func NewRandomGeneratorEngine() *RandomGeneratorEngine {
 	return &RandomGeneratorEngine{}
 }
 func (rge *RandomGeneratorEngine) GenerateRandomNumber(digits int) int {

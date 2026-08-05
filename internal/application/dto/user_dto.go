@@ -8,6 +8,10 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 )
 
+type HideFieldUserOption struct {
+	WalletBalance bool
+}
+
 type UserResponse struct {
 	ID            int64           `json:"id"`
 	Phone         string          `json:"phone,omitempty"`
@@ -31,6 +35,28 @@ type ChangeUserStatusRequest struct {
 
 type UpdatePasswordRequest struct {
 	Password string `json:"password" binding:"required,min=8"`
+}
+
+type GetUsersQueryDTO struct {
+	Phone       string   `form:"phone"`
+	Email       string   `form:"email"`
+	FirstName   string   `form:"first_name"`
+	LastName    string   `form:"last_name"`
+	Status      string   `form:"status"`
+	Permissions []string `form:"permission"`
+	Roles       []string `form:"role"`
+	HideFieldUserOption
+}
+
+// IsEmpty checks if at least one filter criterion is provided
+func (q *GetUsersQueryDTO) IsEmpty() bool {
+	return q.Phone == "" &&
+		q.Email == "" &&
+		q.FirstName == "" &&
+		q.LastName == "" &&
+		q.Status == "" &&
+		len(q.Permissions) == 0 &&
+		len(q.Roles) == 0
 }
 
 func ToUserResponse(user *entity.User, hideOpt *HideFieldUserOption) *UserResponse {

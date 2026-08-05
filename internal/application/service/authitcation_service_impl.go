@@ -25,7 +25,7 @@ type authService struct {
 	otpConfig     *bootstrap.OTP
 	jwtConfig     *bootstrap.JWT
 	smsProvider   service_contract.SMSServiceProviderInterface
-	hasher        hash.BcryptHasher
+	hasher        *hash.BcryptHasher
 }
 
 func NewAuthService(
@@ -37,7 +37,7 @@ func NewAuthService(
 	otpConfig *bootstrap.OTP,
 	jwtConfig *bootstrap.JWT,
 	smsProvider service_contract.SMSServiceProviderInterface,
-	hasher hash.BcryptHasher,
+	hasher *hash.BcryptHasher,
 ) service_contract.AuthenticationServiceInterface {
 	return &authService{
 		userRepo:      userRepo,

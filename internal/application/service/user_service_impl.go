@@ -75,27 +75,7 @@ func (s *userService) UpdateProfile(ctx context.Context, ctxToken *dto.TokenInCo
 	return dto.ToUserResponse(updatedUser, &dto.HideFieldUserOption{WalletBalance: false}), nil
 }
 
-func (s *userService) UpdateUserRoles(ctx context.Context, ctxToken *dto.TokenInContext, req dto.UpdateUserRolesRequest) (*dto.UserResponse, error) {
-	// 1. Verify user exists
-	_, err := s.userRepo.FindUserByID(ctx, req.UserID)
-	if err != nil {
-		return nil, err
-	}
 
-	// 2. Sync roles via repository
-	err = s.userRepo.UpdateUserRoles(ctx, req.UserID, req.RoleIDs)
-	if err != nil {
-		return nil, err
-	}
-
-	// 3. Fetch reloaded user with new roles
-	updatedUser, err := s.userRepo.FindUserByID(ctx, req.UserID)
-	if err != nil {
-		return nil, err
-	}
-
-	return dto.ToUserResponse(updatedUser, &dto.HideFieldUserOption{WalletBalance: false}), nil
-}
 
 func (s *userService) ChangeStatus(ctx context.Context, ctxToken *dto.TokenInContext, userID int64, status enum.UserStatus) (*dto.UserResponse, error) {
 	user, err := s.userRepo.FindUserByID(ctx, userID)

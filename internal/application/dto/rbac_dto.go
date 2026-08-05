@@ -18,6 +18,25 @@ type RoleResponse struct {
 	Users       []*UserResponse       `json:"users,omitempty"`
 }
 
+type UpdateUserRolesRequest struct {
+	UserID  int64   `json:"user_id"  binding:"required"`
+	RoleIDs []int64 `json:"role_ids" binding:"required"`
+}
+
+type UpdateUserProfileDTO struct {
+	UserID    int64  `json:"user_id"  binding:"required"`
+	FirstName string `json:"first_name" binding:"required"`
+	LastName  string `json:"last_name" binding:"required"`
+	Email     string `json:"email" binding:"required,email"`
+}
+type AssignPermissionsToRoleRequest struct {
+	PermissionIDs []*int64 `json:"permission_ids" binding:"required"`
+}
+
+type DischargePermissionsOfRoleRequest struct {
+	PermissionIDs []*int64 `json:"permission_ids" binding:"required"`
+}
+
 func ToRoleResponse(role *entity.Role) *RoleResponse {
 	if role == nil {
 		return nil

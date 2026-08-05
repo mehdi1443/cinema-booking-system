@@ -16,7 +16,6 @@ type UserServiceInterface interface {
 
 	UpdateProfile(ctx context.Context, ctxToken *dto.TokenInContext, dto dto.UpdateUserProfileDTO) (*dto.UserResponse, error)
 	ChangeStatus(ctx context.Context, ctxToken *dto.TokenInContext, userID int64, status enum.UserStatus) (*dto.UserResponse, error)
-	UpdateUserRoles(ctx context.Context, ctxToken *dto.TokenInContext, request dto.UpdateUserRolesRequest) (*dto.UserResponse, error)
 
 	DeleteUserByID(ctx context.Context, ctxToken *dto.TokenInContext, id int64) error
 	GetUsers(ctx context.Context, tokenData *dto.TokenInContext, query *dto.GetUsersQueryDTO) ([]*dto.UserResponse, error)

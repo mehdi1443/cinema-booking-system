@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
@@ -21,6 +22,7 @@ func strPtr(s string) *string {
 type RoleSeeder struct {
 	superAdmin bootstrap.SuperUser
 	userRepo   repository_contract.UserInterFace
+	rbacRepo   repository_contract.RBACInterface
 	db         database.Database
 	hasher     *hash.BcryptHasher
 }
@@ -28,12 +30,14 @@ type RoleSeeder struct {
 func NewRoleSeeder(
 	superAdmin bootstrap.SuperUser,
 	userRepo repository_contract.UserInterFace,
+	rbacRepo repository_contract.RBACInterface,
 	db database.Database,
 	hasher *hash.BcryptHasher,
 ) *RoleSeeder {
 	return &RoleSeeder{
 		superAdmin: superAdmin,
 		userRepo:   userRepo,
+		rbacRepo:   rbacRepo,
 		db:         db,
 		hasher:     hasher,
 	}
@@ -62,7 +66,7 @@ func (s *RoleSeeder) seedPermissions(ctx context.Context) (map[enum.PermissionTy
 
 	for _, permType := range enum.GetAllPermissionTypes() {
 		permName := permType.String()
-		perm, err := s.userRepo.FindPermissionByName(ctx, permName)
+		perm, err := s.rbacRepo.FindPermissionByName(ctx, permName)
 		if err != nil && !errors.Is(err, exception.ErrPermissionNotFound) {
 			return nil, err
 		}
@@ -74,7 +78,7 @@ func (s *RoleSeeder) seedPermissions(ctx context.Context) (map[enum.PermissionTy
 				Category:    permType.Category(),
 				Description: permType.Description(),
 			}
-			if err := s.userRepo.CreatePermission(ctx, perm); err != nil {
+			if err := s.rbacRepo.CreatePermission(ctx, perm); err != nil {
 				return nil, err
 			}
 		}
@@ -91,7 +95,7 @@ func (s *RoleSeeder) seedRolesWithPermissions(
 	roleMap := make(map[enum.RoleName]*entity.Role)
 
 	for _, roleEnum := range enum.GetAllRoles() {
-		role, err := s.userRepo.FindRoleByName(ctx, roleEnum.String())
+		role, err := s.rbacRepo.FindRoleByName(ctx, roleEnum.String())
 		if err != nil && !errors.Is(err, exception.ErrRoleNotFound) {
 			return nil, err
 		}
@@ -101,7 +105,7 @@ func (s *RoleSeeder) seedRolesWithPermissions(
 				Name:  roleEnum.String(),
 				Title: roleEnum.Title(),
 			}
-			if err := s.userRepo.CreateRole(ctx, role); err != nil {
+			if err := s.rbacRepo.CreateRole(ctx, role); err != nil {
 				return nil, err
 			}
 		}
@@ -126,12 +130,12 @@ func (s *RoleSeeder) seedRolesWithPermissions(
 }
 
 func (s *RoleSeeder) assignPermissionIfNotExist(ctx context.Context, roleID, permID int64) error {
-	hasPerm, err := s.userRepo.RoleHasPermission(ctx, roleID, permID)
+	hasPerm, err := s.rbacRepo.RoleHasPermission(ctx, roleID, permID)
 	if err != nil {
 		return err
 	}
 	if !hasPerm {
-		return s.userRepo.AssignPermissionToRole(ctx, roleID, permID)
+		return s.rbacRepo.AssignPermissionToRole(ctx, roleID, permID)
 	}
 	return nil
 }
@@ -149,13 +153,17 @@ func (s *RoleSeeder) seedSuperAdmin(ctx context.Context, adminRole *entity.Role)
 		}
 
 		user = &entity.User{
-			Phone:         s.superAdmin.Phone,
-			Email:         s.superAdmin.Email,
-			PasswordHash:  hashedPassword,
-			FirstName:     s.superAdmin.FirstName,
-			LastName:      s.superAdmin.LastName,
-			WalletBalance: s.superAdmin.Wallet,
-			Status:        "ACTIVE",
+			Phone:           s.superAdmin.Phone,
+			Email:           s.superAdmin.Email,
+			PasswordHash:    hashedPassword,
+			FirstName:       s.superAdmin.FirstName,
+			LastName:        s.superAdmin.LastName,
+			WalletBalance:   s.superAdmin.Wallet,
+			IsPhoneVerified: true,
+			IsEmailVerified: true,
+			PhoneVerifiedAt: time.Now(),
+			EmailVerifiedAt: time.Now(),
+			Status:          "ACTIVE",
 		}
 
 		user, err = s.userRepo.CreateUser(ctx, user)
@@ -164,12 +172,12 @@ func (s *RoleSeeder) seedSuperAdmin(ctx context.Context, adminRole *entity.Role)
 		}
 	}
 
-	hasRole, err := s.userRepo.UserHasRole(ctx, user.ID, adminRole.ID)
+	hasRole, err := s.rbacRepo.UserHasRole(ctx, user.ID, adminRole.ID)
 	if err != nil {
 		return err
 	}
 	if !hasRole {
-		if err := s.userRepo.AssignRoleToUser(ctx, user.ID, adminRole.ID); err != nil {
+		if err := s.rbacRepo.AssignRoleToUser(ctx, user.ID, adminRole.ID); err != nil {
 			return err
 		}
 	}

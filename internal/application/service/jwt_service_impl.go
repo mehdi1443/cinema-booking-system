@@ -16,14 +16,16 @@ import (
 )
 
 type jwtService struct {
-	rsaKeys *rsa.RSAKeys
-	cfg     *bootstrap.JWT
+	accessRSAKeys  *rsa.RSAKeys
+	refreshRSAKeys *rsa.RSAKeys
+	cfg            *bootstrap.JWT
 }
 
-func NewTokenService(rsaKeys *rsa.RSAKeys, cfg *bootstrap.JWT) service_contract.JWTServiceInterface {
+func NewTokenService(accessRSAKeys *rsa.RSAKeys, refreshRSAKeys *rsa.RSAKeys, cfg *bootstrap.JWT) service_contract.JWTServiceInterface {
 	return &jwtService{
-		rsaKeys: rsaKeys,
-		cfg:     cfg,
+		accessRSAKeys:  accessRSAKeys,
+		refreshRSAKeys: refreshRSAKeys,
+		cfg:            cfg,
 	}
 }
 
@@ -61,12 +63,17 @@ func (s *jwtService) GenerateRefreshToken(ctx context.Context, req dto.GenerateT
 	return s.generateToken(payload)
 }
 
-func (s *jwtService) ValidateToken(ctx context.Context, signedToken string) (*domainjwt.TokenPayload, error) {
+func (s *jwtService) ValidateToken(ctx context.Context, signedToken string, tokenType string) (*domainjwt.TokenPayload, error) {
 	parsedToken, err := jwt.Parse(signedToken, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
-		return s.rsaKeys.GetPublicKey(), nil
+
+		if tokenType == "access" {
+			return s.accessRSAKeys.GetPublicKey(), nil
+		}
+
+		return s.refreshRSAKeys.GetPublicKey(), nil
 	})
 
 	if err != nil {
@@ -98,7 +105,17 @@ func (s *jwtService) generateToken(payload domainjwt.TokenPayload) (string, erro
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
-	signedToken, err := token.SignedString(s.rsaKeys.GetPrivateKey())
+	var signedToken string
+	var err error
+	if payload.TokenType == domainjwt.AccessTokenTag {
+		signedToken, err = token.SignedString(s.accessRSAKeys.GetPrivateKey())
+
+	} else if payload.TokenType == domainjwt.RefreshTokenTag {
+		signedToken, err = token.SignedString(s.refreshRSAKeys.GetPrivateKey())
+	} else {
+		panic("generateToken:WTF")
+	}
+
 	if err != nil {
 		return "", fmt.Errorf("jwtsrv.generateToken: failed to sign token: %w", err)
 	}

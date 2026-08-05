@@ -6,17 +6,18 @@ import (
 )
 
 // TODO : ignrore fileds for base response in each endpoints + permission&Accessibility + userpermission cache issue
-func RegisterRoutes(
+func SetUpUserRouter(
 	rg *gin.RouterGroup,
 	userHandler *handler.UserHandler,
 	rbacHandler *handler.RBACHandler,
 	walletHandler *handler.WalletHandler,
+	authMiddleware  gin.HandlerFunc,
 ) {
 	// User Endpoints
 	users := rg.Group("/users")
 	{
 		//* specific
-		users.PATCH("/:id/password", userHandler.UpdatePassword)	
+		users.PATCH("/:id/password", userHandler.UpdatePassword)
 
 		//profile
 		users.GET("/:id/profile", userHandler.GetProfile)
@@ -36,26 +37,9 @@ func RegisterRoutes(
 		//* all
 		users.GET("", userHandler.GetUsers) // query
 
+		//* wallet
+		users.GET("/:id/wallet/balance", walletHandler.GetBalance)
+		users.POST("/:id/wallet/balance", walletHandler.ChangeBalance)
 	}
 
-	// // Role Management
-	roles := rg.Group("/roles")
-	{
-		roles.GET("/:id", rbacHandler.GetRoleByID)
-		roles.POST("/:id/permissions", rbacHandler.AssignPermissionsToRole)
-		roles.DELETE("/:id/permissions", rbacHandler.DischargePermissionsOfRole)
-	}
-
-	// Permission Management
-	permissions := rg.Group("/permissions")
-	{
-		permissions.GET("/:id", rbacHandler.GetPermissionByID)
-		permissions.GET("/role/:name", rbacHandler.GetPermissionsByRoleName)
-	}
-
-	wallet := rg.Group("/users/:id/wallet")
-	{
-		wallet.GET("/balance", walletHandler.GetBalance)
-		wallet.POST("/balance", walletHandler.ChangeBalance)
-	}
 }

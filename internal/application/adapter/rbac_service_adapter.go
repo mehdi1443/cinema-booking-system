@@ -26,4 +26,5 @@ type RBACServiceInterface interface {
 
 	GetPermissionsByID(ctx context.Context, tokenData *dto.TokenInContext, pid int64) (*dto.PermissionResponse, error)
 	GetRoleByID(ctx context.Context, tokenData *dto.TokenInContext, rid int64) (*dto.RoleResponse, error)
+	UpdateUserRoles(ctx context.Context, ctxToken *dto.TokenInContext, request dto.UpdateUserRolesRequest) (*dto.UserResponse, error)
 }

@@ -8,18 +8,17 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
-	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
 )
 
 type walletService struct {
-	userRepo repository_contract.UserInterFace
-	db       database.Database
+	userRepo   repository_contract.UserInterFace
+	walletRepo repository_contract.WalletInterface
 }
 
-func NewWalletService(userRepo repository_contract.UserInterFace, db database.Database) service_contract.WalletServiceInterface {
+func NewWalletService(userRepo repository_contract.UserInterFace, walletRepo repository_contract.WalletInterface) service_contract.WalletServiceInterface {
 	return &walletService{
-		userRepo: userRepo,
-		db:       db,
+		userRepo:   userRepo,
+		walletRepo: walletRepo,
 	}
 }
 
@@ -49,6 +48,6 @@ func (s *walletService) ChangeBalance(ctx context.Context, tokenData *dto.TokenI
 		return 0, exception.ErrInsufficientBalance
 	}
 
-	return s.userRepo.AddAmountToBalance(ctx, userID, amount)
+	return s.walletRepo.AddAmountToBalance(ctx, userID, amount)
 
 }

@@ -5,19 +5,28 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
+	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/middleware"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/handler"
 )
 
 type Handlers struct {
-	Auth handler.AuthHandler
-	User handler.UserHandler
+	Auth   handler.AuthHandler
+	User   handler.UserHandler
+	RBAC   handler.RBACHandler
+	Wallet handler.WalletHandler
 }
 
-func SetUpRouter(handler *Handlers, config *bootstrap.Config, limiter *middleware.RedisLimiter) *gin.Engine {
+type Services struct {
+	TokenService service_contract.JWTServiceInterface
+}
+
+func SetUpRouter(handler *Handlers, services *Services, config *bootstrap.Config, limiter *middleware.RedisLimiter) *gin.Engine {
 	r := gin.New()
 
+	// gin logger
 	r.Use(gin.Logger())
+	// gin panic recovery
 	r.Use(gin.Recovery())
 
 	// CORS
@@ -30,15 +39,12 @@ func SetUpRouter(handler *Handlers, config *bootstrap.Config, limiter *middlewar
 	//FIXME : ADD AUTHORIZATION MIDDLEWARE!!!!!  exm :
 	// r.Use(middleware.ControlUserAccess(/*// FIXME permision list*/))
 
-	// v1 := r.Group("/v1")
+	authMiddleware := middleware.JWTAuthentication(services.tokenService)
 
-	// v1.POST("/send-otp", handler.Auth.SendOTP)
-	// v1.POST("/verify-otp", handler.Auth.VerifyOTP)
-	// v1.POST("/register", handler.Auth.Register)
-	// v1.POST("/login", handler.Auth.Login)
-	// v1.POST("/refresh", handler.Auth.Refresh)
+	v1 := r.Group("/v1")
+	SetUpUserRouter(v1, &handler.User, &handler.RBAC, &handler.Wallet, authMiddleware)
+	SetUpAuthRouter(v1, &handler.Auth, authMiddleware)
+	SetUpRBACRouter(v1, &handler.RBAC, authMiddleware)
 
-	// //FIXME : ADD AUTH MIDDLEWARE!!!!!
-	// v1.POST("/logout", handler.Auth.Logout)
 	return r
 }
