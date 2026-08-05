@@ -7,51 +7,40 @@ import (
 
 	"github.com/gin-gonic/gin"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	domainjwt "github.com/mehdi1443/cinema-booking-system/internal/domain/jwt"
+	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
 
-// FIXME : Response Format
 func JWTAuthentication(tokenService service_contract.JWTServiceInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error": "authorization_header_required",
-			})
+			response.Error(c, http.StatusUnauthorized, "authorization_header_required")
 			return
 		}
 
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || parts[0] != "Bearer" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error": "invalid_authorization_format",
-			})
+			response.Error(c, http.StatusUnauthorized, "invalid_authorization_format")
 			return
 		}
 
 		tokenString := parts[1]
 
-		payload, err := tokenService.ValidateToken(tokenString)
+		payload, err := tokenService.ValidateToken(c.Request.Context(), tokenString, string(domainjwt.AccessTokenTag)) //TODO Checkit
 		if err != nil {
-			if errors.Is(err, service_contract.ErrTokenExpired) {
-				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-					"error":   "token_expired",
-					"message": "access token has expired, please use refresh token",
-				})
+			if errors.Is(err, exception.ErrTokenExpired) {
+				response.Error(c, http.StatusUnauthorized, "access token has expired")
 				return
 			}
 
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error":   "invalid_token",
-				"message": "token is malformed or invalid",
-			})
+			response.Error(c, http.StatusUnauthorized, "token is malformed or invalid")
 			return
 		}
 
 		if payload.TokenType != domainjwt.AccessTokenTag {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-				"error": "invalid_token_type",
-			})
+			response.Error(c, http.StatusForbidden, "invalid_token_type")
 			return
 		}
 

@@ -6,12 +6,10 @@ import (
 	"time"
 )
 
-
 type Constant struct {
-	Database DBConst      `json:"database"`
-	User     SuperUser    `json:"user"`
-	Redis    RedisConst   `json:"redis"`
-	Limiter  RedisLimiter `json:"limiter"`
+	Database DBConst    `json:"database"`
+	User     SuperUser  `json:"user"`
+	Redis    RedisConst `json:"redis"`
 }
 
 type DBConst struct {
@@ -26,13 +24,6 @@ type RedisConst struct {
 	RefreshTokenSignature   string `json:"refresh_token_signature"`
 	UserSignature           string `json:"user"`
 	UserPermissionSignature string `json:"user_permission_signature"`
-}
-
-type RedisLimiter struct { // Per Second
-	HighRate   int `json:"high_rate"`
-	MediumRate int `json:"medium_rate"`
-	SmallRate  int `json:"small_rate"`
-	TinyRate   int `json:"tiny_rate"`
 }
 
 type SuperUser struct {
@@ -60,22 +51,15 @@ func NewConstant() *Constant {
 			LastName:  "Sharifipour",
 		},
 		Redis: RedisConst{
-			PhoneOtpSignature:       "otp:phone:",
+			PhoneOtpSignature:       "otp:phone_email:",
 			VerifiedOtpSignature:    "otp:verified:",
 			RefreshTokenSignature:   "token:refresh:",
 			UserSignature:           "user",
 			UserPermissionSignature: "permissions",
 		},
-		Limiter: RedisLimiter{
-			HighRate:   20,
-			MediumRate: 10,
-			SmallRate:  5,
-			TinyRate:   1,
-		},
 	}
 }
 
-// TODO : Declare String() Func for Debug
 func (c *Constant) String() string {
 	if c == nil {
 		return "<nil>"
@@ -83,8 +67,8 @@ func (c *Constant) String() string {
 
 	data, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
-		return fmt.Sprintf("Constant{Database:%+v, User:%+v, Redis:%+v, Limiter:%+v}",
-			c.Database, c.User, c.Redis, c.Limiter)
+		return fmt.Sprintf("Constant{Database:%+v, User:%+v, Redis:%+v}",
+			c.Database, c.User, c.Redis)
 	}
 
 	return string(data)
