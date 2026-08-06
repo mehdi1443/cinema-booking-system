@@ -115,12 +115,12 @@ func (s *RoleSeeder) seedRolesWithPermissions(
 		for _, permType := range roleEnum.DefaultPermissions() {
 			if permType == enum.PermissionAll {
 				for _, perm := range permMap {
-					if err := s.assignPermissionIfNotExist(ctx, role.ID, perm.ID); err != nil {
+					if err := s.appendPermissionIfNotExist(ctx, role.ID, perm.ID); err != nil {
 						return nil, err
 					}
 				}
 			} else if perm, exists := permMap[permType]; exists {
-				if err := s.assignPermissionIfNotExist(ctx, role.ID, perm.ID); err != nil {
+				if err := s.appendPermissionIfNotExist(ctx, role.ID, perm.ID); err != nil {
 					return nil, err
 				}
 			}
@@ -130,13 +130,13 @@ func (s *RoleSeeder) seedRolesWithPermissions(
 	return roleMap, nil
 }
 
-func (s *RoleSeeder) assignPermissionIfNotExist(ctx context.Context, roleID, permID int64) error {
+func (s *RoleSeeder) appendPermissionIfNotExist(ctx context.Context, roleID, permID int64) error {
 	hasPerm, err := s.rbacRepo.RoleHasPermission(ctx, roleID, permID)
 	if err != nil {
 		return err
 	}
 	if !hasPerm {
-		return s.rbacRepo.AssignPermissionToRole(ctx, roleID, permID)
+		return s.rbacRepo.AppendPermissionToRole(ctx, roleID, permID)
 	}
 	return nil
 }
@@ -181,7 +181,7 @@ func (s *RoleSeeder) seedSuperAdmin(ctx context.Context, adminRole *entity.Role)
 		return err
 	}
 	if !hasRole {
-		if err := s.rbacRepo.AssignRoleToUser(ctx, user.ID, adminRole.ID); err != nil {
+		if err := s.rbacRepo.AppendRoleToUser(ctx, user.ID, adminRole.ID); err != nil {
 			return err
 		}
 	}

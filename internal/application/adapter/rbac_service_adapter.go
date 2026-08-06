@@ -4,12 +4,13 @@ import (
 	"context"
 
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 )
 
 type RBACServiceInterface interface {
-	// Assignments & Discharging
-	AssignPermissionsToRole(ctx context.Context, tokenData *dto.TokenInContext, roleID int64, permissionID []*int64) error    //* delete cache
-	DischargePermissionsOfRole(ctx context.Context, tokenData *dto.TokenInContext, roleID int64, permissionID []*int64) error //* delete cache
+	// Appendments & Discharging
+	AppendPermissionsToRole(ctx context.Context, tokenData *dto.TokenInContext, roleID int64, permissionID []*int64) error //* delete cache
+	DeletePermissionsOfRole(ctx context.Context, tokenData *dto.TokenInContext, roleID int64, permissionID []*int64) error //* delete cache
 
 	// Authorization Enforcement
 	UserHasPermission(ctx context.Context, tokenData *dto.TokenInContext, userID int64, permissionName string) (bool, error)
@@ -28,4 +29,6 @@ type RBACServiceInterface interface {
 	GetPermissionsByID(ctx context.Context, tokenData *dto.TokenInContext, pid int64) (*dto.PermissionResponse, error)
 	GetRoleByID(ctx context.Context, tokenData *dto.TokenInContext, rid int64) (*dto.RoleResponse, error)
 	UpdateUserRoles(ctx context.Context, ctxToken *dto.TokenInContext, userID int64, request dto.UpdateUserRolesRequest) (*dto.UserResponse, error) //* delete cache
+	CreateRole(ctx context.Context, tokenData *dto.TokenInContext, req *dto.CreateRoleRequest) (*entity.Role, error)
+	UpdateRole(ctx context.Context, tokenData *dto.TokenInContext, roleID int64, req *dto.UpdateRoleRequest) (*entity.Role, error)
 }

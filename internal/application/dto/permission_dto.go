@@ -8,7 +8,6 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 )
 
-// [ ] : Im not Sure but i think i declare PermissionID on its enum_number instead of DB ID ! Check it!!! same it for Category (confused it is string or int)
 type PermissionResponse struct {
 	ID          int64                   `json:"id"`
 	Name        string                  `json:"name"`

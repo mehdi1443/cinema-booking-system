@@ -28,9 +28,8 @@ func NewRBACHandler(
 	}
 }
 
-
-// AssignPermissionsToRole handles POST /roles/:id/permissions
-func (h *RBACHandler) AssignPermissionsToRole(c *gin.Context) {
+// AppendPermissionsToRole handles POST /roles/:id/permissions
+func (h *RBACHandler) AppendPermissionsToRole(c *gin.Context) {
 	roleID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.Error(c, http.StatusBadRequest, "Invalid role ID", err)
@@ -44,30 +43,30 @@ func (h *RBACHandler) AssignPermissionsToRole(c *gin.Context) {
 		return
 	}
 
-	var req dto.AssignPermissionsToRoleRequest
+	var req dto.AppendPermissionsToRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, "Invalid request payload", err)
 		return
 	}
 
-	if err := h.rbacService.AssignPermissionsToRole(c.Request.Context(), &tokenData, roleID, req.PermissionIDs); err != nil {
-		log.Printf("[SERVICE ERROR] AssignPermissionsToRole failed: %v", err)
+	if err := h.rbacService.AppendPermissionsToRole(c.Request.Context(), &tokenData, roleID, req.PermissionIDs); err != nil {
+		log.Printf("[SERVICE ERROR] AppendPermissionsToRole failed: %v", err)
 		switch {
 		case errors.Is(err, exception.ErrRoleNotFound):
 			response.Error(c, http.StatusNotFound, "Role not found", err)
 		case errors.Is(err, exception.ErrPermissionNotFound):
 			response.Error(c, http.StatusNotFound, "One or more permissions not found", err)
 		default:
-			response.Error(c, http.StatusInternalServerError, "Failed to assign permissions to role", err)
+			response.Error(c, http.StatusInternalServerError, "Failed to append permissions to role", err)
 		}
 		return
 	}
 
-	response.Success(c, http.StatusOK, "Permissions assigned to role successfully", nil)
+	response.Success(c, http.StatusOK, "Permissions appended to role successfully", nil)
 }
 
-// DischargePermissionsOfRole handles DELETE /roles/:id/permissions
-func (h *RBACHandler) DischargePermissionsOfRole(c *gin.Context) {
+// DeletePermissionsOfRole handles DELETE /roles/:id/permissions
+func (h *RBACHandler) DeletePermissionsOfRole(c *gin.Context) {
 	roleID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.Error(c, http.StatusBadRequest, "Invalid role ID", err)
@@ -81,26 +80,26 @@ func (h *RBACHandler) DischargePermissionsOfRole(c *gin.Context) {
 		return
 	}
 
-	var req dto.DischargePermissionsOfRoleRequest
+	var req dto.DeletePermissionsOfRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, "Invalid request payload", err)
 		return
 	}
 
-	if err := h.rbacService.DischargePermissionsOfRole(c.Request.Context(), &tokenData, roleID, req.PermissionIDs); err != nil {
-		log.Printf("[SERVICE ERROR] DischargePermissionsOfRole failed: %v", err)
+	if err := h.rbacService.DeletePermissionsOfRole(c.Request.Context(), &tokenData, roleID, req.PermissionIDs); err != nil {
+		log.Printf("[SERVICE ERROR] DeletePermissionsOfRole failed: %v", err)
 		switch {
 		case errors.Is(err, exception.ErrRoleNotFound):
 			response.Error(c, http.StatusNotFound, "Role not found", err)
 		case errors.Is(err, exception.ErrPermissionNotFound):
 			response.Error(c, http.StatusNotFound, "One or more permissions not found", err)
 		default:
-			response.Error(c, http.StatusInternalServerError, "Failed to discharge permissions from role", err)
+			response.Error(c, http.StatusInternalServerError, "Failed to delete permissions from role", err)
 		}
 		return
 	}
 
-	response.Success(c, http.StatusOK, "Permissions discharged from role successfully", nil)
+	response.Success(c, http.StatusOK, "Permissions deleted from role successfully", nil)
 }
 
 // GetRoleByID handles GET /roles/:id
@@ -191,4 +190,72 @@ func (h *RBACHandler) GetPermissionsByRoleName(c *gin.Context) {
 	}
 
 	response.Success(c, http.StatusOK, "Role permissions retrieved successfully", permissions)
+}
+
+// CreateRole handles POST /roles
+func (h *RBACHandler) CreateRole(c *gin.Context) {
+	tokenData, err := h.contexttokenService.GetTokenFromGinContext(c)
+	if err != nil {
+		log.Printf("[AUTH ERROR] Failed to extract token context: %v", err)
+		response.Error(c, http.StatusUnauthorized, exception.ErrGetTokenFromContext.Error())
+		return
+	}
+
+	var req dto.CreateRoleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid request payload", err)
+		return
+	}
+
+	role, err := h.rbacService.CreateRole(c.Request.Context(), &tokenData, &req)
+	if err != nil {
+		log.Printf("[SERVICE ERROR] CreateRole failed: %v", err)
+		switch {
+		case errors.Is(err, exception.ErrRoleAlreadyExists):
+			response.Error(c, http.StatusConflict, "Role already exists", err)
+		default:
+			response.Error(c, http.StatusInternalServerError, "Failed to create role", err)
+		}
+		return
+	}
+
+	response.Success(c, http.StatusCreated, "Role created successfully", role)
+}
+
+// UpdateRole handles PUT /roles/:id
+func (h *RBACHandler) UpdateRole(c *gin.Context) {
+	roleID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid role ID", err)
+		return
+	}
+
+	tokenData, err := h.contexttokenService.GetTokenFromGinContext(c)
+	if err != nil {
+		log.Printf("[AUTH ERROR] Failed to extract token context: %v", err)
+		response.Error(c, http.StatusUnauthorized, exception.ErrGetTokenFromContext.Error())
+		return
+	}
+
+	var req dto.UpdateRoleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid request payload", err)
+		return
+	}
+
+	role, err := h.rbacService.UpdateRole(c.Request.Context(), &tokenData, roleID, &req)
+	if err != nil {
+		log.Printf("[SERVICE ERROR] UpdateRole failed: %v", err)
+		switch {
+		case errors.Is(err, exception.ErrRoleNotFound):
+			response.Error(c, http.StatusNotFound, "Role not found", err)
+		case errors.Is(err, exception.ErrRoleAlreadyExists):
+			response.Error(c, http.StatusConflict, "Role name already in use", err)
+		default:
+			response.Error(c, http.StatusInternalServerError, "Failed to update role", err)
+		}
+		return
+	}
+
+	response.Success(c, http.StatusOK, "Role updated successfully", role)
 }

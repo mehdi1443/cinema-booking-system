@@ -22,12 +22,22 @@ type UpdateUserRolesRequest struct {
 	RoleIDs []int64 `json:"role_ids" binding:"required"`
 }
 
-type AssignPermissionsToRoleRequest struct {
+type AppendPermissionsToRoleRequest struct {
 	PermissionIDs []*int64 `json:"permission_ids" binding:"required"`
 }
 
-type DischargePermissionsOfRoleRequest struct {
+type DeletePermissionsOfRoleRequest struct {
 	PermissionIDs []*int64 `json:"permission_ids" binding:"required"`
+}
+
+type CreateRoleRequest struct {
+	Name  string `json:"name" binding:"required"`
+	Title string `json:"title"  binding:"required,role-title"`
+}
+
+type UpdateRoleRequest struct {
+	Name  string `json:"name" binding:"required"`
+	Title string `json:"title"  binding:"required,role-title"`
 }
 
 func ToRoleResponse(role *entity.Role) *RoleResponse {
