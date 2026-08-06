@@ -135,6 +135,7 @@ func main() {
 		v.RegisterValidation("user-password", validation.ValidatePassword(&config.Environment.DebugModeOptions))
 		//HACK : gin handle email validation by default
 		// 	v.RegisterValidation("email", bookableDate)
+		v.RegisterValidation("role-title", validation.ValidateRoleTitle)
 	}
 
 	log.Printf("server running on %s:%s\n", config.Environment.HttpServer.Domain, config.Environment.HttpServer.Port)

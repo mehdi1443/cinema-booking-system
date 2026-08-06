@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 )
 
 type RBACServiceInterface interface {
@@ -28,4 +29,6 @@ type RBACServiceInterface interface {
 	GetPermissionsByID(ctx context.Context, tokenData *dto.TokenInContext, pid int64) (*dto.PermissionResponse, error)
 	GetRoleByID(ctx context.Context, tokenData *dto.TokenInContext, rid int64) (*dto.RoleResponse, error)
 	UpdateUserRoles(ctx context.Context, ctxToken *dto.TokenInContext, userID int64, request dto.UpdateUserRolesRequest) (*dto.UserResponse, error) //* delete cache
+	CreateRole(ctx context.Context, tokenData *dto.TokenInContext, req *dto.CreateRoleRequest) (*entity.Role, error)
+	UpdateRole(ctx context.Context, tokenData *dto.TokenInContext, roleID int64, req *dto.UpdateRoleRequest) (*entity.Role, error)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
@@ -34,8 +35,15 @@ func (r *rbacRepositoryPostgres) GetRolesByPermissionNames(ctx context.Context, 
 		Find(&roles).Error
 
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Println(exception.ErrRolesNotFound)
+			return roles, nil
+		}
 		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
+
+	log.Println(exception.ErrRolesNotFound)
+
 	return roles, nil
 }
 
@@ -121,11 +129,15 @@ func (r *rbacRepositoryPostgres) AssignPermissionToRole(ctx context.Context, rol
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			return exception.ErrPermissionAlreadyExists
 		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return exception.ErrRolePermissionNotFound
+		}
 		return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return nil
 }
 
+// HACK : check association not found err
 func (r *rbacRepositoryPostgres) AssignRoleToUser(ctx context.Context, userID int64, roleID int64) error {
 	var user entity.User
 	user.ID = userID
@@ -137,6 +149,9 @@ func (r *rbacRepositoryPostgres) AssignRoleToUser(ctx context.Context, userID in
 	if err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			return exception.ErrRoleAlreadyExists
+		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return exception.ErrUserRoleNotFound
 		}
 		return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
@@ -151,6 +166,9 @@ func (r *rbacRepositoryPostgres) RoleHasPermission(ctx context.Context, roleID i
 		Count(&count).Error
 
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, exception.ErrRolePermissionNotFound
+		}
 		return false, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return count > 0, nil
@@ -164,6 +182,9 @@ func (r *rbacRepositoryPostgres) UserHasRole(ctx context.Context, userID int64, 
 		Count(&count).Error
 
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, exception.ErrUserRoleNotFound
+		}
 		return false, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return count > 0, nil
@@ -178,6 +199,12 @@ func (r *rbacRepositoryPostgres) AssignPermissionsToRole(ctx context.Context, ro
 
 	err := r.db.GetDB().WithContext(ctx).Model(&role).Association("Permissions").Append(perms)
 	if err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return exception.ErrPermissionAlreadyExists
+		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return exception.ErrRolePermissionNotFound
+		}
 		return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return nil
@@ -192,6 +219,9 @@ func (r *rbacRepositoryPostgres) DischargePermissionsOfRole(ctx context.Context,
 
 	err := r.db.GetDB().WithContext(ctx).Model(&role).Association("Permissions").Delete(perms)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return exception.ErrRolePermissionNotFound
+		}
 		return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return nil
@@ -207,6 +237,9 @@ func (r *rbacRepositoryPostgres) UserHasPermission(ctx context.Context, userID i
 		Count(&count).Error
 
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, exception.ErrPermissionsNotFound
+		}
 		return false, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return count > 0, nil
@@ -221,6 +254,9 @@ func (r *rbacRepositoryPostgres) UserHasRoleByName(ctx context.Context, userID i
 		Count(&count).Error
 
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, exception.ErrRolesNotFound
+		}
 		return false, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return count > 0, nil
@@ -239,8 +275,14 @@ func (r *rbacRepositoryPostgres) GetUserPermissionNames(ctx context.Context, use
 		Error
 
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Println(exception.ErrPermissionsNotFound)
+			return perms, nil
+		}
 		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
+
+	log.Println(exception.ErrPermissionsNotFound)
 	return perms, nil
 }
 
@@ -255,8 +297,14 @@ func (r *rbacRepositoryPostgres) GetUserPermissions(ctx context.Context, userID 
 		Find(&perms).Error
 
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Println(exception.ErrPermissionsNotFound)
+			return perms, nil
+		}
 		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
+
+	log.Println(exception.ErrPermissionsNotFound)
 	return perms, nil
 }
 
@@ -266,26 +314,34 @@ func (r *rbacRepositoryPostgres) GetUserRoles(ctx context.Context, userID int64)
 		Table("roles").
 		Joins("JOIN user_roles ON user_roles.role_id = roles.id").
 		Where("user_roles.user_id = ? AND roles.deleted_at IS NULL", userID).
-		Preload("Permissions").
 		Find(&roles).Error
 
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Println(exception.ErrRolesNotFound)
+			return roles, nil
+		}
 		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
+
+	log.Println(exception.ErrRolesNotFound)
 	return roles, nil
 }
 
 func (r *rbacRepositoryPostgres) GetRoleByID(ctx context.Context, roleID int64) (*entity.Role, error) {
-	var roles *entity.Role
+	var role *entity.Role
 	err := r.db.GetDB().WithContext(ctx).
 		Table("roles").
 		Where("roles.id = ? AND roles.deleted_at IS NULL", roleID).
-		First(&roles).Error
+		First(&role).Error
 
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, exception.ErrRoleNotFound
+		}
 		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
-	return roles, nil
+	return role, nil
 }
 
 func (r *rbacRepositoryPostgres) GetUsersByPermissionNames(ctx context.Context, permissionNames []string) ([]*entity.User, error) {
@@ -301,8 +357,14 @@ func (r *rbacRepositoryPostgres) GetUsersByPermissionNames(ctx context.Context, 
 		Find(&users).Error
 
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Println(exception.ErrUsersNotFound)
+			return users, nil
+		}
 		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
+
+	log.Println(exception.ErrUsersNotFound)
 	return users, nil
 }
 
@@ -318,8 +380,14 @@ func (r *rbacRepositoryPostgres) GetUsersByRoleNames(ctx context.Context, roleNa
 		Find(&users).Error
 
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Println(exception.ErrUsersNotFound)
+			return users, nil
+		}
 		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
+
+	log.Println(exception.ErrUsersNotFound)
 	return users, nil
 }
 
@@ -333,23 +401,47 @@ func (r *rbacRepositoryPostgres) GetPermissionsByRoleName(ctx context.Context, r
 		Find(&perms).Error
 
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Println(exception.ErrPermissionsNotFound)
+			return perms, nil
+		}
 		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
+
+	log.Println(exception.ErrPermissionsNotFound)
 	return perms, nil
 }
 
 func (r *rbacRepositoryPostgres) UpdateUserRoles(ctx context.Context, userID int64, roleIDs []int64) error {
-	user := entity.User{
-		BaseEntity: entity.BaseEntity{
-			ID: userID,
-		},
+	var user entity.User
+	if err := r.db.GetDB().WithContext(ctx).First(&user, userID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return exception.ErrUserNotFound
+		}
+		return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+	}
+
+	if len(roleIDs) > 0 {
+		var count int64
+		err := r.db.GetDB().WithContext(ctx).
+			Model(&entity.Role{}).
+			Where("id IN ? AND deleted_at IS NULL", roleIDs).
+			Count(&count).Error
+
+		if err != nil {
+			return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		}
+
+		if count != int64(len(roleIDs)) {
+			return exception.ErrRoleNotFound
+		}
 	}
 
 	roles := make([]*entity.Role, 0, len(roleIDs))
 	for _, id := range roleIDs {
-		roles = append(roles, &entity.Role{BaseEntity: entity.BaseEntity{
-			ID: id,
-		}})
+		roles = append(roles, &entity.Role{
+			BaseEntity: entity.BaseEntity{ID: id},
+		})
 	}
 
 	err := r.db.GetDB().WithContext(ctx).
@@ -359,6 +451,29 @@ func (r *rbacRepositoryPostgres) UpdateUserRoles(ctx context.Context, userID int
 
 	if err != nil {
 		return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+	}
+
+	return nil
+}
+
+func (r *rbacRepositoryPostgres) UpdateRole(ctx context.Context, role *entity.Role) error {
+	result := r.db.GetDB().WithContext(ctx).
+		Model(&entity.Role{}).
+		Where("id = ? AND deleted_at IS NULL", role.ID).
+		Updates(map[string]any{
+			"name":  role.Name,
+			"title": role.Title,
+		})
+
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrDuplicatedKey) {
+			return exception.ErrRoleAlreadyExists
+		}
+		return fmt.Errorf("%w: %v", exception.ErrDatabase, result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return exception.ErrRoleNotFound
 	}
 
 	return nil

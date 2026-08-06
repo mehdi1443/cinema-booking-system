@@ -22,5 +22,5 @@ type UserInterface interface {
 	UpdatePassword(ctx context.Context, userID int64, hashedPassword string) error
 
 	VerifyUserPhone(ctx context.Context, userID int64) error
-	VerifyUserEmail(ctx context.Context, userID int64) error
+	VerifyUserEmail(ctx context.Context, email string) error
 }

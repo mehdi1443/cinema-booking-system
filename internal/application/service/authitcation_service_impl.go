@@ -247,7 +247,7 @@ func (s *authService) VerifyEmail(ctx context.Context, tokenData *dto.TokenInCon
 		return nil, exception.ErrInvalidOTP
 	}
 
-	err = s.userRepo.VerifyUserEmail(ctx, tokenData.UserID)
+	err = s.userRepo.VerifyUserEmail(ctx, email)
 	if err != nil {
 		return nil, err
 	}

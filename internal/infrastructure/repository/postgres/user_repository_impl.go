@@ -191,10 +191,10 @@ func (r *userRepositoryPostgres) VerifyUserPhone(ctx context.Context, userID int
 	return nil
 }
 
-func (r *userRepositoryPostgres) VerifyUserEmail(ctx context.Context, userID int64) error {
+func (r *userRepositoryPostgres) VerifyUserEmail(ctx context.Context, email string) error {
 	res := r.db.GetDB().WithContext(ctx).
 		Model(&entity.User{}).
-		Where("id = ? AND deleted_at IS NULL", userID).
+		Where("email = ? AND deleted_at IS NULL", email).
 		Updates(map[string]interface{}{
 			"is_email_verified": true,
 			"email_verified_at": time.Now(),

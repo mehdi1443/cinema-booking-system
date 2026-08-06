@@ -30,6 +30,16 @@ type DischargePermissionsOfRoleRequest struct {
 	PermissionIDs []*int64 `json:"permission_ids" binding:"required"`
 }
 
+type CreateRoleRequest struct {
+	Name  string `json:"name" binding:"required"`
+	Title string `json:"title"  binding:"required,role-title"`
+}
+
+type UpdateRoleRequest struct {
+	Name  string `json:"name" binding:"required"`
+	Title string `json:"title"  binding:"required,role-title"`
+}
+
 func ToRoleResponse(role *entity.Role) *RoleResponse {
 	if role == nil {
 		return nil

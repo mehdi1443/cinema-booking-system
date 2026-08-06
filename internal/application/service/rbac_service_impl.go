@@ -8,6 +8,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/cache"
@@ -205,4 +206,55 @@ func (s *rbacService) UpdateUserRoles(ctx context.Context, ctxToken *dto.TokenIn
 	}
 
 	return dto.ToUserResponse(updatedUser, &dto.HideFieldUserOption{WalletBalance: false}), nil
+}
+
+// CreateRole handles business logic for role creation
+func (s *rbacService) CreateRole(ctx context.Context, tokenData *dto.TokenInContext, req *dto.CreateRoleRequest) (*entity.Role, error) {
+	existingRole, err := s.rbacRepo.FindRoleByName(ctx, req.Name)
+	if err == nil && existingRole != nil {
+		return nil, exception.ErrRoleAlreadyExists
+	}
+	if err != nil && !errors.Is(err, exception.ErrRoleNotFound) {
+		return nil, err
+	}
+
+	role := &entity.Role{
+		Name:  req.Name,
+		Title: req.Title,
+	}
+
+	if err := s.rbacRepo.CreateRole(ctx, role); err != nil {
+		return nil, err
+	}
+
+	return role, nil
+}
+
+// UpdateRole handles business logic for updating an existing role
+func (s *rbacService) UpdateRole(ctx context.Context, tokenData *dto.TokenInContext, roleID int64, req *dto.UpdateRoleRequest) (*entity.Role, error) {
+	existingRole, err := s.rbacRepo.FindRoleByID(ctx, roleID)
+	if err != nil {
+		return nil, err
+	}
+
+	if req.Name != existingRole.Name {
+		roleWithName, err := s.rbacRepo.FindRoleByName(ctx, req.Name)
+		if err == nil && roleWithName != nil && roleWithName.ID != roleID {
+			return nil, exception.ErrRoleAlreadyExists
+		}
+		if err != nil && !errors.Is(err, exception.ErrRoleNotFound) {
+			return nil, err
+		}
+	}
+
+	// 3. Update entity fields
+	existingRole.Name = req.Name
+	existingRole.Title = req.Title
+
+	// 4. Save to repository
+	if err := s.rbacRepo.UpdateRole(ctx, existingRole); err != nil {
+		return nil, err
+	}
+
+	return existingRole, nil
 }

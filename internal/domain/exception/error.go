@@ -3,58 +3,54 @@ package exception
 import "errors"
 
 var (
-	ErrRefreshTokenNotFound   = errors.New("refresh token not found in redis")
-	ErrUserPermissionNotFound = errors.New("user permission not found in redis")
-	ErrOtpKeyNotFound         = errors.New("otp key not found in redis")
-	ErrTokenExpired           = errors.New("token has expired")
-	ErrInvalidToken           = errors.New("invalid or malformed token")
-	ErrGetTokenFromContext    = errors.New("fail get keys from context")
-	ErrGetJWTDataFromContext  = errors.New("fail jwt get keys from context")
+	// Auth & Token Errors
+	ErrRefreshTokenNotFound  = errors.New("refresh token not found in cache")
+	ErrTokenExpired          = errors.New("token has expired")
+	ErrInvalidToken          = errors.New("invalid or malformed token")
+	ErrGetTokenFromContext   = errors.New("failed to get token from context")
+	ErrGetJWTDataFromContext = errors.New("failed to get JWT data from context")
 
-	ErrNoteAccessible = errors.New("you have not enough access")
+	// Access & Validation Errors
+	ErrNoteAccessible = errors.New("insufficient access permissions")
 	ErrInvalidFilter  = errors.New("invalid search filter criteria")
 
+	// User Credentials & OTP
 	ErrInvalidPassword        = errors.New("invalid user password")
-	ErrInvalidPhone           = errors.New("invalid user phone")
+	ErrInvalidPhone           = errors.New("invalid user phone number")
 	ErrInvalidCredentials     = errors.New("invalid user credentials")
-	ErrNotVerifiedPhoneNumber = errors.New("not verified phone number")
+	ErrNotVerifiedPhoneNumber = errors.New("phone number is not verified")
+	ErrInvalidOTP             = errors.New("invalid otp code")
+	ErrOTPExpired             = errors.New("otp code has expired")
+	ErrOtpKeyNotFound         = errors.New("otp key not found in cache")
 
-	ErrInvalidOTP = errors.New("invalid otp code")
-	ErrOTPExpired = errors.New("otp has expired")
-
-	//================================================
-	// ErrDatabase
-	//================================================
-
+	// Infrastructure & Generic Errors
 	ErrDatabase     = errors.New("database operation failed")
 	ErrCache        = errors.New("cache operation failed")
 	ErrDuplicateKey = errors.New("record already exists")
 
-	//================================================
-	// ErrUserNotFound
-	//================================================
-
+	// User Errors
 	ErrUserNotFound      = errors.New("user not found")
 	ErrUserAlreadyExists = errors.New("user already exists")
+	ErrUsersNotFound     = errors.New("no users found matching criteria")
 
-	ErrRoleNotFound      = errors.New("role not found")
-	ErrRoleAlreadyExists = errors.New("role already exists")
-
+	// RBAC Errors
+	ErrRoleNotFound            = errors.New("role not found")
+	ErrRoleAlreadyExists       = errors.New("role already exists")
+	ErrRolesNotFound           = errors.New("no roles found matching criteria")
 	ErrPermissionNotFound      = errors.New("permission not found")
 	ErrPermissionAlreadyExists = errors.New("permission already exists")
+	ErrPermissionsNotFound     = errors.New("no permissions found matching criteria")
+	ErrUserPermissionNotFound  = errors.New("user permission not found in cache")
+	ErrAssociationFailed       = errors.New("failed to process association operation")
+	ErrRolePermissionNotFound  = errors.New("role-permission association not found")
+	ErrUserRoleNotFound        = errors.New("user-role association not found")
 
-	//================================================
-	// ErrInvalidAmount
-	//================================================
-
-	ErrInvalidAmount       = errors.New("amount must be greater or less than zero")
+	// Wallet & Balance Errors
+	ErrInvalidAmount       = errors.New("invalid transaction amount")
 	ErrInsufficientBalance = errors.New("insufficient wallet balance")
 	ErrReachManBalance     = errors.New("are you reach or something?!")
 
-	//================================================
-	// Cinema Errors
-	//================================================
-
+	// Cinema Domain Errors
 	ErrMovieNotFound  = errors.New("movie not found")
 	ErrGenreNotFound  = errors.New("genre not found")
 	ErrPersonNotFound = errors.New("person not found")

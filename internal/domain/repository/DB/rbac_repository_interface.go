@@ -40,4 +40,5 @@ type RBACInterface interface {
 	AssignPermissionToRole(ctx context.Context, roleID int64, permissionID int64) error
 	AssignRoleToUser(ctx context.Context, userID int64, roleID int64) error
 	UserHasRole(ctx context.Context, userID int64, roleID int64) (bool, error)
+	UpdateRole(ctx context.Context, role *entity.Role) error
 }
