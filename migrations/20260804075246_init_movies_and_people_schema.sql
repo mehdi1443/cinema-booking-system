@@ -27,7 +27,8 @@ CREATE TABLE movies (
     duration_minutes INT NOT NULL,
     release_date DATE,
     country VARCHAR(100),
-    poster_url TEXT,
+    poster_url_low TEXT,
+    poster_url_high TEXT,
     trailer_url TEXT,
     status movie_status NOT NULL DEFAULT 'UPCOMING',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -71,7 +72,8 @@ CREATE TABLE people (
    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
    name VARCHAR(255) NOT NULL,
    biography TEXT,
-   image_url TEXT,
+   image_url_low TEXT,
+   image_url_high TEXT,
    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

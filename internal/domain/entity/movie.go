@@ -13,7 +13,8 @@ type Movie struct {
 	DurationMinutes int              `json:"duration_minutes"`
 	ReleaseDate     time.Time        `json:"release_date"`
 	Country         string           `json:"country"`
-	PosterURL       string           `json:"poster_url"`
+	PosterURLLow    string           `json:"poster_url_low"`
+	PosterURLHigh   string           `json:"poster_url_high"`
 	TrailerURL      string           `json:"trailer_url"`
 	Status          enum.MovieStatus `json:"status"`
 	CreatedAt       time.Time        `json:"created_at"`
