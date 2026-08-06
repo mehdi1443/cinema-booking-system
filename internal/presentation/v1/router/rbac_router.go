@@ -40,12 +40,12 @@ func SetUpRBACRouter(
 			rbacHandler.UpdateRole,
 		)
 		roles.POST("/:id/permissions",
-			middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "roles:assign_permissions"),
-			rbacHandler.AssignPermissionsToRole,
+			middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "roles:append_permissions"),
+			rbacHandler.AppendPermissionsToRole,
 		)
 		roles.DELETE("/:id/permissions",
 			middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "roles:revoke_permissions"),
-			rbacHandler.DischargePermissionsOfRole,
+			rbacHandler.DeletePermissionsOfRole,
 		)
 	}
 

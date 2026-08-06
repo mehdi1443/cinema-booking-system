@@ -117,7 +117,7 @@ func (r *rbacRepositoryPostgres) FindPermissionByName(ctx context.Context, name 
 	return &perm, nil
 }
 
-func (r *rbacRepositoryPostgres) AssignPermissionToRole(ctx context.Context, roleID int64, permissionID int64) error {
+func (r *rbacRepositoryPostgres) AppendPermissionToRole(ctx context.Context, roleID int64, permissionID int64) error {
 	var role entity.Role
 	role.ID = roleID
 
@@ -138,7 +138,7 @@ func (r *rbacRepositoryPostgres) AssignPermissionToRole(ctx context.Context, rol
 }
 
 // HACK : check association not found err
-func (r *rbacRepositoryPostgres) AssignRoleToUser(ctx context.Context, userID int64, roleID int64) error {
+func (r *rbacRepositoryPostgres) AppendRoleToUser(ctx context.Context, userID int64, roleID int64) error {
 	var user entity.User
 	user.ID = userID
 
@@ -190,7 +190,7 @@ func (r *rbacRepositoryPostgres) UserHasRole(ctx context.Context, userID int64, 
 	return count > 0, nil
 }
 
-func (r *rbacRepositoryPostgres) AssignPermissionsToRole(ctx context.Context, roleID int64, permissionIDs []*int64) error {
+func (r *rbacRepositoryPostgres) AppendPermissionsToRole(ctx context.Context, roleID int64, permissionIDs []*int64) error {
 	role := entity.Role{BaseEntity: entity.BaseEntity{ID: roleID}}
 	perms := make([]*entity.Permission, 0, len(permissionIDs))
 	for _, pid := range permissionIDs {
@@ -210,7 +210,7 @@ func (r *rbacRepositoryPostgres) AssignPermissionsToRole(ctx context.Context, ro
 	return nil
 }
 
-func (r *rbacRepositoryPostgres) DischargePermissionsOfRole(ctx context.Context, roleID int64, permissionIDs []*int64) error {
+func (r *rbacRepositoryPostgres) DeletePermissionsOfRole(ctx context.Context, roleID int64, permissionIDs []*int64) error {
 	role := entity.Role{BaseEntity: entity.BaseEntity{ID: roleID}}
 	perms := make([]*entity.Permission, 0, len(permissionIDs))
 	for _, pid := range permissionIDs {

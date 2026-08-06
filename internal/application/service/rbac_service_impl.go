@@ -31,11 +31,11 @@ func NewRBACService(
 		userPermissionCacheRepo: userPermissionCacheRepo, userPermissionCacheConfig: userPermissionCacheConfig}
 }
 
-func (s *rbacService) AssignPermissionsToRole(ctx context.Context, tokenData *dto.TokenInContext, roleID int64, permissionIDs []*int64) error {
+func (s *rbacService) AppendPermissionsToRole(ctx context.Context, tokenData *dto.TokenInContext, roleID int64, permissionIDs []*int64) error {
 	if len(permissionIDs) == 0 {
 		return nil
 	}
-	err := s.rbacRepo.AssignPermissionsToRole(ctx, roleID, permissionIDs)
+	err := s.rbacRepo.AppendPermissionsToRole(ctx, roleID, permissionIDs)
 	if err != nil {
 		return err
 	}
@@ -60,11 +60,11 @@ func (s *rbacService) AssignPermissionsToRole(ctx context.Context, tokenData *dt
 	return nil
 }
 
-func (s *rbacService) DischargePermissionsOfRole(ctx context.Context, tokenData *dto.TokenInContext, roleID int64, permissionIDs []*int64) error {
+func (s *rbacService) DeletePermissionsOfRole(ctx context.Context, tokenData *dto.TokenInContext, roleID int64, permissionIDs []*int64) error {
 	if len(permissionIDs) == 0 {
 		return nil
 	}
-	err := s.rbacRepo.DischargePermissionsOfRole(ctx, roleID, permissionIDs)
+	err := s.rbacRepo.DeletePermissionsOfRole(ctx, roleID, permissionIDs)
 	if err != nil {
 		return err
 	}

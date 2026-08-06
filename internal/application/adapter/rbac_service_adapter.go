@@ -8,9 +8,9 @@ import (
 )
 
 type RBACServiceInterface interface {
-	// Assignments & Discharging
-	AssignPermissionsToRole(ctx context.Context, tokenData *dto.TokenInContext, roleID int64, permissionID []*int64) error    //* delete cache
-	DischargePermissionsOfRole(ctx context.Context, tokenData *dto.TokenInContext, roleID int64, permissionID []*int64) error //* delete cache
+	// Appendments & Discharging
+	AppendPermissionsToRole(ctx context.Context, tokenData *dto.TokenInContext, roleID int64, permissionID []*int64) error //* delete cache
+	DeletePermissionsOfRole(ctx context.Context, tokenData *dto.TokenInContext, roleID int64, permissionID []*int64) error //* delete cache
 
 	// Authorization Enforcement
 	UserHasPermission(ctx context.Context, tokenData *dto.TokenInContext, userID int64, permissionName string) (bool, error)

@@ -43,9 +43,9 @@ package service_contract
 // 	}
 
 // 	RBACServiceInterface interface {
-// 		// Assignments & Discharging
-// 		AssignPermissionsToRole(ctx context.Context, roleID int64, permissionID []*int64) error
-// 		DischargePermissionsOfRole(ctx context.Context, roleID int64, permissionID []*int64) error
+// 		// Appendments & Discharging
+// 		AppendPermissionsToRole(ctx context.Context, roleID int64, permissionID []*int64) error
+// 		DeletePermissionsOfRole(ctx context.Context, roleID int64, permissionID []*int64) error
 
 // 		// Authorization Enforcement
 // 		UserHasPermission(ctx context.Context, userID int64, permissionName string) (bool, error)

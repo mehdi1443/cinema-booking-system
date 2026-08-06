@@ -14,9 +14,9 @@ type RBACInterface interface {
 	CreatePermission(ctx context.Context, permission *entity.Permission) error // just used for seed!
 	FindPermissionByName(ctx context.Context, name string) (*entity.Permission, error)
 	RoleHasPermission(ctx context.Context, roleID int64, permissionID int64) (bool, error)
-	AssignPermissionsToRole(ctx context.Context, roleID int64, permissionIDs []*int64) error
+	AppendPermissionsToRole(ctx context.Context, roleID int64, permissionIDs []*int64) error
 
-	DischargePermissionsOfRole(ctx context.Context, roleID int64, permissionIDs []*int64) error
+	DeletePermissionsOfRole(ctx context.Context, roleID int64, permissionIDs []*int64) error
 
 	UserHasPermission(ctx context.Context, userID int64, permissionName string) (bool, error)
 
@@ -37,8 +37,8 @@ type RBACInterface interface {
 	GetRolesByPermissionNames(ctx context.Context, permissionNames []string) ([]*entity.Role, error)
 
 	UpdateUserRoles(ctx context.Context, userID int64, roleIDs []int64) error
-	AssignPermissionToRole(ctx context.Context, roleID int64, permissionID int64) error
-	AssignRoleToUser(ctx context.Context, userID int64, roleID int64) error
+	AppendPermissionToRole(ctx context.Context, roleID int64, permissionID int64) error
+	AppendRoleToUser(ctx context.Context, userID int64, roleID int64) error
 	UserHasRole(ctx context.Context, userID int64, roleID int64) (bool, error)
 	UpdateRole(ctx context.Context, role *entity.Role) error
 }

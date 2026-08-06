@@ -22,11 +22,11 @@ type UpdateUserRolesRequest struct {
 	RoleIDs []int64 `json:"role_ids" binding:"required"`
 }
 
-type AssignPermissionsToRoleRequest struct {
+type AppendPermissionsToRoleRequest struct {
 	PermissionIDs []*int64 `json:"permission_ids" binding:"required"`
 }
 
-type DischargePermissionsOfRoleRequest struct {
+type DeletePermissionsOfRoleRequest struct {
 	PermissionIDs []*int64 `json:"permission_ids" binding:"required"`
 }
 
