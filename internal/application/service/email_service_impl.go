@@ -1,38 +1,67 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"time"
 
+	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
+	mail "github.com/mehdi1443/cinema-booking-system/pkg/wneessen-go-mail"
 )
 
 type emailService struct {
+	emailConfig       *bootstrap.EmailConfig
+	DEBUG_MODE_CONFIG *bootstrap.DebugModeOptions
+	sender            mail.Sender
 }
 
-func NewEmailService() service_contract.EmailServiceProviderInterface {
-	return &emailService{}
+func NewEmailService(
+	emailConfig *bootstrap.EmailConfig,
+	DEBUG_MODE_CONFIG *bootstrap.DebugModeOptions,
+) service_contract.EmailServiceProviderInterface {
+	return &emailService{
+		emailConfig:       emailConfig,
+		DEBUG_MODE_CONFIG: DEBUG_MODE_CONFIG,
+	}
 }
 
-//TODO: Send OTP via SMS provider logic here...
+func (s *emailService) SendEmail(ctx context.Context, req dto.SendEmailRequest) (*bool, error) {
+	var success bool = false
+	if s.DEBUG_MODE_CONFIG.Enable { // write to SEND_EMAIL.txt file
+		Text := fmt.Sprintf("[%s] Email:%s - Text:%s\n", time.Now().String(), req.To, req.TextBody)
 
-func (s *emailService) SendEmail(req dto.SendEmailRequest) (*bool, error) {
-	Text := fmt.Sprintf("[%s] Email:%s - Text:%s\n", time.Now().String(), req.Email, req.Text)
+		emailFile, err := os.OpenFile("./SEND_EMAIL.txt", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+		if err != nil {
+			log.Println("Fail:Send Email:%w", err)
+			return nil, err
+		}
+		defer emailFile.Close()
+		_, err = emailFile.WriteString(Text)
+		if err != nil {
+			return nil, err
+		}
 
-	ffile, err := os.OpenFile("./SEND_EMAIL.txt", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+		success = true
+		return &success, nil
+	}
+	err := s.sender.Send(
+		ctx,
+		mail.SendOptions{
+			To:          req.To,
+			Subject:     req.Subject,
+			PlainBody:   req.TextBody,
+			HTMLBody:    req.HTMLBody,
+			EmbedFiles:  req.EmbedFiles,
+			Attachments: req.Attachments,
+		},
+	)
 	if err != nil {
-		log.Println("Fail:Send Email:%w", err)
 		return nil, err
 	}
-	defer ffile.Close()
-	_, err = ffile.WriteString(Text)
-	if err != nil {
-		return nil, err
-	}
-
-	success := true
+	success = true
 	return &success, nil
 }

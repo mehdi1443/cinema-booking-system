@@ -20,10 +20,11 @@ type Environment struct {
 	PEM                 PEM                 `mapstructure:",squash" json:"pem"`
 	UserPermissionCache UserPermissionCache `mapstructure:",squash" json:"user_permission_cache"`
 	Logger              LoggerConfig        `mapstructure:",squash" json:"logger"`
+	Email               EmailConfig         `mapstructure:",squash" json:"email"`
 }
 
 type DebugModeOptions struct {
-	Enable bool `mapstructure:"DEBUG_MODE_ENABLE"   json:"enable_debug_mode"`
+	Enable bool `mapstructure:"DEBUG_MODE_ENABLE" json:"enable_debug_mode"`
 }
 
 type HttpServer struct {
@@ -94,6 +95,13 @@ type LoggerConfig struct {
 	Logger   string `json:"logger" mapstructure:"logger"`
 }
 
+type EmailConfig struct {
+	CinemaTicketEmail            string `mapstructure:"CINEMA_TICKET_EMAIL"              json:"cinema_ticket_email"`
+	CinemaTicketEmailAppPassword string `mapstructure:"CINEMA_TICKET_EMAIL_APP_PASSWORD" json:"cinema_ticket_email_app_password"`
+	SMTPHost                     string `mapstructure:"SMTP_HOST"                        json:"smtp_host"`
+	SMTPPort                     string `mapstructure:"SMTP_HOST_PORT"                   json:"smtp_host_port"`
+}
+
 type UserPermissionCache struct {
 	UserPermissionExpiredDuration int `mapstructure:"USER_PERMISSION_CACHE_EXPIRE_MINUTES" json:"expire_duration"`
 }
@@ -149,8 +157,8 @@ func (e *Environment) String() string {
 
 	data, err := json.MarshalIndent(e, "", "  ")
 	if err != nil {
-		return fmt.Sprintf("Environment{DataBase:%+v, Redis:%+v, HttpServer:%+v, JWT:%+v, Storage:%+v, Limiter:%+v, OTP:%+v}",
-			e.DataBase, e.Redis, e.HttpServer, e.JWT, e.Storage, e.Limiter, e.OTP)
+		return fmt.Sprintf("Environment{DataBase:%+v, Redis:%+v, HttpServer:%+v, JWT:%+v, Storage:%+v, Limiter:%+v, OTP:%+v, Email:%+v}",
+			e.DataBase, e.Redis, e.HttpServer, e.JWT, e.Storage, e.Limiter, e.OTP, e.Email)
 	}
 
 	return string(data)

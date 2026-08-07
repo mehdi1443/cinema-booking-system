@@ -1,7 +1,11 @@
 package service_contract
 
-import "github.com/mehdi1443/cinema-booking-system/internal/application/dto"
+import (
+	"context"
+
+	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
+)
 
 type EmailServiceProviderInterface interface {
-	SendEmail(req dto.SendEmailRequest) (*bool, error)
+	SendEmail(ctx context.Context, req dto.SendEmailRequest) (*bool, error)
 }

@@ -108,7 +108,7 @@ func main() {
 	// --- SERVICES ---
 	jwtSrv := service.NewTokenService(accessKeys, refreshKeys, &config.Environment.JWT, blacklistRepo, appLogger)
 	smsSrv := service.NewSMSService()
-	emailSrv := service.NewEmailService()
+	emailSrv := service.NewEmailService(&config.Environment.Email, &config.Environment.DebugModeOptions)
 	userSrv := service.NewUserService(userRepo, bcryptHasher, appLogger)
 	authSrv := service.NewAuthService(userRepo, otpRepo, refreshtokenRepo, jwtSrv, random.NewRandomGeneratorEngine(), &config.Environment.OTP, &config.Environment.JWT, smsSrv, emailSrv, hash.NewBcryptHasher(), appLogger)
 	walletSrv := service.NewWalletService(userRepo, walletRepo, appLogger)

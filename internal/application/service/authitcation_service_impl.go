@@ -63,6 +63,7 @@ func NewAuthService(
 }
 
 func (s *authService) SendOTP(ctx context.Context, phone string, email string) (*bool, error) {
+	success := false
 	if phone != "" {
 		code := strconv.Itoa(s.randomService.GenerateRandomNumber(int(s.otpConfig.Digit)))
 
@@ -78,7 +79,7 @@ func (s *authService) SendOTP(ctx context.Context, phone string, email string) (
 			Phone: phone,
 			Text:  fmt.Sprintf("OTP:%s", code),
 		})
-		success := true
+		success = true
 		return &success, nil
 	} else if email != "" {
 		code := strconv.Itoa(s.randomService.GenerateRandomNumber(int(s.otpConfig.Digit)))
@@ -91,11 +92,17 @@ func (s *authService) SendOTP(ctx context.Context, phone string, email string) (
 			return nil, fmt.Errorf("failed to save OTP: %w", err)
 		}
 
-		s.emailProvider.SendEmail(dto.SendEmailRequest{
-			Email: email,
-			Text:  fmt.Sprintf("OTP:%s", code),
-		})
-		success := true
+		_, err = s.emailProvider.SendEmail(
+			ctx,
+			dto.SendEmailRequest{
+				To:       []string{email},
+				TextBody: fmt.Sprintf("OTP:%s", code),
+			})
+
+		if err != nil {
+			return nil, err
+		}
+		success = true
 		return &success, nil
 	}
 	return nil, fmt.Errorf("bad req to sendOTP service")
