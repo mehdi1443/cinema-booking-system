@@ -8,7 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
-	"github.com/mehdi1443/cinema-booking-system/internal/domain/dto"
+	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )

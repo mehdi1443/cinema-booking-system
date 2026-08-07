@@ -41,12 +41,47 @@ func NewS3Storage(env *bootstrap.Environment) (*S3Storage, error) {
 	buckets[enum.ActorPhoto] = env.Storage.Buckets.ActorPhoto
 	buckets[enum.CinemaPhoto] = env.Storage.Buckets.CinemaPhoto
 
-	return &S3Storage{
+	storage := &S3Storage{
 		env:      env,
 		client:   s3.New(sess),
 		uploader: s3manager.NewUploader(sess),
 		buckets:  buckets,
-	}, nil
+	}
+
+	if err := storage.EnsurePublicBuckets(context.Background()); err != nil {
+		return nil, fmt.Errorf("failed to ensure public bucket policies: %w", err)
+	}
+
+	return storage, nil
+}
+
+func (s *S3Storage) EnsurePublicBuckets(ctx context.Context) error {
+	for _, bucketName := range s.buckets {
+		if bucketName == "" {
+			continue
+		}
+
+		policy := fmt.Sprintf(`{
+			"Version": "2012-10-17",
+			"Statement": [
+				{
+					"Effect": "Allow",
+					"Principal": {"AWS": ["*"]},
+					"Action": ["s3:GetObject"],
+					"Resource": ["arn:aws:s3:::%s/*"]
+				}
+			]
+		}`, bucketName)
+
+		_, err := s.client.PutBucketPolicyWithContext(ctx, &s3.PutBucketPolicyInput{
+			Bucket: aws.String(bucketName),
+			Policy: aws.String(policy),
+		})
+		if err != nil {
+			return fmt.Errorf("failed to set public policy for bucket %q: %w", bucketName, err)
+		}
+	}
+	return nil
 }
 
 func (s *S3Storage) validateBucket(bucketType enum.BucketType) (string, error) {
@@ -63,16 +98,17 @@ func (s *S3Storage) validateBucket(bucketType enum.BucketType) (string, error) {
 	return bucketName, nil
 }
 
-func (s *S3Storage) UploadObject(ctx context.Context, bucketType enum.BucketType, key string, file io.Reader) (string, error) {
+func (s *S3Storage) UploadObject(ctx context.Context, bucketType enum.BucketType, key string, file io.Reader, contentType string) (string, error) {
 	bucketName, err := s.validateBucket(bucketType)
 	if err != nil {
 		return "", err
 	}
 
 	_, err = s.uploader.UploadWithContext(ctx, &s3manager.UploadInput{
-		Bucket: aws.String(bucketName),
-		Key:    aws.String(key),
-		Body:   file,
+		Bucket:      aws.String(bucketName),
+		Key:         aws.String(key),
+		Body:        file,
+		ContentType: aws.String(contentType),
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to upload object %q to bucket %q: %w", key, bucketName, err)

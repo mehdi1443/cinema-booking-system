@@ -2,17 +2,16 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
-	"github.com/mehdi1443/cinema-booking-system/internal/domain/dto"
+	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/storage"
-	"github.com/mehdi1443/cinema-booking-system/pkg/imageutil"
+	"github.com/mehdi1443/cinema-booking-system/pkg/image"
 )
 
 const maxTrailerSize = 100 * 1024 * 1024
@@ -97,19 +96,44 @@ func (s *movieService) Update(ctx context.Context, id int64, req *dto.UpdateMovi
 		return nil, err
 	}
 
-	movie.Title = req.Title
-	movie.Description = req.Description
-	movie.DurationMinutes = req.DurationMinutes
-	movie.ReleaseDate = req.ReleaseDate
-	movie.Country = req.Country
-	movie.Status = req.Status
-
-	peopleMap := make(map[int64]enum.MoviePersonRole, len(req.People))
-	for _, p := range req.People {
-		peopleMap[p.PersonID] = p.Role
+	if req.Title != nil {
+		movie.Title = *req.Title
+	}
+	if req.Description != nil {
+		movie.Description = *req.Description
+	}
+	if req.DurationMinutes != nil {
+		movie.DurationMinutes = *req.DurationMinutes
+	}
+	if req.ReleaseDate != nil {
+		movie.ReleaseDate = *req.ReleaseDate
+	}
+	if req.Country != nil {
+		movie.Country = *req.Country
+	}
+	if req.Status != nil {
+		movie.Status = *req.Status
 	}
 
-	updatedMovie, err := s.movieRepo.Update(ctx, movie, req.GenreIDs, peopleMap)
+	var genreIDs []int64
+	if req.GenreIDs != nil {
+		genreIDs = *req.GenreIDs
+	} else {
+		genreIDs = make([]int64, 0, len(movie.Genres))
+		for _, g := range movie.Genres {
+			genreIDs = append(genreIDs, g.ID)
+		}
+	}
+
+	var peopleMap map[int64]enum.MoviePersonRole
+	if req.People != nil {
+		peopleMap = make(map[int64]enum.MoviePersonRole, len(*req.People))
+		for _, p := range *req.People {
+			peopleMap[p.PersonID] = p.Role
+		}
+	}
+
+	updatedMovie, err := s.movieRepo.Update(ctx, movie, genreIDs, peopleMap)
 	if err != nil {
 		return nil, err
 	}
@@ -140,29 +164,29 @@ func (s *movieService) UploadPoster(ctx context.Context, id int64, file io.Reade
 		return nil, err
 	}
 
-	img, err := imageutil.DecodeImage(file)
+	img, err := image.DecodeImage(file)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode poster image: %w", err)
 	}
 
-	lowImg := imageutil.Resize(300, 450, img)
-	lowBuf, err := imageutil.EncodeToBuffer(lowImg, imageutil.FormatWebP)
+	lowImg := image.Resize(300, 450, img)
+	lowBuf, err := image.EncodeToBuffer(lowImg, image.FormatWebP)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode low-res poster: %w", err)
 	}
 	lowKey := fmt.Sprintf("movies/movie_%d_poster_low.webp", id)
-	lowURL, err := s.storage.UploadObject(ctx, enum.MoviePoster, lowKey, lowBuf)
+	lowURL, err := s.storage.UploadObject(ctx, enum.MoviePoster, lowKey, lowBuf, image.GetContentType(image.FormatWebP))
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload low-res poster: %w", err)
 	}
 
-	highImg := imageutil.Resize(1000, 1500, img)
-	highBuf, err := imageutil.EncodeToBuffer(highImg, imageutil.FormatJPEG)
+	highImg := image.Resize(1000, 1500, img)
+	highBuf, err := image.EncodeToBuffer(highImg, image.FormatJPEG)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode high-res poster: %w", err)
 	}
 	highKey := fmt.Sprintf("movies/movie_%d_poster_high.jpg", id)
-	highURL, err := s.storage.UploadObject(ctx, enum.MoviePoster, highKey, highBuf)
+	highURL, err := s.storage.UploadObject(ctx, enum.MoviePoster, highKey, highBuf, image.GetContentType(image.FormatJPEG))
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload high-res poster: %w", err)
 	}
@@ -170,7 +194,12 @@ func (s *movieService) UploadPoster(ctx context.Context, id int64, file io.Reade
 	movie.PosterURLLow = lowURL
 	movie.PosterURLHigh = highURL
 
-	updatedMovie, err := s.movieRepo.Update(ctx, movie, nil, nil)
+	genreIDs := make([]int64, 0, len(movie.Genres))
+	for _, g := range movie.Genres {
+		genreIDs = append(genreIDs, g.ID)
+	}
+
+	updatedMovie, err := s.movieRepo.Update(ctx, movie, genreIDs, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +222,12 @@ func (s *movieService) DeletePoster(ctx context.Context, id int64) error {
 	movie.PosterURLLow = ""
 	movie.PosterURLHigh = ""
 
-	_, err = s.movieRepo.Update(ctx, movie, nil, nil)
+	genreIDs := make([]int64, 0, len(movie.Genres))
+	for _, g := range movie.Genres {
+		genreIDs = append(genreIDs, g.ID)
+	}
+
+	_, err = s.movieRepo.Update(ctx, movie, genreIDs, nil)
 	if err != nil {
 		return err
 	}
@@ -210,14 +244,19 @@ func (s *movieService) UploadTrailer(ctx context.Context, id int64, file io.Read
 	limitedReader := io.LimitReader(file, maxTrailerSize+1)
 	trailerKey := fmt.Sprintf("movies/movie_%d_trailer.mp4", id)
 
-	trailerURL, err := s.storage.UploadObject(ctx, enum.MovieTrailer, trailerKey, limitedReader)
+	trailerURL, err := s.storage.UploadObject(ctx, enum.MovieTrailer, trailerKey, limitedReader, "video/mp4")
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload trailer: %w", err)
 	}
 
 	movie.TrailerURL = trailerURL
 
-	updatedMovie, err := s.movieRepo.Update(ctx, movie, nil, nil)
+	genreIDs := make([]int64, 0, len(movie.Genres))
+	for _, g := range movie.Genres {
+		genreIDs = append(genreIDs, g.ID)
+	}
+
+	updatedMovie, err := s.movieRepo.Update(ctx, movie, genreIDs, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +276,12 @@ func (s *movieService) DeleteTrailer(ctx context.Context, id int64) error {
 
 	movie.TrailerURL = ""
 
-	_, err = s.movieRepo.Update(ctx, movie, nil, nil)
+	genreIDs := make([]int64, 0, len(movie.Genres))
+	for _, g := range movie.Genres {
+		genreIDs = append(genreIDs, g.ID)
+	}
+
+	_, err = s.movieRepo.Update(ctx, movie, genreIDs, nil)
 	if err != nil {
 		return err
 	}

@@ -19,7 +19,7 @@ func NewGenreService(genreRepo repository_contract.GenreInterface) service_contr
 	}
 }
 
-func (s *genreService) CreateGenre(ctx context.Context, req dto.CreateGenreRequest) (*dto.GenreResponse, error) {
+func (s *genreService) CreateGenre(ctx context.Context, req *dto.CreateGenreRequest) (*dto.GenreResponse, error) {
 	genre := &entity.Genre{
 		Name: req.Name,
 	}
@@ -59,7 +59,7 @@ func (s *genreService) GetAllGenres(ctx context.Context) ([]*dto.GenreResponse, 
 	return dto.ToGenreResponseSlice(genres), nil
 }
 
-func (s *genreService) UpdateGenre(ctx context.Context, id int64, req dto.UpdateGenreRequest) (*dto.GenreResponse, error) {
+func (s *genreService) UpdateGenre(ctx context.Context, id int64, req *dto.UpdateGenreRequest) (*dto.GenreResponse, error) {
 	genre, err := s.genreRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err

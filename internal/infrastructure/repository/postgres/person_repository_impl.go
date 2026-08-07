@@ -62,7 +62,14 @@ func (r *personRepository) GetAll(ctx context.Context) ([]entity.Person, error) 
 }
 
 func (r *personRepository) Update(ctx context.Context, person *entity.Person) (*entity.Person, error) {
-	res := r.db.GetDB().WithContext(ctx).Model(person).Where("id = ?", person.ID).Updates(person)
+	updateData := map[string]interface{}{
+		"name":           person.Name,
+		"biography":      person.Biography,
+		"image_url_low":  person.ImageURLLow,
+		"image_url_high": person.ImageURLHigh,
+	}
+
+	res := r.db.GetDB().WithContext(ctx).Model(&entity.Person{}).Where("id = ?", person.ID).Updates(updateData)
 	if res.Error != nil {
 		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, res.Error)
 	}

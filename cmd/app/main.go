@@ -78,6 +78,9 @@ func main() {
 	refreshtokenRepo := redis_repo.NewRefreshTokenRepository(redisClient)
 	userpermissionRepo := redis_repo.NewUserPermissionCacheRepository(redisClient) //TODO USE IT!! Actually Test it
 	blacklistRepo := redis_repo.NewTokenBlacklistRedis(redisClient)
+	genreRepo := postgres_repo.NewGenreRepository(pgDB)
+	personRepo := postgres_repo.NewPersonRepository(pgDB)
+	movieRepo := postgres_repo.NewMovieRepository(pgDB)
 
 	repositories := router.Repositories{
 		UserRepo:                userRepo,
@@ -102,6 +105,9 @@ func main() {
 	walletSrv := service.NewWalletService(userRepo, walletRepo)
 	rbacSrv := service.NewRBACService(rbacRepo, userRepo, userpermissionRepo, &config.Environment.UserPermissionCache)
 	contextokenSrv := service.NewContextTokenService()
+	genreSrv := service.NewGenreService(genreRepo)
+	personSrv := service.NewPersonService(personRepo, storage)
+	movieSrv := service.NewMovieService(movieRepo, storage)
 
 	services := router.Services{
 		TokenService:        jwtSrv,
@@ -115,11 +121,18 @@ func main() {
 	userHandler := *handler.NewUserHandler(userSrv, rbacSrv, contextokenSrv)
 	rbacHandler := *handler.NewRBACHandler(rbacSrv, contextokenSrv)
 	walletHandler := *handler.NewWalletHandler(walletSrv, contextokenSrv)
+	genreHandler := *handler.NewGenreHandler(genreSrv)
+	personHandler := *handler.NewPersonHandler(personSrv)
+	movieHandler := *handler.NewMovieHandler(movieSrv)
+
 	handlers := router.Handlers{
 		Auth:   authHandler,
 		User:   userHandler,
 		RBAC:   rbacHandler,
 		Wallet: walletHandler,
+		Genre:  genreHandler,
+		Person: personHandler,
+		Movie:  movieHandler,
 	}
 
 	// --- LIMITER ---

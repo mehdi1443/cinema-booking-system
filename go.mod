@@ -4,10 +4,13 @@ go 1.25.8
 
 require (
 	github.com/aws/aws-sdk-go v1.55.8
+	github.com/chai2010/webp v1.4.0
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-playground/validator/v10 v10.30.1
 	github.com/go-redis/redis_rate/v10 v10.0.1
 	github.com/golang-jwt/jwt/v5 v5.3.1
+	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
+	github.com/pixiv/go-libjpeg v0.0.0-20190822045933-3da21a74767d
 	github.com/redis/go-redis/v9 v9.18.0
 	github.com/spf13/viper v1.21.0
 	golang.org/x/crypto v0.48.0

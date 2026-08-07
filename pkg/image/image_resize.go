@@ -1,4 +1,4 @@
-package imageutil
+package image
 
 import (
 	"bytes"
@@ -51,4 +51,15 @@ func EncodeToBuffer(img image.Image, format Format) (io.Reader, error) {
 	}
 
 	return &buf, nil
+}
+
+func GetContentType(format Format) string {
+	switch format {
+	case FormatWebP:
+		return "image/webp"
+	case FormatJPEG:
+		return "image/jpeg"
+	default:
+		return "application/octet-stream"
+	}
 }

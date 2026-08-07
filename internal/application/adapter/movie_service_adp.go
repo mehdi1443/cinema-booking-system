@@ -4,7 +4,7 @@ import (
 	"context"
 	"io"
 
-	"github.com/mehdi1443/cinema-booking-system/internal/domain/dto"
+	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 )
 

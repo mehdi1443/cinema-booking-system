@@ -51,7 +51,14 @@ var (
 	ErrReachManBalance     = errors.New("are you reach or something?!")
 
 	// Cinema Domain Errors
-	ErrMovieNotFound  = errors.New("movie not found")
-	ErrGenreNotFound  = errors.New("genre not found")
-	ErrPersonNotFound = errors.New("person not found")
+	ErrMovieNotFound      = errors.New("movie not found")
+	ErrMovieAlreadyExists = errors.New("movie already exists")
+
+	ErrGenreNotFound      = errors.New("genre not found")
+	ErrGenreAlreadyExists = errors.New("genre already exists")
+
+	ErrPersonNotFound      = errors.New("person not found")
+	ErrPersonAlreadyExists = errors.New("person already exists")
+
+	ErrInvalidFileType = errors.New("invalid file type provided")
 )

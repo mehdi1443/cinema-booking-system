@@ -6,12 +6,12 @@ import (
 	"io"
 
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
-	"github.com/mehdi1443/cinema-booking-system/internal/domain/dto"
+	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/storage"
-	"github.com/mehdi1443/cinema-booking-system/pkg/imageutil"
+	"github.com/mehdi1443/cinema-booking-system/pkg/image"
 )
 
 type personService struct {
@@ -97,29 +97,29 @@ func (s *personService) UploadImage(ctx context.Context, id int64, file io.Reade
 		return nil, err
 	}
 
-	img, err := imageutil.DecodeImage(file)
+	img, err := image.DecodeImage(file)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode image: %w", err)
 	}
 
-	lowImg := imageutil.Resize(200, 200, img)
-	lowBuf, err := imageutil.EncodeToBuffer(lowImg, imageutil.FormatWebP)
+	lowImg := image.Resize(200, 200, img)
+	lowBuf, err := image.EncodeToBuffer(lowImg, image.FormatWebP)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode low-res image: %w", err)
 	}
 	lowKey := fmt.Sprintf("persons/person_%d_low.webp", id)
-	lowURL, err := s.storage.UploadObject(ctx, enum.ActorPhoto, lowKey, lowBuf)
+	lowURL, err := s.storage.UploadObject(ctx, enum.ActorPhoto, lowKey, lowBuf, image.GetContentType(image.FormatWebP))
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload low-res image: %w", err)
 	}
 
-	highImg := imageutil.Resize(800, 800, img)
-	highBuf, err := imageutil.EncodeToBuffer(highImg, imageutil.FormatJPEG)
+	highImg := image.Resize(800, 800, img)
+	highBuf, err := image.EncodeToBuffer(highImg, image.FormatJPEG)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode high-res image: %w", err)
 	}
 	highKey := fmt.Sprintf("persons/person_%d_high.jpg", id)
-	highURL, err := s.storage.UploadObject(ctx, enum.ActorPhoto, highKey, highBuf)
+	highURL, err := s.storage.UploadObject(ctx, enum.ActorPhoto, highKey, highBuf, image.GetContentType(image.FormatJPEG))
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload high-res image: %w", err)
 	}

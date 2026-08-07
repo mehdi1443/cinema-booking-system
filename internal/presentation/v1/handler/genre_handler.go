@@ -8,16 +8,16 @@ import (
 
 	"github.com/gin-gonic/gin"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
-	"github.com/mehdi1443/cinema-booking-system/internal/domain/dto"
+	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
 
 type GenreHandler struct {
-	genreService service_contract.GenreUseCaseInterface
+	genreService service_contract.GenreServiceInterface
 }
 
-func NewGenreHandler(genreService service_contract.GenreUseCaseInterface) *GenreHandler {
+func NewGenreHandler(genreService service_contract.GenreServiceInterface) *GenreHandler {
 	return &GenreHandler{
 		genreService: genreService,
 	}

@@ -20,7 +20,6 @@ type GenreResponse struct {
 	Name      string     `json:"name"`
 	CreatedAt *time.Time `json:"created_at,omitempty"`
 	UpdatedAt *time.Time `json:"updated_at,omitempty"`
-	DeletedAt *time.Time `json:"deleted_at,omitempty"`
 }
 
 func ToGenreResponse(genre *entity.Genre) *GenreResponse {
@@ -33,7 +32,6 @@ func ToGenreResponse(genre *entity.Genre) *GenreResponse {
 		Name:      genre.Name,
 		CreatedAt: helper.TimeToPtr(genre.CreatedAt),
 		UpdatedAt: helper.TimeToPtr(genre.UpdatedAt),
-		DeletedAt: helper.TimeToPtr(genre.DeletedAt.Time),
 	}
 }
 

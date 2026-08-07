@@ -23,6 +23,15 @@ func (MoviePerson) TableName() string {
 	return "movie_people"
 }
 
+type MovieGenre struct {
+	MovieID int64 `gorm:"primaryKey;column:movie_id"`
+	GenreID int64 `gorm:"primaryKey;column:genre_id"`
+}
+
+func (MovieGenre) TableName() string {
+	return "movie_genres"
+}
+
 type movieRepository struct {
 	db database.Database
 }
@@ -35,7 +44,7 @@ func (r *movieRepository) Create(ctx context.Context, movie *entity.Movie, genre
 	err := r.db.WithTransaction(func(txWrapper database.Database) error {
 		tx := txWrapper.GetDB().WithContext(ctx)
 
-		if err := tx.Create(movie).Error; err != nil {
+		if err := tx.Omit("ID", "Genres", "People").Create(movie).Error; err != nil {
 			if errors.Is(err, gorm.ErrDuplicatedKey) {
 				return exception.ErrDuplicateKey
 			}
@@ -43,11 +52,14 @@ func (r *movieRepository) Create(ctx context.Context, movie *entity.Movie, genre
 		}
 
 		if len(genreIDs) > 0 {
-			var genres []entity.Genre
+			var movieGenres []MovieGenre
 			for _, id := range genreIDs {
-				genres = append(genres, entity.Genre{ID: id})
+				movieGenres = append(movieGenres, MovieGenre{
+					MovieID: movie.ID,
+					GenreID: id,
+				})
 			}
-			if err := tx.Model(movie).Association("Genres").Replace(genres); err != nil {
+			if err := tx.Create(&movieGenres).Error; err != nil {
 				return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 			}
 		}
@@ -138,7 +150,20 @@ func (r *movieRepository) Update(ctx context.Context, movie *entity.Movie, genre
 	err := r.db.WithTransaction(func(txWrapper database.Database) error {
 		tx := txWrapper.GetDB().WithContext(ctx)
 
-		res := tx.Model(movie).Where("id = ?", movie.ID).Updates(movie)
+		updateData := map[string]interface{}{
+			"title":            movie.Title,
+			"description":      movie.Description,
+			"duration_minutes": movie.DurationMinutes,
+			"release_date":     movie.ReleaseDate,
+			"country":          movie.Country,
+			"poster_url_low":   movie.PosterURLLow,
+			"poster_url_high":  movie.PosterURLHigh,
+			"trailer_url":      movie.TrailerURL,
+			"status":           movie.Status,
+			"updated_at":       movie.UpdatedAt,
+		}
+
+		res := tx.Model(&entity.Movie{}).Where("id = ?", movie.ID).Updates(updateData)
 		if res.Error != nil {
 			if errors.Is(res.Error, gorm.ErrDuplicatedKey) {
 				return exception.ErrDuplicateKey
@@ -149,29 +174,42 @@ func (r *movieRepository) Update(ctx context.Context, movie *entity.Movie, genre
 			return exception.ErrMovieNotFound
 		}
 
-		var genres []entity.Genre
-		for _, id := range genreIDs {
-			genres = append(genres, entity.Genre{ID: id})
-		}
-		if err := tx.Model(movie).Association("Genres").Replace(genres); err != nil {
-			return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
-		}
-
-		if err := tx.Where("movie_id = ?", movie.ID).Delete(&MoviePerson{}).Error; err != nil {
-			return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
-		}
-
-		if len(peopleIDs) > 0 {
-			var moviePeople []MoviePerson
-			for personID, role := range peopleIDs {
-				moviePeople = append(moviePeople, MoviePerson{
-					MovieID:  movie.ID,
-					PersonID: personID,
-					Role:     role,
-				})
-			}
-			if err := tx.Create(&moviePeople).Error; err != nil {
+		if genreIDs != nil {
+			if err := tx.Where("movie_id = ?", movie.ID).Delete(&MovieGenre{}).Error; err != nil {
 				return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+			}
+
+			if len(genreIDs) > 0 {
+				var movieGenres []MovieGenre
+				for _, id := range genreIDs {
+					movieGenres = append(movieGenres, MovieGenre{
+						MovieID: movie.ID,
+						GenreID: id,
+					})
+				}
+				if err := tx.Create(&movieGenres).Error; err != nil {
+					return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+				}
+			}
+		}
+
+		if peopleIDs != nil {
+			if err := tx.Where("movie_id = ?", movie.ID).Delete(&MoviePerson{}).Error; err != nil {
+				return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+			}
+
+			if len(peopleIDs) > 0 {
+				var moviePeople []MoviePerson
+				for personID, role := range peopleIDs {
+					moviePeople = append(moviePeople, MoviePerson{
+						MovieID:  movie.ID,
+						PersonID: personID,
+						Role:     role,
+					})
+				}
+				if err := tx.Create(&moviePeople).Error; err != nil {
+					return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+				}
 			}
 		}
 

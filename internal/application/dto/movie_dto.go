@@ -25,14 +25,14 @@ type CreateMovieRequest struct {
 }
 
 type UpdateMovieRequest struct {
-	Title           string                   `json:"title" binding:"required,min=1,max=255"`
-	Description     string                   `json:"description"`
-	DurationMinutes int                      `json:"duration_minutes" binding:"required,gt=0"`
-	ReleaseDate     time.Time                `json:"release_date" binding:"required"`
-	Country         string                   `json:"country"`
-	Status          enum.MovieStatus         `json:"status" binding:"required"`
-	GenreIDs        []int64                  `json:"genre_ids"`
-	People          []MoviePersonRoleRequest `json:"people"`
+	Title           *string                   `json:"title" binding:"omitempty,min=1,max=255"`
+	Description     *string                   `json:"description"`
+	DurationMinutes *int                      `json:"duration_minutes" binding:"omitempty,gt=0"`
+	ReleaseDate     *time.Time                `json:"release_date"`
+	Country         *string                   `json:"country"`
+	Status          *enum.MovieStatus         `json:"status"`
+	GenreIDs        *[]int64                  `json:"genre_ids"`
+	People          *[]MoviePersonRoleRequest `json:"people"`
 }
 
 type MovieListResponse struct {

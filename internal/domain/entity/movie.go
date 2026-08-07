@@ -7,19 +7,20 @@ import (
 )
 
 type Movie struct {
-	ID              int64            `json:"id"`
-	Title           string           `json:"title"`
-	Description     string           `json:"description"`
-	DurationMinutes int              `json:"duration_minutes"`
-	ReleaseDate     time.Time        `json:"release_date"`
-	Country         string           `json:"country"`
-	PosterURLLow    string           `json:"poster_url_low"`
-	PosterURLHigh   string           `json:"poster_url_high"`
-	TrailerURL      string           `json:"trailer_url"`
-	Status          enum.MovieStatus `json:"status"`
-	CreatedAt       time.Time        `json:"created_at"`
-	UpdatedAt       time.Time        `json:"updated_at"`
-	DeletedAt       *time.Time       `json:"deleted_at"`
-	Genres          []Genre          `json:"genres,omitempty"`
-	People          []Person         `json:"people,omitempty"`
+	ID              int64            `gorm:"primaryKey;autoIncrement" json:"id"`
+	Title           string           `gorm:"type:varchar(255);not null" json:"title"`
+	Description     string           `gorm:"type:text" json:"description"`
+	DurationMinutes int              `gorm:"not null" json:"duration_minutes"`
+	ReleaseDate     time.Time        `gorm:"type:date;not null" json:"release_date"`
+	Country         string           `gorm:"type:varchar(100)" json:"country"`
+	PosterURLLow    string           `gorm:"type:varchar(500)" json:"poster_url_low"`
+	PosterURLHigh   string           `gorm:"type:varchar(500)" json:"poster_url_high"`
+	TrailerURL      string           `gorm:"type:varchar(500)" json:"trailer_url"`
+	Status          enum.MovieStatus `gorm:"type:varchar(50);not null" json:"status"`
+	CreatedAt       time.Time        `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt       time.Time        `gorm:"autoUpdateTime" json:"updated_at"`
+	DeletedAt       *time.Time       `gorm:"index" json:"deleted_at,omitempty"`
+
+	Genres []Genre  `gorm:"many2many:movie_genres;" json:"genres,omitempty"`
+	People []Person `gorm:"many2many:movie_people;" json:"people,omitempty"`
 }

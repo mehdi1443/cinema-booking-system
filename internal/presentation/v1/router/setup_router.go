@@ -17,6 +17,9 @@ type Handlers struct {
 	User   handler.UserHandler
 	RBAC   handler.RBACHandler
 	Wallet handler.WalletHandler
+	Genre  handler.GenreHandler
+	Person handler.PersonHandler
+	Movie  handler.MovieHandler
 }
 
 type Repositories struct {
@@ -89,5 +92,10 @@ func SetUpRouter(handler *Handlers, services *Services, repositories *Repositori
 		&config.Environment.UserPermissionCache,
 	)
 
+	SetUpGenreRouter(v1, &handler.Genre)
+
+	SetUpPersonRouter(v1, &handler.Person)
+
+	SetUpMovieRouter(v1, &handler.Movie)
 	return r
 }

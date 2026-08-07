@@ -3,10 +3,10 @@ package service_contract
 import (
 	"context"
 
-	"github.com/mehdi1443/cinema-booking-system/internal/domain/dto"
+	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 )
 
-type GenreUseCaseInterface interface {
+type GenreServiceInterface interface {
 	CreateGenre(ctx context.Context, req *dto.CreateGenreRequest) (*dto.GenreResponse, error)
 	GetGenreByID(ctx context.Context, id int64) (*dto.GenreResponse, error)
 	GetAllGenres(ctx context.Context) ([]*dto.GenreResponse, error)
