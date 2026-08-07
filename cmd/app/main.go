@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin/binding"
@@ -20,6 +19,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/handler"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/router"
 	"github.com/mehdi1443/cinema-booking-system/pkg/hash"
+	"github.com/mehdi1443/cinema-booking-system/pkg/logger"
 	"github.com/mehdi1443/cinema-booking-system/pkg/random"
 	"github.com/mehdi1443/cinema-booking-system/pkg/rsa"
 )
@@ -36,36 +36,42 @@ import (
 // ?
 
 func main() {
-	// --- LOAD CONFIG & CONST
+	// --- LOAD CONFIG & CONST ---
 	ctx := context.Background()
 	config := bootstrap.Run()
-	log.Println(ctx)
-	log.Println(config)
+
+	// --- LOGGER INITIALIZATION ---
+	appLogger := logger.NewLogger(&config.Environment.Logger)
+	appLogger.Info(logger.General, logger.Startup, "starting application bootstrapping", nil)
 
 	// --- DATABASES CONNECTIONS ---
 	pgDB := database.NewPostgresDatabase(&config.Environment.DataBase, &config.Constant.Database)
 	redisClient := database.NewRedisDatabase(&config.Environment.Redis, &config.Constant.Redis)
 	storage, err := MinIO.NewS3Storage(config.Environment)
 	if err != nil {
-		log.Fatalf("failed to initialize storage: %v", err)
+		appLogger.Fatal(logger.General, logger.Startup, "failed to initialize S3 storage", map[logger.ExtraKey]interface{}{
+			logger.ErrorMessage: err.Error(),
+		})
 	}
 
 	if pgDB != nil && redisClient != nil && storage != nil {
-		fmt.Println("Database and Redis connected successfully!")
+		appLogger.Info(logger.General, logger.Startup, "Postgres, Redis, and Object Storage initialized successfully", nil)
 	}
 
 	// --- RSA KEYS ---
 	accessKeys, err := rsa.LoadOrCreate(config.Environment.PEM.PrivateAccessPath, config.Environment.PEM.PublicAccessPath, 2048)
 	if err != nil {
-		log.Fatalf("build-access-rsa:WTF:Key initialization failed: %v", err)
+		appLogger.Fatal(logger.General, logger.Startup, "failed to initialize access RSA keys", map[logger.ExtraKey]interface{}{
+			logger.ErrorMessage: err.Error(),
+		})
 	}
-	fmt.Println("build-access-rsa:ok")
 
 	refreshKeys, err := rsa.LoadOrCreate(config.Environment.PEM.PrivateRefreshPath, config.Environment.PEM.PublicRefreshPath, 2048)
 	if err != nil {
-		log.Fatalf("build-refresh-rsa:WTF:Key initialization failed: %v", err)
+		appLogger.Fatal(logger.General, logger.Startup, "failed to initialize refresh RSA keys", map[logger.ExtraKey]interface{}{
+			logger.ErrorMessage: err.Error(),
+		})
 	}
-	fmt.Println("build-refresh-rsa:ok")
 
 	// --- HASHER ---
 	bcryptHasher := hash.NewBcryptHasher()
@@ -89,21 +95,24 @@ func main() {
 	}
 
 	// --- SEEDER ---
+	// TODO : NEED EDIT WHEN USER ALREADY EXISTS
 	seeder := seed.NewRoleSeeder(config.Constant.User, userRepo, rbacRepo, pgDB, bcryptHasher)
 	if err := seeder.Seed(ctx); err != nil {
-		log.Printf("Failed to run seeders: %v\n", err) // TODO : NEED EDIT WHEN USER ALREADY EXISTS
+		appLogger.Warn(logger.General, logger.Startup, "role seeder finished with potential existing entries or non-fatal errors", map[logger.ExtraKey]interface{}{
+			logger.ErrorMessage: err.Error(),
+		})
+	} else {
+		appLogger.Info(logger.General, logger.Startup, "database roles seeded successfully", nil)
 	}
 
-	log.Println("Database seeded successfully!")
-
 	// --- SERVICES ---
-	jwtSrv := service.NewTokenService(accessKeys, refreshKeys, &config.Environment.JWT, blacklistRepo)
+	jwtSrv := service.NewTokenService(accessKeys, refreshKeys, &config.Environment.JWT, blacklistRepo, appLogger)
 	smsSrv := service.NewSMSService()
 	emailSrv := service.NewEmailService()
-	userSrv := service.NewUserService(userRepo, bcryptHasher)
-	authSrv := service.NewAuthService(userRepo, otpRepo, refreshtokenRepo, jwtSrv, random.NewRandomGeneratorEngine(), &config.Environment.OTP, &config.Environment.JWT, smsSrv, emailSrv, hash.NewBcryptHasher())
-	walletSrv := service.NewWalletService(userRepo, walletRepo)
-	rbacSrv := service.NewRBACService(rbacRepo, userRepo, userpermissionRepo, &config.Environment.UserPermissionCache)
+	userSrv := service.NewUserService(userRepo, bcryptHasher, appLogger)
+	authSrv := service.NewAuthService(userRepo, otpRepo, refreshtokenRepo, jwtSrv, random.NewRandomGeneratorEngine(), &config.Environment.OTP, &config.Environment.JWT, smsSrv, emailSrv, hash.NewBcryptHasher(), appLogger)
+	walletSrv := service.NewWalletService(userRepo, walletRepo, appLogger)
+	rbacSrv := service.NewRBACService(rbacRepo, userRepo, userpermissionRepo, &config.Environment.UserPermissionCache, appLogger)
 	contextokenSrv := service.NewContextTokenService()
 	genreSrv := service.NewGenreService(genreRepo)
 	personSrv := service.NewPersonService(personRepo, storage)
@@ -117,10 +126,10 @@ func main() {
 	}
 
 	// --- HANDLERS ---
-	authHandler := *handler.NewAuthHandler(authSrv, contextokenSrv)
-	userHandler := *handler.NewUserHandler(userSrv, rbacSrv, contextokenSrv)
-	rbacHandler := *handler.NewRBACHandler(rbacSrv, contextokenSrv)
-	walletHandler := *handler.NewWalletHandler(walletSrv, contextokenSrv)
+	authHandler := *handler.NewAuthHandler(authSrv, contextokenSrv, appLogger)
+	userHandler := *handler.NewUserHandler(userSrv, rbacSrv, contextokenSrv, appLogger)
+	rbacHandler := *handler.NewRBACHandler(rbacSrv, contextokenSrv, appLogger)
+	walletHandler := *handler.NewWalletHandler(walletSrv, contextokenSrv, appLogger)
 	genreHandler := *handler.NewGenreHandler(genreSrv)
 	personHandler := *handler.NewPersonHandler(personSrv)
 	movieHandler := *handler.NewMovieHandler(movieSrv)
@@ -136,10 +145,10 @@ func main() {
 	}
 
 	// --- LIMITER ---
-	limiter := middleware.NewRedisLimiter(redisClient)
+	limiter := middleware.NewRedisLimiter(redisClient, appLogger)
 
 	// --- ROUTES ---
-	Engine := router.SetUpRouter(&handlers, &services, &repositories, config, limiter)
+	Engine := router.SetUpRouter(&handlers, &services, &repositories, config, limiter, appLogger)
 
 	// --- VALIDATIONS ---
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
@@ -151,6 +160,12 @@ func main() {
 		v.RegisterValidation("role-title", validation.ValidateRoleTitle)
 	}
 
-	log.Printf("server running on %s:%s\n", config.Environment.HttpServer.Domain, config.Environment.HttpServer.Port)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:%s", config.Environment.HttpServer.Domain, config.Environment.HttpServer.Port), Engine))
+	serverAddr := fmt.Sprintf("%s:%s", config.Environment.HttpServer.Domain, config.Environment.HttpServer.Port)
+	appLogger.Info(logger.General, logger.Startup, fmt.Sprintf("HTTP server starting on %s", serverAddr), nil)
+
+	if err := http.ListenAndServe(serverAddr, Engine); err != nil {
+		appLogger.Fatal(logger.General, logger.Startup, "HTTP server failed to listen and serve", map[logger.ExtraKey]interface{}{
+			logger.ErrorMessage: err.Error(),
+		})
+	}
 }

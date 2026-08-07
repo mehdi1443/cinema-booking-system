@@ -13,6 +13,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	domainjwt "github.com/mehdi1443/cinema-booking-system/internal/domain/jwt"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/cache"
+	"github.com/mehdi1443/cinema-booking-system/pkg/logger"
 	"github.com/mehdi1443/cinema-booking-system/pkg/rsa"
 )
 
@@ -21,14 +22,22 @@ type jwtService struct {
 	refreshRSAKeys *rsa.RSAKeys
 	cfg            *bootstrap.JWT
 	blacklistRepo  cache.TokenBlacklistInterface
+	logger         logger.Logger
 }
 
-func NewTokenService(accessRSAKeys *rsa.RSAKeys, refreshRSAKeys *rsa.RSAKeys, cfg *bootstrap.JWT, blacklistRepo cache.TokenBlacklistInterface) service_contract.JWTServiceInterface {
+func NewTokenService(
+	accessRSAKeys *rsa.RSAKeys,
+	refreshRSAKeys *rsa.RSAKeys,
+	cfg *bootstrap.JWT,
+	blacklistRepo cache.TokenBlacklistInterface,
+	log logger.Logger,
+) service_contract.JWTServiceInterface {
 	return &jwtService{
 		accessRSAKeys:  accessRSAKeys,
 		refreshRSAKeys: refreshRSAKeys,
 		cfg:            cfg,
 		blacklistRepo:  blacklistRepo,
+		logger:         log,
 	}
 }
 
@@ -83,6 +92,9 @@ func (s *jwtService) ValidateToken(ctx context.Context, signedToken string, toke
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			return nil, exception.ErrTokenExpired
 		}
+		s.logger.Warn(logger.Internal, logger.Api, "failed to parse JWT token", map[logger.ExtraKey]interface{}{
+			logger.ErrorMessage: err.Error(),
+		})
 		return nil, errors.Join(exception.ErrInvalidToken, err)
 	}
 
@@ -98,7 +110,6 @@ func (s *jwtService) ValidateToken(ctx context.Context, signedToken string, toke
 	return s.parseClaimsToPayload(claims)
 }
 
-// Private helper to sign claims with RS256
 func (s *jwtService) generateToken(payload domainjwt.TokenPayload) (string, error) {
 	claims := jwt.MapClaims{
 		service_contract.UserIDKeyMapClaims:    payload.UserID,
@@ -112,14 +123,17 @@ func (s *jwtService) generateToken(payload domainjwt.TokenPayload) (string, erro
 	var err error
 	if payload.TokenType == domainjwt.AccessTokenTag {
 		signedToken, err = token.SignedString(s.accessRSAKeys.GetPrivateKey())
-
 	} else if payload.TokenType == domainjwt.RefreshTokenTag {
 		signedToken, err = token.SignedString(s.refreshRSAKeys.GetPrivateKey())
 	} else {
+		s.logger.Fatal(logger.Internal, logger.Api, "unknown token type provided for signing", nil)
 		panic("generateToken:WTF")
 	}
 
 	if err != nil {
+		s.logger.Error(logger.Internal, logger.Api, "failed to sign JWT string with private RSA key", map[logger.ExtraKey]interface{}{
+			logger.ErrorMessage: err.Error(),
+		})
 		return "", fmt.Errorf("jwtsrv.generateToken: failed to sign token: %w", err)
 	}
 
@@ -150,25 +164,28 @@ func (s *jwtService) parseClaimsToPayload(claims jwt.MapClaims) (*domainjwt.Toke
 	return payload, nil
 }
 
-// BlacklistToken calculates the remaining time-to-live (TTL) for the token and stores it in cache.
 func (s *jwtService) BlacklistToken(ctx context.Context, token string, expiresAt int64) error {
 	if token == "" {
 		return nil
 	}
 
-	// Calculate remaining TTL until expiration
 	expirationTime := time.Unix(expiresAt, 0)
 	ttl := time.Until(expirationTime)
 
-	// Token is already expired; no need to store it in cache
 	if ttl <= 0 {
 		return nil
 	}
 
-	return s.blacklistRepo.BlacklistToken(ctx, token, ttl)
+	err := s.blacklistRepo.BlacklistToken(ctx, token, ttl)
+	if err != nil {
+		s.logger.Error(logger.Redis, logger.Insert, "failed to record token in blacklist cache", map[logger.ExtraKey]interface{}{
+			logger.ErrorMessage: err.Error(),
+		})
+		return err
+	}
+	return nil
 }
 
-// IsBlacklisted checks if the token has been revoked.
 func (s *jwtService) IsBlacklisted(ctx context.Context, token string) (*bool, error) {
 	if token == "" {
 		success := false

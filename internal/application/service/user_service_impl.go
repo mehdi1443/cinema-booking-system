@@ -10,20 +10,24 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/pkg/hash"
+	"github.com/mehdi1443/cinema-booking-system/pkg/logger"
 )
 
 type userService struct {
 	userRepo repository_contract.UserInterface
 	hasher   *hash.BcryptHasher
+	logger   logger.Logger
 }
 
 func NewUserService(
 	userRepo repository_contract.UserInterface,
 	hasher *hash.BcryptHasher,
+	log logger.Logger,
 ) service_contract.UserServiceInterface {
 	return &userService{
 		userRepo: userRepo,
 		hasher:   hasher,
+		logger:   log,
 	}
 }
 
@@ -69,7 +73,6 @@ func (s *userService) UpdateProfile(ctx context.Context, ctxToken *dto.TokenInCo
 
 	user.FirstName = req.FirstName
 	user.LastName = req.LastName
-	// user.Email = req.Email
 
 	updatedUser, err := s.userRepo.UpdateUser(ctx, user)
 	if err != nil {
@@ -96,7 +99,6 @@ func (s *userService) ChangeStatus(ctx context.Context, ctxToken *dto.TokenInCon
 }
 
 func (s *userService) DeleteUserByID(ctx context.Context, ctxToken *dto.TokenInContext, id int64) error {
-	// Verify record exists before deletion
 	_, err := s.userRepo.FindUserByID(ctx, id)
 	if err != nil {
 		return err
@@ -127,19 +129,19 @@ func (s *userService) UpdatePassword(ctx context.Context, ctxToken *dto.TokenInC
 		return nil, exception.ErrInvalidPassword
 	}
 
-	// 1. Verify user existence
 	_, err := s.userRepo.FindUserByID(ctx, userId)
 	if err != nil {
 		return nil, err
 	}
 
-	// 2. Hash the raw password
 	hashedPassword, err := s.hasher.Hash(password.Password)
 	if err != nil {
+		s.logger.Error(logger.Internal, logger.HashPassword, "failed to hash new password during password update", map[logger.ExtraKey]interface{}{
+			logger.ErrorMessage: err.Error(),
+		})
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	// 3. Update the password in the database
 	err = s.userRepo.UpdatePassword(ctx, userId, string(hashedPassword))
 	if err != nil {
 		return nil, err

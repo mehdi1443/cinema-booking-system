@@ -8,21 +8,27 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
+	"github.com/mehdi1443/cinema-booking-system/pkg/logger"
 )
 
 type walletService struct {
 	userRepo   repository_contract.UserInterface
 	walletRepo repository_contract.WalletInterface
+	logger     logger.Logger
 }
 
-func NewWalletService(userRepo repository_contract.UserInterface, walletRepo repository_contract.WalletInterface) service_contract.WalletServiceInterface {
+func NewWalletService(
+	userRepo repository_contract.UserInterface,
+	walletRepo repository_contract.WalletInterface,
+	log logger.Logger,
+) service_contract.WalletServiceInterface {
 	return &walletService{
 		userRepo:   userRepo,
 		walletRepo: walletRepo,
+		logger:     log,
 	}
 }
 
-// GetBalance retrieves the user's current wallet balance via the repository.
 func (s *walletService) GetBalance(ctx context.Context, tokenData *dto.TokenInContext, userID int64) (int64, error) {
 	user, err := s.userRepo.FindUserByID(ctx, userID)
 	if err != nil {
@@ -31,7 +37,6 @@ func (s *walletService) GetBalance(ctx context.Context, tokenData *dto.TokenInCo
 	return user.WalletBalance, nil
 }
 
-// ChangeBalance validates the amount, checks available balance, and delegates execution to the repository.
 func (s *walletService) ChangeBalance(ctx context.Context, tokenData *dto.TokenInContext, userID int64, amount int64) (int64, error) {
 	if amount == 0 {
 		return 0, exception.ErrInvalidAmount
@@ -42,12 +47,12 @@ func (s *walletService) ChangeBalance(ctx context.Context, tokenData *dto.TokenI
 		return 0, err
 	}
 
-	if currentBalance+amount < 0 {
-		return 0, exception.ErrInsufficientBalance
-	} else if currentBalance+amount > entity.MaxWalletBalance {
+	if currentBalance+amount < 0 || currentBalance+amount > entity.MaxWalletBalance {
+		s.logger.Warn(logger.Validation, logger.Api, "invalid balance adjustment request", map[logger.ExtraKey]interface{}{
+			logger.ErrorMessage: exception.ErrInsufficientBalance.Error(),
+		})
 		return 0, exception.ErrInsufficientBalance
 	}
 
 	return s.walletRepo.AddAmountToBalance(ctx, userID, amount)
-
 }

@@ -2,23 +2,25 @@ package middleware
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis_rate/v10"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
+	"github.com/mehdi1443/cinema-booking-system/pkg/logger"
 	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
 
 type RedisLimiter struct {
-	limiter *redis_rate.Limiter
+	limiter   *redis_rate.Limiter
+	appLogger logger.Logger
 }
 
-func NewRedisLimiter(redisClient database.Cache) *RedisLimiter {
+func NewRedisLimiter(redisClient database.Cache, appLogger logger.Logger) *RedisLimiter {
 	return &RedisLimiter{
-		limiter: redis_rate.NewLimiter(redisClient.GetRDB()),
+		limiter:   redis_rate.NewLimiter(redisClient.GetRDB()),
+		appLogger: appLogger,
 	}
 }
 
@@ -46,7 +48,6 @@ func (rlm *RedisLimiter) buildMiddleware(limitRule redis_rate.Limit) gin.Handler
 			return
 		}
 
-		// Rate Limit Headers
 		c.Header("X-RateLimit-Limit", strconv.Itoa(limitRule.Rate))
 		c.Header("X-RateLimit-Remaining", strconv.Itoa(res.Remaining))
 
@@ -57,8 +58,11 @@ func (rlm *RedisLimiter) buildMiddleware(limitRule redis_rate.Limit) gin.Handler
 			}
 			c.Header("Retry-After", strconv.Itoa(retryAfterSec))
 
-			log.Printf("too-many-request:%s\n", key)
-			log.Printf("retry_after:%s\n", res.RetryAfter.String())
+			if rlm.appLogger != nil {
+				rlm.appLogger.Warn(logger.General, logger.Limiter, "rate limit exceeded", map[logger.ExtraKey]interface{}{
+					logger.Path: c.FullPath(),
+				})
+			}
 
 			response.Error(
 				c,

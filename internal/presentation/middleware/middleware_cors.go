@@ -7,7 +7,7 @@ import (
 )
 
 func SecureCORSMiddleware(allowedOrigins []string) gin.HandlerFunc {
-	originMap := make(map[string]bool)
+	originMap := make(map[string]bool, len(allowedOrigins))
 	for _, origin := range allowedOrigins {
 		originMap[origin] = true
 	}
