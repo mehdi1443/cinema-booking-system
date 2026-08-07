@@ -8,6 +8,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/cache"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/middleware"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/handler"
+	"github.com/mehdi1443/cinema-booking-system/pkg/logger"
 )
 
 func SetUpAuthRouter(
@@ -21,6 +22,7 @@ func SetUpAuthRouter(
 	contexTokenService service_contract.ContextTokenServiceInterface,
 	userRepo DB.UserInterface,
 	userCacheConfig *bootstrap.UserPermissionCache,
+	appLogger logger.Logger,
 ) {
 	auth := router.Group("/auth")
 	auth.Use(limiter.PerMinute(limiterConfig.HighRate))
@@ -33,18 +35,18 @@ func SetUpAuthRouter(
 
 		auth.POST("/logout",
 			authMiddleware,
-			//! NOTICE: DONT EVEN THINK TO TOUCH IT !!! : middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "auth:logout"),
+			//! NOTICE: DONT EVEN THINK TO TOUCH IT !!! : middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "auth:logout",appLogger),
 			authHandler.Logout,
 		)
 
 		auth.POST("/verify-phone",
 			authMiddleware,
-			//! NOTICE: DONT EVEN THINK TO TOUCH IT !!! : middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "auth:verify_phone"),
+			//! NOTICE: DONT EVEN THINK TO TOUCH IT !!! : middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "auth:verify_phone",appLogger),
 			authHandler.VerifyPhone,
 		)
 		auth.POST("/verify-email",
 			authMiddleware,
-			middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "auth:verify_email"),
+			middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "auth:verify_email", appLogger),
 			authHandler.VerifyEmail,
 		)
 	}

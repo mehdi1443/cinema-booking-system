@@ -10,6 +10,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/cache"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/middleware"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/handler"
+	"github.com/mehdi1443/cinema-booking-system/pkg/logger"
 )
 
 type Handlers struct {
@@ -35,7 +36,7 @@ type Services struct {
 	UserService         service_contract.UserServiceInterface
 }
 
-func SetUpRouter(handler *Handlers, services *Services, repositories *Repositories, config *bootstrap.Config, limiter *middleware.RedisLimiter) *gin.Engine {
+func SetUpRouter(handler *Handlers, services *Services, repositories *Repositories, config *bootstrap.Config, limiter *middleware.RedisLimiter, appLogger logger.Logger) *gin.Engine {
 	r := gin.New()
 
 	// gin logger
@@ -48,7 +49,7 @@ func SetUpRouter(handler *Handlers, services *Services, repositories *Repositori
 		fmt.Sprintf("%s:%s", config.Environment.HttpServer.Domain, config.Environment.HttpServer.Port),
 	}))
 
-	authMiddleware := middleware.JWTAuthentication(services.TokenService)
+	authMiddleware := middleware.JWTAuthentication(services.TokenService, appLogger)
 	v1 := r.Group("/v1")
 
 	SetUpUserRouter(
@@ -64,6 +65,7 @@ func SetUpRouter(handler *Handlers, services *Services, repositories *Repositori
 		services.ContextTokenService,
 		repositories.UserRepo,
 		&config.Environment.UserPermissionCache,
+		appLogger,
 	)
 
 	SetUpAuthRouter(
@@ -77,6 +79,7 @@ func SetUpRouter(handler *Handlers, services *Services, repositories *Repositori
 		services.ContextTokenService,
 		repositories.UserRepo,
 		&config.Environment.UserPermissionCache,
+		appLogger,
 	)
 
 	SetUpRBACRouter(
@@ -90,6 +93,7 @@ func SetUpRouter(handler *Handlers, services *Services, repositories *Repositori
 		services.ContextTokenService,
 		repositories.UserRepo,
 		&config.Environment.UserPermissionCache,
+		appLogger,
 	)
 
 	SetUpGenreRouter(v1, &handler.Genre)

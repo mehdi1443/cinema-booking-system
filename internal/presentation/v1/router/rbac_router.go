@@ -8,6 +8,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/cache"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/middleware"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/handler"
+	"github.com/mehdi1443/cinema-booking-system/pkg/logger"
 )
 
 func SetUpRBACRouter(
@@ -21,6 +22,7 @@ func SetUpRBACRouter(
 	contexTokenService service_contract.ContextTokenServiceInterface,
 	userRepo DB.UserInterface,
 	userCacheConfig *bootstrap.UserPermissionCache,
+	appLogger logger.Logger,
 ) {
 
 	// Role Management
@@ -28,23 +30,23 @@ func SetUpRBACRouter(
 	roles.Use(limiter.PerMinute(limiterConfig.HighRate), authMiddleware)
 	{
 		roles.GET("/:id",
-			middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "roles:read"),
+			middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "roles:read", appLogger),
 			rbacHandler.GetRoleByID,
 		)
 		roles.POST("/",
-			middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "roles:read"),
+			middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "roles:read", appLogger),
 			rbacHandler.CreateRole,
 		)
 		roles.PUT("/:id",
-			middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "roles:read"),
+			middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "roles:read", appLogger),
 			rbacHandler.UpdateRole,
 		)
 		roles.POST("/:id/permissions",
-			middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "roles:append_permissions"),
+			middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "roles:append_permissions", appLogger),
 			rbacHandler.AppendPermissionsToRole,
 		)
 		roles.DELETE("/:id/permissions",
-			middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "roles:revoke_permissions"),
+			middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "roles:revoke_permissions", appLogger),
 			rbacHandler.DeletePermissionsOfRole,
 		)
 	}
@@ -54,11 +56,11 @@ func SetUpRBACRouter(
 	permissions.Use(limiter.PerMinute(limiterConfig.HighRate), authMiddleware)
 	{
 		permissions.GET("/:id",
-			middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "permissions:read"),
+			middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "permissions:read", appLogger),
 			rbacHandler.GetPermissionByID,
 		)
 		permissions.GET("/role/:name",
-			middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "permissions:read_by_role"),
+			middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "permissions:read_by_role", appLogger),
 			rbacHandler.GetPermissionsByRoleName,
 		)
 	}
