@@ -12,6 +12,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/cache"
+	"github.com/mehdi1443/cinema-booking-system/pkg/logger"
 )
 
 type rbacService struct {
@@ -19,6 +20,7 @@ type rbacService struct {
 	userRepo                  repository_contract.UserInterface
 	userPermissionCacheRepo   cache.UserPermissionCacheInterface
 	userPermissionCacheConfig *bootstrap.UserPermissionCache
+	logger                    logger.Logger
 }
 
 func NewRBACService(
@@ -26,9 +28,15 @@ func NewRBACService(
 	userRepo repository_contract.UserInterface,
 	userPermissionCacheRepo cache.UserPermissionCacheInterface,
 	userPermissionCacheConfig *bootstrap.UserPermissionCache,
+	log logger.Logger,
 ) service_contract.RBACServiceInterface {
-	return &rbacService{rbacRepo: rbacRepo, userRepo: userRepo,
-		userPermissionCacheRepo: userPermissionCacheRepo, userPermissionCacheConfig: userPermissionCacheConfig}
+	return &rbacService{
+		rbacRepo:                  rbacRepo,
+		userRepo:                  userRepo,
+		userPermissionCacheRepo:   userPermissionCacheRepo,
+		userPermissionCacheConfig: userPermissionCacheConfig,
+		logger:                    log,
+	}
 }
 
 func (s *rbacService) AppendPermissionsToRole(ctx context.Context, tokenData *dto.TokenInContext, roleID int64, permissionIDs []*int64) error {
@@ -48,13 +56,16 @@ func (s *rbacService) AppendPermissionsToRole(ctx context.Context, tokenData *dt
 	if err != nil {
 		return err
 	}
-	userIDs := make([]string, len(users))
+	userIDs := make([]string, 0, len(users))
 	for i := 0; i < len(users); i++ {
 		id := strconv.Itoa(int(users[i].ID))
 		userIDs = append(userIDs, id)
 	}
 	err = s.userPermissionCacheRepo.DeleteAllUserPermission(ctx, userIDs)
 	if err != nil {
+		s.logger.Error(logger.Redis, logger.Delete, "failed to invalidate user permissions cache after appending role permissions", map[logger.ExtraKey]interface{}{
+			logger.ErrorMessage: err.Error(),
+		})
 		return err
 	}
 	return nil
@@ -77,13 +88,16 @@ func (s *rbacService) DeletePermissionsOfRole(ctx context.Context, tokenData *dt
 	if err != nil {
 		return err
 	}
-	userIDs := make([]string, len(users))
+	userIDs := make([]string, 0, len(users))
 	for i := 0; i < len(users); i++ {
 		id := strconv.Itoa(int(users[i].ID))
 		userIDs = append(userIDs, id)
 	}
 	err = s.userPermissionCacheRepo.DeleteAllUserPermission(ctx, userIDs)
 	if err != nil {
+		s.logger.Error(logger.Redis, logger.Delete, "failed to invalidate user permissions cache after removing role permissions", map[logger.ExtraKey]interface{}{
+			logger.ErrorMessage: err.Error(),
+		})
 		return err
 	}
 	return nil
@@ -107,15 +121,16 @@ func (s *rbacService) GetUserPermissionNames(ctx context.Context, tokenData *dto
 			}
 			err := s.userPermissionCacheRepo.SaveUserPermissions(ctx, strconv.Itoa(int(userID)), permsStr, s.userPermissionCacheConfig.ExpirationDuration())
 			if err != nil {
+				s.logger.Error(logger.Redis, logger.Insert, "failed to populate user permissions cache", map[logger.ExtraKey]interface{}{
+					logger.ErrorMessage: err.Error(),
+				})
 				return nil, err
 			}
 			return permsStr, nil
 		}
 		return nil, err
-
 	}
 	return permsStr, nil
-
 }
 
 func (s *rbacService) GetUserPermissions(ctx context.Context, tokenData *dto.TokenInContext, userID int64) ([]*dto.PermissionResponse, error) {
@@ -183,23 +198,24 @@ func (s *rbacService) GetRoleByID(ctx context.Context, tokenData *dto.TokenInCon
 }
 
 func (s *rbacService) UpdateUserRoles(ctx context.Context, ctxToken *dto.TokenInContext, userID int64, req dto.UpdateUserRolesRequest) (*dto.UserResponse, error) {
-	// 1. Verify user exists
 	_, err := s.userRepo.FindUserByID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	// 2. Sync roles via repository
 	err = s.rbacRepo.UpdateUserRoles(ctx, userID, req.RoleIDs)
 	if err != nil {
 		return nil, err
 	}
+
 	err = s.userPermissionCacheRepo.DeleteUserPermission(ctx, strconv.Itoa(int(userID)))
 	if err != nil {
+		s.logger.Error(logger.Redis, logger.Delete, "failed to invalidate user permissions cache after updating user roles", map[logger.ExtraKey]interface{}{
+			logger.ErrorMessage: err.Error(),
+		})
 		return nil, err
 	}
 
-	// 3. Fetch reloaded user with new roles
 	updatedUser, err := s.userRepo.FindUserByID(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -208,7 +224,6 @@ func (s *rbacService) UpdateUserRoles(ctx context.Context, ctxToken *dto.TokenIn
 	return dto.ToUserResponse(updatedUser, &dto.HideFieldUserOption{WalletBalance: false}), nil
 }
 
-// CreateRole handles business logic for role creation
 func (s *rbacService) CreateRole(ctx context.Context, tokenData *dto.TokenInContext, req *dto.CreateRoleRequest) (*entity.Role, error) {
 	existingRole, err := s.rbacRepo.FindRoleByName(ctx, req.Name)
 	if err == nil && existingRole != nil {
@@ -230,7 +245,6 @@ func (s *rbacService) CreateRole(ctx context.Context, tokenData *dto.TokenInCont
 	return role, nil
 }
 
-// UpdateRole handles business logic for updating an existing role
 func (s *rbacService) UpdateRole(ctx context.Context, tokenData *dto.TokenInContext, roleID int64, req *dto.UpdateRoleRequest) (*entity.Role, error) {
 	existingRole, err := s.rbacRepo.FindRoleByID(ctx, roleID)
 	if err != nil {
@@ -247,11 +261,9 @@ func (s *rbacService) UpdateRole(ctx context.Context, tokenData *dto.TokenInCont
 		}
 	}
 
-	// 3. Update entity fields
 	existingRole.Name = req.Name
 	existingRole.Title = req.Title
 
-	// 4. Save to repository
 	if err := s.rbacRepo.UpdateRole(ctx, existingRole); err != nil {
 		return nil, err
 	}

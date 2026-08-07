@@ -19,6 +19,7 @@ type Environment struct {
 	OTP                 OTP                 `mapstructure:",squash" json:"otp"`
 	PEM                 PEM                 `mapstructure:",squash" json:"pem"`
 	UserPermissionCache UserPermissionCache `mapstructure:",squash" json:"user_permission_cache"`
+	Logger              LoggerConfig        `mapstructure:",squash" json:"logger"`
 }
 
 type DebugModeOptions struct {
@@ -84,6 +85,13 @@ type OTP struct {
 	Digit               int64 `mapstructure:"OTP_DIGIT_NUMBER"   json:"digit_number"`
 	ExpireMinutes       int   `mapstructure:"OTP_EXPIRE_MINUTES" json:"expire_minutes"`
 	VerifyExpireMinutes int   `mapstructure:"OTP_VERIFY_EXPIRE_MINUTES" json:"verify_expire_minutes"`
+}
+
+type LoggerConfig struct {
+	FilePath string `json:"file_path" mapstructure:"file_path"`
+	Encoding string `json:"encoding" mapstructure:"encoding"`
+	Level    string `json:"level" mapstructure:"level"`
+	Logger   string `json:"logger" mapstructure:"logger"`
 }
 
 type UserPermissionCache struct {
