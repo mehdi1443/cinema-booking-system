@@ -1,6 +1,11 @@
 package logger
 
-import "github.com/mehdi1443/cinema-booking-system/bootstrap"
+type Config struct {
+	FilePath string
+	Encoding string
+	Level    string
+	Logger   string
+}
 
 type Logger interface {
 	Init()
@@ -21,7 +26,7 @@ type Logger interface {
 	Fatalf(template string, args ...interface{})
 }
 
-func NewLogger(cfg *bootstrap.LoggerConfig) Logger {
+func NewLogger(cfg Config) Logger {
 	if cfg.Logger == "zero-log" {
 		return newZeroLogger(cfg)
 	}

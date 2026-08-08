@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/pkgerrors"
 )
@@ -17,7 +16,7 @@ var once sync.Once
 var zeroSinLogger *zerolog.Logger
 
 type zeroLogger struct {
-	cfg    *bootstrap.LoggerConfig
+	cfg    Config
 	logger *zerolog.Logger
 }
 
@@ -29,7 +28,7 @@ var zeroLogLevelMapping = map[string]zerolog.Level{
 	"fatal": zerolog.FatalLevel,
 }
 
-func newZeroLogger(cfg *bootstrap.LoggerConfig) *zeroLogger {
+func newZeroLogger(cfg Config) *zeroLogger {
 	logger := &zeroLogger{cfg: cfg}
 	logger.Init()
 	return logger
@@ -54,7 +53,9 @@ func (l *zeroLogger) Init() {
 			panic("could not open log file")
 		}
 
-		var logger = zerolog.New(file).
+		mw := zerolog.MultiLevelWriter(os.Stdout, file)
+
+		var logger = zerolog.New(mw).
 			With().
 			Timestamp().
 			Str("AppName", "Cinema-Ticket").

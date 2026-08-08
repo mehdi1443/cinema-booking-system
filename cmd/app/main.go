@@ -41,9 +41,15 @@ func main() {
 	// --- LOAD CONFIG & CONST ---
 	ctx := context.Background()
 	config := bootstrap.Run()
+	fmt.Println(config)
 
 	// --- LOGGER INITIALIZATION ---
-	appLogger := logger.NewLogger(&config.Environment.Logger)
+	appLogger := logger.NewLogger(logger.Config{
+		Logger:   config.Environment.Logger.Logger,
+		FilePath: config.Environment.Logger.FilePath,
+		Encoding: config.Environment.Logger.Encoding,
+		Level:    config.Environment.Logger.Level,
+	})
 	appLogger.Info(logger.General, logger.Startup, "starting application bootstrapping", nil)
 
 	// --- DATABASES CONNECTIONS ---

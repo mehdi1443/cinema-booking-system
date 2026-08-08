@@ -89,10 +89,10 @@ type OTP struct {
 }
 
 type LoggerConfig struct {
-	FilePath string `json:"file_path" mapstructure:"file_path"`
-	Encoding string `json:"encoding" mapstructure:"encoding"`
-	Level    string `json:"level" mapstructure:"level"`
-	Logger   string `json:"logger" mapstructure:"logger"`
+	FilePath string `json:"file_path" mapstructure:"LOGGER_FILE_PATH"`
+	Encoding string `json:"encoding" mapstructure:"LOGGER_ENCODING"`
+	Level    string `json:"level" mapstructure:"LOGGER_LEVEL"`
+	Logger   string `json:"logger" mapstructure:"LOGGER_NAME"`
 }
 
 type EmailConfig struct {

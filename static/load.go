@@ -9,7 +9,7 @@ type StaticFiles struct {
 }
 
 func InitStaticFiles() (*StaticFiles, error) {
-	otpHTMLTemplate, err := template.ParseFiles("otp.html")
+	otpHTMLTemplate, err := template.ParseFiles("static/otp.html")
 	if err != nil {
 		return nil, err
 	}
