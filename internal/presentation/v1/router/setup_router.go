@@ -35,6 +35,7 @@ type Services struct {
 	RBACService         service_contract.RBACServiceInterface
 	ContextTokenService service_contract.ContextTokenServiceInterface
 	UserService         service_contract.UserServiceInterface
+	CaptchaService      service_contract.CaptchaServiceInterface
 }
 
 func SetUpRouter(handler *Handlers, services *Services, repositories *Repositories, config *bootstrap.Config, limiter *middleware.RedisLimiter, appLogger logger.Logger) *gin.Engine {
@@ -51,6 +52,8 @@ func SetUpRouter(handler *Handlers, services *Services, repositories *Repositori
 	}))
 
 	authMiddleware := middleware.JWTAuthentication(services.TokenService, appLogger)
+	captchaMiddleware := middleware.NewCaptchaSolving(services.CaptchaService, &config.Environment.DebugModeOptions, appLogger)
+
 	v1 := r.Group("/v1")
 
 	SetUpUserRouter(
@@ -81,6 +84,7 @@ func SetUpRouter(handler *Handlers, services *Services, repositories *Repositori
 		repositories.UserRepo,
 		&config.Environment.UserPermissionCache,
 		appLogger,
+		captchaMiddleware,
 	)
 
 	SetUpRBACRouter(

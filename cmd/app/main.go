@@ -157,6 +157,7 @@ func main() {
 		RBACService:         rbacSrv,
 		ContextTokenService: contextokenSrv,
 		UserService:         userSrv,
+		CaptchaService:      captchaSrv,
 	}
 
 	// --- HANDLERS ---

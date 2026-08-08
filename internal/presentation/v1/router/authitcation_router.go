@@ -23,14 +23,15 @@ func SetUpAuthRouter(
 	userRepo DB.UserInterface,
 	userCacheConfig *bootstrap.UserPermissionCache,
 	appLogger logger.Logger,
+	captchaMiddleware *middleware.CaptchaSolving,
 ) {
 	auth := router.Group("/auth")
 	auth.Use(limiter.PerMinute(limiterConfig.HighRate))
 	{
-		auth.POST("/otp/send", authHandler.SendOTP) // TODO: Captcha Handling
+		auth.POST("/otp/send", captchaMiddleware.CaptchaSolvingMiddleware(), authHandler.SendOTP) // TODO: Captcha Handling
 		auth.POST("/otp/verify", authHandler.VerifyOTP)
-		auth.POST("/login", authHandler.Login)
-		auth.POST("/register", authHandler.Register)
+		auth.POST("/login", captchaMiddleware.CaptchaSolvingMiddleware(), authHandler.Login)
+		auth.POST("/register", captchaMiddleware.CaptchaSolvingMiddleware(), authHandler.Register)
 		auth.POST("/refresh", authHandler.Refresh)
 
 		auth.POST("/logout",
