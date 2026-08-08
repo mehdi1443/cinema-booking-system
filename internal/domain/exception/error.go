@@ -3,6 +3,10 @@ package exception
 import "errors"
 
 var (
+	ErrCaptchaNotFound         = errors.New("captcha not found or expired")
+	ErrCaptchaExists           = errors.New("captcha already exists")
+	ErrCaptchaGenerationFailed = errors.New("failed to generate captcha")
+
 	// Auth & Token Errors
 	ErrRefreshTokenNotFound  = errors.New("refresh token not found in cache")
 	ErrTokenExpired          = errors.New("token has expired")

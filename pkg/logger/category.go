@@ -50,6 +50,9 @@ const (
 
 	// Limiter
 	Limiter SubCategory = "Limiter"
+
+	// Captcha
+	Captcha SubCategory = "Captcha"
 )
 
 // Extra Keys

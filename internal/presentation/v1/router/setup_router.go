@@ -14,13 +14,14 @@ import (
 )
 
 type Handlers struct {
-	Auth   handler.AuthHandler
-	User   handler.UserHandler
-	RBAC   handler.RBACHandler
-	Wallet handler.WalletHandler
-	Genre  handler.GenreHandler
-	Person handler.PersonHandler
-	Movie  handler.MovieHandler
+	Auth    handler.AuthHandler
+	User    handler.UserHandler
+	RBAC    handler.RBACHandler
+	Wallet  handler.WalletHandler
+	Genre   handler.GenreHandler
+	Person  handler.PersonHandler
+	Movie   handler.MovieHandler
+	Captcha handler.CaptchaHandler
 }
 
 type Repositories struct {
@@ -34,6 +35,7 @@ type Services struct {
 	RBACService         service_contract.RBACServiceInterface
 	ContextTokenService service_contract.ContextTokenServiceInterface
 	UserService         service_contract.UserServiceInterface
+	CaptchaService      service_contract.CaptchaServiceInterface
 }
 
 func SetUpRouter(handler *Handlers, services *Services, repositories *Repositories, config *bootstrap.Config, limiter *middleware.RedisLimiter, appLogger logger.Logger) *gin.Engine {
@@ -50,6 +52,8 @@ func SetUpRouter(handler *Handlers, services *Services, repositories *Repositori
 	}))
 
 	authMiddleware := middleware.JWTAuthentication(services.TokenService, appLogger)
+	captchaMiddleware := middleware.NewCaptchaSolving(services.CaptchaService, &config.Environment.DebugModeOptions, appLogger)
+
 	v1 := r.Group("/v1")
 
 	SetUpUserRouter(
@@ -80,6 +84,7 @@ func SetUpRouter(handler *Handlers, services *Services, repositories *Repositori
 		repositories.UserRepo,
 		&config.Environment.UserPermissionCache,
 		appLogger,
+		captchaMiddleware,
 	)
 
 	SetUpRBACRouter(
@@ -101,5 +106,7 @@ func SetUpRouter(handler *Handlers, services *Services, repositories *Repositori
 	SetUpPersonRouter(v1, &handler.Person)
 
 	SetUpMovieRouter(v1, &handler.Movie)
+
+	SetUpCaptchaRouter(v1, &handler.Captcha, limiter, &config.Environment.Limiter, appLogger)
 	return r
 }

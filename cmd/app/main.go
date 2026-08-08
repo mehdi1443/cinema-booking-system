@@ -11,13 +11,13 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/application/service"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/validation"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
-	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/repository/MinIO"
 	postgres_repo "github.com/mehdi1443/cinema-booking-system/internal/infrastructure/repository/postgres"
 	redis_repo "github.com/mehdi1443/cinema-booking-system/internal/infrastructure/repository/redis"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/seed"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/middleware"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/handler"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/router"
+	"github.com/mehdi1443/cinema-booking-system/pkg/captcha"
 	"github.com/mehdi1443/cinema-booking-system/pkg/hash"
 	"github.com/mehdi1443/cinema-booking-system/pkg/logger"
 	"github.com/mehdi1443/cinema-booking-system/pkg/random"
@@ -55,14 +55,14 @@ func main() {
 	// --- DATABASES CONNECTIONS ---
 	pgDB := database.NewPostgresDatabase(&config.Environment.DataBase, &config.Constant.Database)
 	redisClient := database.NewRedisDatabase(&config.Environment.Redis, &config.Constant.Redis)
-	storage, err := MinIO.NewS3Storage(config.Environment)
-	if err != nil {
-		appLogger.Fatal(logger.General, logger.Startup, "failed to initialize S3 storage", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: err.Error(),
-		})
-	}
+	// storage, err := MinIO.NewS3Storage(config.Environment)
+	// if err != nil {
+	// 	appLogger.Fatal(logger.General, logger.Startup, "failed to initialize S3 storage", map[logger.ExtraKey]interface{}{
+	// 		logger.ErrorMessage: err.Error(),
+	// 	})
+	// }
 
-	if pgDB != nil && redisClient != nil && storage != nil {
+	if pgDB != nil && redisClient != nil /*&& storage != nil*/ {
 		appLogger.Info(logger.General, logger.Startup, "Postgres, Redis, and Object Storage initialized successfully", nil)
 	}
 
@@ -92,6 +92,14 @@ func main() {
 		})
 	}
 
+	// --- CAPTCHAMAN ---
+	captchaMan, err := captcha.NewCaptchaMan(config.Environment.Captcha.Type)
+	if err != nil {
+		appLogger.Fatal(logger.General, logger.Startup, "failed to initialize Captcha Man", map[logger.ExtraKey]interface{}{
+			logger.ErrorMessage: err.Error(),
+		})
+	}
+
 	// --- REPOSITORIES ---
 	userRepo := postgres_repo.NewUserRepositoryPostgres(pgDB)
 	walletRepo := postgres_repo.NewWalletRepositoryPostgres(pgDB)
@@ -101,8 +109,9 @@ func main() {
 	userpermissionRepo := redis_repo.NewUserPermissionCacheRepository(redisClient) //TODO USE IT!! Actually Test it
 	blacklistRepo := redis_repo.NewTokenBlacklistRedis(redisClient)
 	genreRepo := postgres_repo.NewGenreRepository(pgDB)
-	personRepo := postgres_repo.NewPersonRepository(pgDB)
-	movieRepo := postgres_repo.NewMovieRepository(pgDB)
+	// personRepo := postgres_repo.NewPersonRepository(pgDB)
+	// movieRepo := postgres_repo.NewMovieRepository(pgDB)
+	captchaRepo := redis_repo.NewCaptchaRepositoryRedis(redisClient)
 
 	repositories := router.Repositories{
 		UserRepo:                userRepo,
@@ -139,14 +148,16 @@ func main() {
 	rbacSrv := service.NewRBACService(rbacRepo, userRepo, userpermissionRepo, &config.Environment.UserPermissionCache, appLogger)
 	contextokenSrv := service.NewContextTokenService()
 	genreSrv := service.NewGenreService(genreRepo)
-	personSrv := service.NewPersonService(personRepo, storage)
-	movieSrv := service.NewMovieService(movieRepo, storage)
+	// personSrv := service.NewPersonService(personRepo, storage)
+	// movieSrv := service.NewMovieService(movieRepo, storage)
+	captchaSrv := service.NewCaptchaService(captchaRepo, &config.Environment.Captcha, captchaMan, appLogger)
 
 	services := router.Services{
 		TokenService:        jwtSrv,
 		RBACService:         rbacSrv,
 		ContextTokenService: contextokenSrv,
 		UserService:         userSrv,
+		CaptchaService:      captchaSrv,
 	}
 
 	// --- HANDLERS ---
@@ -155,8 +166,9 @@ func main() {
 	rbacHandler := *handler.NewRBACHandler(rbacSrv, contextokenSrv, appLogger)
 	walletHandler := *handler.NewWalletHandler(walletSrv, contextokenSrv, appLogger)
 	genreHandler := *handler.NewGenreHandler(genreSrv)
-	personHandler := *handler.NewPersonHandler(personSrv)
-	movieHandler := *handler.NewMovieHandler(movieSrv)
+	// personHandler := *handler.NewPersonHandler(personSrv)
+	// movieHandler := *handler.NewMovieHandler(movieSrv)
+	captchaHandler := *handler.NewCaptchaHandler(captchaSrv, contextokenSrv, appLogger)
 
 	handlers := router.Handlers{
 		Auth:   authHandler,
@@ -164,8 +176,9 @@ func main() {
 		RBAC:   rbacHandler,
 		Wallet: walletHandler,
 		Genre:  genreHandler,
-		Person: personHandler,
-		Movie:  movieHandler,
+		// Person: personHandler,
+		// Movie:  movieHandler,
+		Captcha: captchaHandler,
 	}
 
 	// --- LIMITER ---

@@ -21,6 +21,7 @@ type Environment struct {
 	UserPermissionCache UserPermissionCache `mapstructure:",squash" json:"user_permission_cache"`
 	Logger              LoggerConfig        `mapstructure:",squash" json:"logger"`
 	Email               EmailConfig         `mapstructure:",squash" json:"email"`
+	Captcha             CaptchaConfig       `mapstructure:",squash" json:"captcha"`
 }
 
 type DebugModeOptions struct {
@@ -101,6 +102,10 @@ type EmailConfig struct {
 	SMTPHost                     string `mapstructure:"SMTP_HOST"                        json:"smtp_host"`
 	SMTPPort                     string `mapstructure:"SMTP_HOST_PORT"                   json:"smtp_host_port"`
 }
+type CaptchaConfig struct {
+	Type string `mapstructure:"CAPTCHA_TYPE" json:"type"`
+	TTL  int    `mapstructure:"CAPTCHA_TTL_IN_SECONDS" json:"ttl"`
+}
 
 type UserPermissionCache struct {
 	UserPermissionExpiredDuration int `mapstructure:"USER_PERMISSION_CACHE_EXPIRE_MINUTES" json:"expire_duration"`
@@ -127,6 +132,10 @@ func (o *UserPermissionCache) ExpirationDuration() time.Duration {
 
 func (o *OTP) VerifyExpirationDuration() time.Duration {
 	return time.Duration(o.VerifyExpireMinutes) * time.Minute
+}
+
+func (cc *CaptchaConfig) TTLInSeconds() time.Duration {
+	return time.Duration(cc.TTL) * time.Second
 }
 
 func NewEnvironment() *Environment {
