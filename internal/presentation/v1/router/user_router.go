@@ -29,7 +29,8 @@ func SetUpUserRouter(
 ) {
 	// User Endpoints
 	users := rg.Group("/users")
-	users.Use(limiter.PerMinute(limiterConfig.HighRate), authMiddleware)
+	users.Use(limiter.PerMinute(limiterConfig.HighRate))
+	users.Use(authMiddleware)
 	{
 		//* specific
 		users.PATCH("/:id/password",

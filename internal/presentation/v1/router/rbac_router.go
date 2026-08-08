@@ -27,7 +27,8 @@ func SetUpRBACRouter(
 
 	// Role Management
 	roles := router.Group("/roles")
-	roles.Use(limiter.PerMinute(limiterConfig.HighRate), authMiddleware)
+	roles.Use(limiter.PerMinute(limiterConfig.HighRate))
+	roles.Use(authMiddleware)
 	{
 		roles.GET("/:id",
 			middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "roles:read", appLogger),
@@ -53,7 +54,8 @@ func SetUpRBACRouter(
 
 	// Permission Management
 	permissions := router.Group("/permissions")
-	permissions.Use(limiter.PerMinute(limiterConfig.HighRate), authMiddleware)
+	permissions.Use(limiter.PerMinute(limiterConfig.HighRate))
+	permissions.Use(authMiddleware)
 	{
 		permissions.GET("/:id",
 			middleware.ControlUserAccess(rbacRepo, userPermissionCacheRepo, contexTokenService, userRepo, userCacheConfig, "permissions:read", appLogger),
