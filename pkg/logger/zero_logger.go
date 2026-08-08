@@ -45,13 +45,17 @@ func (l *zeroLogger) getLogLevel() zerolog.Level {
 func (l *zeroLogger) Init() {
 	once.Do(func() {
 
-		zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
-		fileName := fmt.Sprintf("%s%s-%s.%s", l.cfg.FilePath, time.Now().Format("2006-01-02"), uuid.New(), "log")
+		loc, _ := time.LoadLocation("Asia/Tehran")
+		timeStamp := time.Now().In(loc).Format("2006-01-02-15-04-05")
+		fileName := fmt.Sprintf("%s%s-%s.log", l.cfg.FilePath, timeStamp, uuid.New().String())
 
 		file, err := os.OpenFile(fileName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
 		if err != nil {
+			fmt.Printf("Error opening log file: %v\n", err)
 			panic("could not open log file")
 		}
+
+		zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
 
 		mw := zerolog.MultiLevelWriter(os.Stdout, file)
 

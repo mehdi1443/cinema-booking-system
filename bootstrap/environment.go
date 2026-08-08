@@ -103,7 +103,8 @@ type EmailConfig struct {
 	SMTPPort                     string `mapstructure:"SMTP_HOST_PORT"                   json:"smtp_host_port"`
 }
 type CaptchaConfig struct {
-	TTL int `mapstructure:"CAPTCHA_TTL_IN_SECONDS" json:"ttl"`
+	Type string `mapstructure:"CAPTCHA_TYPE" json:"type"`
+	TTL  int    `mapstructure:"CAPTCHA_TTL_IN_SECONDS" json:"ttl"`
 }
 
 type UserPermissionCache struct {

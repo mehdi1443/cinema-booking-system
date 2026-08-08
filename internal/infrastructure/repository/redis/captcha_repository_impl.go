@@ -28,7 +28,7 @@ func (r *captchaRepository) buildKey(captchaId string) string {
 
 func (r *captchaRepository) Save(ctx context.Context, captchaId string, code string, ttl time.Duration) error {
 	key := r.buildKey(captchaId)
-	if err := r.client.GetRDB().Set(ctx, key, code, ttl); err != nil {
+	if err := r.client.GetRDB().Set(ctx, key, code, ttl).Err(); err != nil {
 		return fmt.Errorf("failed to save captcha [%s]: %w", captchaId, err)
 	}
 	return nil
@@ -48,7 +48,7 @@ func (r *captchaRepository) Get(ctx context.Context, captchaId string) (string, 
 
 func (r *captchaRepository) Delete(ctx context.Context, captchaId string) error {
 	key := r.buildKey(captchaId)
-	if err := r.client.GetRDB().Del(ctx, key); err != nil {
+	if err := r.client.GetRDB().Del(ctx, key).Err(); err != nil {
 		return fmt.Errorf("failed to delete captcha [%s]: %w", captchaId, err)
 	}
 	return nil

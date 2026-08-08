@@ -22,7 +22,7 @@ func SetUpCaptchaRouter(
 		captcha.POST("/send",
 			captchaHandler.SendCaptcha,
 		)
-		captcha.POST("/",
+		captcha.POST("/verify",
 			captchaHandler.VerifyCaptcha,
 		)
 

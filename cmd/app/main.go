@@ -17,6 +17,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/middleware"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/handler"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/router"
+	"github.com/mehdi1443/cinema-booking-system/pkg/captcha"
 	"github.com/mehdi1443/cinema-booking-system/pkg/hash"
 	"github.com/mehdi1443/cinema-booking-system/pkg/logger"
 	"github.com/mehdi1443/cinema-booking-system/pkg/random"
@@ -91,6 +92,14 @@ func main() {
 		})
 	}
 
+	// --- CAPTCHAMAN ---
+	captchaMan, err := captcha.NewCaptchaMan(config.Environment.Captcha.Type)
+	if err != nil {
+		appLogger.Fatal(logger.General, logger.Startup, "failed to initialize Captcha Man", map[logger.ExtraKey]interface{}{
+			logger.ErrorMessage: err.Error(),
+		})
+	}
+
 	// --- REPOSITORIES ---
 	userRepo := postgres_repo.NewUserRepositoryPostgres(pgDB)
 	walletRepo := postgres_repo.NewWalletRepositoryPostgres(pgDB)
@@ -141,7 +150,7 @@ func main() {
 	genreSrv := service.NewGenreService(genreRepo)
 	// personSrv := service.NewPersonService(personRepo, storage)
 	// movieSrv := service.NewMovieService(movieRepo, storage)
-	captchaSrv := service.NewCaptchaService(captchaRepo, &config.Environment.Captcha, appLogger)
+	captchaSrv := service.NewCaptchaService(captchaRepo, &config.Environment.Captcha, captchaMan, appLogger)
 
 	services := router.Services{
 		TokenService:        jwtSrv,

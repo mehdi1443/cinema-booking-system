@@ -25,11 +25,13 @@ type captchaService struct {
 func NewCaptchaService(
 	captchaRepo cache.CaptchaInterface,
 	captchaConfig *bootstrap.CaptchaConfig,
+	captchaMan captcha.CaptchaMan,
 	log logger.Logger,
 ) service_contract.CaptchaServiceInterface {
 	return &captchaService{
 		captchaRepo:   captchaRepo,
 		captchaConfig: captchaConfig,
+		captchaMan:    captchaMan,
 		logger:        log,
 	}
 }
@@ -39,6 +41,7 @@ func (cs *captchaService) Save(ctx context.Context, captchaId string, code strin
 		cs.logger.Error(logger.Internal, logger.Captcha, "failed to save captcha to repository", map[logger.ExtraKey]interface{}{
 			logger.ErrorMessage: err.Error(),
 			"captcha_id":        captchaId,
+			"code":              code,
 		})
 		return fmt.Errorf("failed to save captcha: %w", err)
 	}
@@ -97,10 +100,9 @@ func (cs *captchaService) Verify(ctx context.Context, captchaId string, claim st
 	if expected != claim {
 
 		cs.logger.Warn(logger.Internal, logger.Captcha, "code mismatch", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: err.Error(),
-			"captcha_id":        captchaId,
-			"expected":          expected,
-			"claim":             claim,
+			"captcha_id": captchaId,
+			"expected":   expected,
+			"claim":      claim,
 		})
 
 		isValid := false
@@ -146,9 +148,24 @@ func (cs *captchaService) GenerateAndSave(ctx context.Context) (*dto.GenerateCap
 		return nil, err
 	}
 
-	return &dto.GenerateCaptcha{
-		CaptchaId: cid,
-		Code:      b64,
-		ExpireAt:  time.Time.Add(time.Now(), cs.captchaConfig.TTLInSeconds()),
-	}, nil
+	//TODO : refactor
+	switch cs.captchaConfig.Type {
+	case "string", "math":
+		return &dto.GenerateCaptcha{
+			CaptchaId: cid,
+			ImageCode: b64,
+			AudioCode: "",
+			ExpireAt:  time.Time.Add(time.Now(), cs.captchaConfig.TTLInSeconds()),
+		}, nil
+
+	case "audio":
+		return &dto.GenerateCaptcha{
+			CaptchaId: cid,
+			AudioCode: b64,
+			ImageCode: "",
+			ExpireAt:  time.Time.Add(time.Now(), cs.captchaConfig.TTLInSeconds()),
+		}, nil
+	}
+	panic("WTF")
+
 }

@@ -1,6 +1,8 @@
 package captcha
 
 import (
+	"fmt"
+
 	"github.com/mojocn/base64Captcha"
 )
 
@@ -13,7 +15,7 @@ type captchaMan struct {
 }
 
 // captchaType == "string" | "math" | "audio"
-func NewCaptchaMan(captchaType string) CaptchaMan {
+func NewCaptchaMan(captchaType string) (CaptchaMan, error) {
 	dummyStore := &dummyStore{}
 	var c *base64Captcha.Captcha
 
@@ -28,16 +30,18 @@ func NewCaptchaMan(captchaType string) CaptchaMan {
 		driver := base64Captcha.NewDriverMath(cfg.Height, cfg.Width, cfg.NoiseCount, cfg.ShowLineOptions, cfg.BgColor, cfg.FontsStorage, cfg.Fonts)
 		c = base64Captcha.NewCaptcha(driver, dummyStore)
 
-	// audio
-	default:
+	case "audio":
 		cfg := suggestDriverAudio
 		driver := base64Captcha.NewDriverAudio(cfg.Length, cfg.Language)
 		c = base64Captcha.NewCaptcha(driver, dummyStore)
+
+	default:
+		return nil, fmt.Errorf("invalid captcha-type")
 	}
 
 	return &captchaMan{
 		captcha: c,
-	}
+	}, nil
 }
 
 func (cm *captchaMan) Generate() (cid string, b64 string, answer string, err error) {

@@ -4,7 +4,8 @@ import "time"
 
 type GenerateCaptcha struct {
 	CaptchaId string    `json:"captcha_id"`
-	Code      string    `json:"captcha_code"`
+	ImageCode string    `json:"captcha_img_code_base64,omitempty"`
+	AudioCode string    `json:"captcha_audio_code_base64,omitempty"`
 	ExpireAt  time.Time `json:"expired_at"`
 }
 
