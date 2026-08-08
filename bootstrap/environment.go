@@ -117,6 +117,9 @@ func (c *JWT) RefreshDuration() time.Duration {
 func (o *OTP) ExpirationDuration() time.Duration {
 	return time.Duration(o.ExpireMinutes) * time.Minute
 }
+func (o *OTP) ExpirationDurationInMinutes() int {
+	return int((time.Duration(o.ExpireMinutes) * time.Minute)) / int(time.Minute)
+}
 
 func (o *UserPermissionCache) ExpirationDuration() time.Duration {
 	return time.Duration(o.UserPermissionExpiredDuration) * time.Minute

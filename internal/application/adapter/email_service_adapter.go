@@ -8,4 +8,5 @@ import (
 
 type EmailServiceProviderInterface interface {
 	SendEmail(ctx context.Context, req dto.SendEmailRequest) (*bool, error)
+	SendOTPEmail(ctx context.Context, req dto.SendOTPEmailRequest) (*bool, error)
 }

@@ -92,13 +92,10 @@ func (s *authService) SendOTP(ctx context.Context, phone string, email string) (
 			return nil, fmt.Errorf("failed to save OTP: %w", err)
 		}
 
-		_, err = s.emailProvider.SendEmail(
+		_, err = s.emailProvider.SendOTPEmail(
 			ctx,
-			dto.SendEmailRequest{
-				To:       []string{email},
-				TextBody: fmt.Sprintf("OTP:%s", code),
-			})
-
+			dto.SendOTPEmailRequest{To: []string{email}, OTPCode: code, OTPExpireMinutes: s.otpConfig.ExpirationDurationInMinutes()},
+		)
 		if err != nil {
 			return nil, err
 		}

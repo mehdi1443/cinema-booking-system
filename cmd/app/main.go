@@ -22,6 +22,8 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/pkg/logger"
 	"github.com/mehdi1443/cinema-booking-system/pkg/random"
 	"github.com/mehdi1443/cinema-booking-system/pkg/rsa"
+	mail "github.com/mehdi1443/cinema-booking-system/pkg/wneessen-go-mail"
+	"github.com/mehdi1443/cinema-booking-system/static"
 )
 
 // comment types
@@ -76,6 +78,14 @@ func main() {
 	// --- HASHER ---
 	bcryptHasher := hash.NewBcryptHasher()
 
+	// --- STATICS ---
+	statics, err := static.InitStaticFiles()
+	if err != nil {
+		appLogger.Fatal(logger.General, logger.Startup, "failed to initialize static files", map[logger.ExtraKey]interface{}{
+			logger.ErrorMessage: err.Error(),
+		})
+	}
+
 	// --- REPOSITORIES ---
 	userRepo := postgres_repo.NewUserRepositoryPostgres(pgDB)
 	walletRepo := postgres_repo.NewWalletRepositoryPostgres(pgDB)
@@ -105,10 +115,18 @@ func main() {
 		appLogger.Info(logger.General, logger.Startup, "database roles seeded successfully", nil)
 	}
 
+	// --- EMAIL SENDER ---
+	emailSender := mail.NewMailer(mail.EmailConfig{
+		From:     config.Environment.Email.CinemaTicketEmail,
+		Password: config.Environment.Email.CinemaTicketEmailAppPassword,
+		SMTPHost: config.Environment.Email.SMTPHost,
+		SMTPPort: config.Environment.Email.SMTPPort,
+	})
+
 	// --- SERVICES ---
 	jwtSrv := service.NewTokenService(accessKeys, refreshKeys, &config.Environment.JWT, blacklistRepo, appLogger)
 	smsSrv := service.NewSMSService()
-	emailSrv := service.NewEmailService(&config.Environment.Email, &config.Environment.DebugModeOptions)
+	emailSrv := service.NewEmailService(emailSender, &config.Environment.DebugModeOptions, statics, appLogger)
 	userSrv := service.NewUserService(userRepo, bcryptHasher, appLogger)
 	authSrv := service.NewAuthService(userRepo, otpRepo, refreshtokenRepo, jwtSrv, random.NewRandomGeneratorEngine(), &config.Environment.OTP, &config.Environment.JWT, smsSrv, emailSrv, hash.NewBcryptHasher(), appLogger)
 	walletSrv := service.NewWalletService(userRepo, walletRepo, appLogger)
