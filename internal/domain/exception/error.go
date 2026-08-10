@@ -55,8 +55,12 @@ var (
 	ErrReachManBalance     = errors.New("are you reach or something?!")
 
 	// Cinema Domain Errors
-	ErrMovieNotFound      = errors.New("movie not found")
-	ErrMovieAlreadyExists = errors.New("movie already exists")
+	ErrMovieNotFound         = errors.New("movie not found")
+	ErrMovieAlreadyExists    = errors.New("movie already exists")
+	ErrCinemaAlreadyExists   = errors.New("cinema already exists")
+	ErrFacilityAlreadyExists = errors.New("facility already exists")
+	ErrCityAlreadyExists     = errors.New("city already exists")
+	ErrProvinceAlreadyExists = errors.New("province already exists")
 
 	ErrGenreNotFound      = errors.New("genre not found")
 	ErrGenreAlreadyExists = errors.New("genre already exists")
