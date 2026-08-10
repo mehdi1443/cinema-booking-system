@@ -112,6 +112,8 @@ func main() {
 	// personRepo := postgres_repo.NewPersonRepository(pgDB)
 	// movieRepo := postgres_repo.NewMovieRepository(pgDB)
 	captchaRepo := redis_repo.NewCaptchaRepositoryRedis(redisClient)
+	provinceRepo := postgres_repo.NewProvinceRepository(pgDB)
+	cityRepo := postgres_repo.NewCityRepository(pgDB)
 
 	repositories := router.Repositories{
 		UserRepo:                userRepo,
@@ -128,6 +130,16 @@ func main() {
 		})
 	} else {
 		appLogger.Info(logger.General, logger.Startup, "database roles seeded successfully", nil)
+	}
+
+	// --- ADDRESS SEEDER ---
+	addressSeeder := seed.NewAddressSeeder(provinceRepo, cityRepo)
+	if err := addressSeeder.Seed(ctx); err != nil {
+		appLogger.Warn(logger.General, logger.Startup, "address seeder finished with potential existing entries or non-fatal errors", map[logger.ExtraKey]interface{}{
+			logger.ErrorMessage: err.Error(),
+		})
+	} else {
+		appLogger.Info(logger.General, logger.Startup, "database provinces and cities seeded successfully", nil)
 	}
 
 	// --- EMAIL SENDER ---

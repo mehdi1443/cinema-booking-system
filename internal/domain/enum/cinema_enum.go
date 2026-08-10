@@ -1,7 +1,5 @@
 package enum
 
-import "errors"
-
 type CinemaStatus string
 
 const (
