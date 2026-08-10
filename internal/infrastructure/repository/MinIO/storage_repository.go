@@ -61,19 +61,32 @@ func (s *S3Storage) EnsurePublicBuckets(ctx context.Context) error {
 			continue
 		}
 
-		policy := fmt.Sprintf(`{
-			"Version": "2012-10-17",
-			"Statement": [
-				{
-					"Effect": "Allow",
-					"Principal": {"AWS": ["*"]},
-					"Action": ["s3:GetObject"],
-					"Resource": ["arn:aws:s3:::%s/*"]
-				}
-			]
-		}`, bucketName)
+		_, err := s.client.HeadBucketWithContext(ctx, &s3.HeadBucketInput{
+			Bucket: aws.String(bucketName),
+		})
 
-		_, err := s.client.PutBucketPolicyWithContext(ctx, &s3.PutBucketPolicyInput{
+		if err != nil {
+			_, createErr := s.client.CreateBucketWithContext(ctx, &s3.CreateBucketInput{
+				Bucket: aws.String(bucketName),
+			})
+			if createErr != nil {
+				return fmt.Errorf("failed to create bucket %q: %w", bucketName, createErr)
+			}
+		}
+
+		policy := fmt.Sprintf(`{
+          "Version": "2012-10-17",
+          "Statement": [
+             {
+                "Effect": "Allow",
+                "Principal": {"AWS": ["*"]},
+                "Action": ["s3:GetObject"],
+                "Resource": ["arn:aws:s3:::%s/*"]
+             }
+          ]
+       }`, bucketName)
+
+		_, err = s.client.PutBucketPolicyWithContext(ctx, &s3.PutBucketPolicyInput{
 			Bucket: aws.String(bucketName),
 			Policy: aws.String(policy),
 		})
