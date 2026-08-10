@@ -65,4 +65,10 @@ var (
 	ErrPersonAlreadyExists = errors.New("person already exists")
 
 	ErrInvalidFileType = errors.New("invalid file type provided")
+
+	ErrProvinceNotFound = errors.New("province not found")
+	ErrCityNotFound     = errors.New("city not found")
+	ErrCinemaNotFound   = errors.New("cinema not found")
+	ErrFacilityNotFound = errors.New("facility not found")
+	ErrInvalidStatus    = errors.New("invalid cinema status")
 )
