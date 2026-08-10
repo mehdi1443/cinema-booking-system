@@ -14,14 +14,17 @@ import (
 )
 
 type Handlers struct {
-	Auth    handler.AuthHandler
-	User    handler.UserHandler
-	RBAC    handler.RBACHandler
-	Wallet  handler.WalletHandler
-	Genre   handler.GenreHandler
-	Person  handler.PersonHandler
-	Movie   handler.MovieHandler
-	Captcha handler.CaptchaHandler
+	Auth      handler.AuthHandler
+	User      handler.UserHandler
+	RBAC      handler.RBACHandler
+	Wallet    handler.WalletHandler
+	Genre     handler.GenreHandler
+	Person    handler.PersonHandler
+	Movie     handler.MovieHandler
+	Captcha   handler.CaptchaHandler
+	Address   handler.AddressHandler
+	Facilitie handler.FacilityHandler
+	Cinema    handler.CinemaHandler
 }
 
 type Repositories struct {
@@ -106,6 +109,12 @@ func SetUpRouter(handler *Handlers, services *Services, repositories *Repositori
 	SetUpPersonRouter(v1, &handler.Person)
 
 	SetUpMovieRouter(v1, &handler.Movie)
+
+	SetUpAddressRouter(v1, &handler.Address)
+
+	SetUpFacilityRouter(v1, &handler.Facilitie)
+
+	SetUpCinemaRouter(v1, &handler.Cinema)
 
 	SetUpCaptchaRouter(v1, &handler.Captcha, limiter, &config.Environment.Limiter, appLogger)
 	return r
