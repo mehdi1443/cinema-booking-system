@@ -4,6 +4,24 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 )
 
+type CreateProvinceRequest struct {
+	Name string `json:"name" binding:"required,min=2,max=100"`
+}
+
+type UpdateProvinceRequest struct {
+	Name string `json:"name" binding:"required,min=2,max=100"`
+}
+
+type CreateCityRequest struct {
+	ProvinceID int64  `json:"province_id" binding:"required"`
+	Name       string `json:"name" binding:"required,min=2,max=100"`
+}
+
+type UpdateCityRequest struct {
+	ProvinceID *int64  `json:"province_id"`
+	Name       *string `json:"name" binding:"omitempty,min=2,max=100"`
+}
+
 type ProvinceResponse struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
@@ -26,6 +44,20 @@ func ToProvinceResponse(province *entity.Province) *ProvinceResponse {
 	}
 }
 
+func ToProvinceResponseSlice(provinces []entity.Province) []*ProvinceResponse {
+	if len(provinces) == 0 {
+		return []*ProvinceResponse{}
+	}
+
+	responses := make([]*ProvinceResponse, 0, len(provinces))
+	for ind := range provinces {
+		if resp := ToProvinceResponse(&provinces[ind]); resp != nil {
+			responses = append(responses, resp)
+		}
+	}
+	return responses
+}
+
 func ToCityResponse(city *entity.City) *CityResponse {
 	if city == nil {
 		return nil
@@ -42,4 +74,18 @@ func ToCityResponse(city *entity.City) *CityResponse {
 		ProvinceID: city.ProvinceID,
 		Province:   provinceResp,
 	}
+}
+
+func ToCityResponseSlice(cities []entity.City) []*CityResponse {
+	if len(cities) == 0 {
+		return []*CityResponse{}
+	}
+
+	responses := make([]*CityResponse, 0, len(cities))
+	for ind := range cities {
+		if resp := ToCityResponse(&cities[ind]); resp != nil {
+			responses = append(responses, resp)
+		}
+	}
+	return responses
 }
