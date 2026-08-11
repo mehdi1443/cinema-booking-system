@@ -76,3 +76,36 @@ func (r *cityRepository) GetAll(ctx context.Context) ([]entity.City, error) {
 	}
 	return cities, nil
 }
+
+func (r *cityRepository) Update(ctx context.Context, city *entity.City) (*entity.City, error) {
+	city.Province = nil
+
+	err := r.db.GetDB().WithContext(ctx).
+		Model(&entity.City{}).
+		Where("id = ?", city.ID).
+		Select("name", "province_id").
+		Updates(map[string]interface{}{
+			"name":        city.Name,
+			"province_id": city.ProvinceID,
+		}).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return nil, exception.ErrDuplicateKey
+		}
+		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+	}
+
+	return city, nil
+}
+
+func (r *cityRepository) Delete(ctx context.Context, id int64) error {
+	result := r.db.GetDB().WithContext(ctx).Delete(&entity.City{}, id)
+	if result.Error != nil {
+		return fmt.Errorf("%w: %v", exception.ErrDatabase, result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return exception.ErrCityNotFound
+	}
+	return nil
+}

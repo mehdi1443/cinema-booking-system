@@ -12,4 +12,6 @@ type CityRepository interface {
 	GetByNameAndProvinceID(ctx context.Context, name string, provinceID int64) (*entity.City, error)
 	GetByProvinceID(ctx context.Context, provinceID int64) ([]entity.City, error)
 	GetAll(ctx context.Context) ([]entity.City, error)
+	Update(ctx context.Context, city *entity.City) (*entity.City, error)
+	Delete(ctx context.Context, id int64) error
 }

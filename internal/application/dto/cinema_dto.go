@@ -55,7 +55,8 @@ type CinemaListResponse struct {
 type CinemaDetailResponse struct {
 	ID           int64              `json:"id"`
 	CityID       int64              `json:"city_id"`
-	City         *CityResponse      `json:"city,omitempty"`
+	CityName     string             `json:"city_name,omitempty"`
+	ProvinceName string             `json:"province_name,omitempty"`
 	Name         string             `json:"name"`
 	Description  string             `json:"description"`
 	Address      string             `json:"address"`
@@ -124,9 +125,13 @@ func ToCinemaDetailResponse(cinema *entity.Cinema) *CinemaDetailResponse {
 		return nil
 	}
 
-	var cityResp *CityResponse
+	cityName := ""
+	provinceName := ""
 	if cinema.City != nil {
-		cityResp = ToCityResponse(cinema.City)
+		cityName = cinema.City.Name
+		if cinema.City.Province != nil {
+			provinceName = cinema.City.Province.Name
+		}
 	}
 
 	var facilities []FacilityResponse
@@ -156,7 +161,8 @@ func ToCinemaDetailResponse(cinema *entity.Cinema) *CinemaDetailResponse {
 	return &CinemaDetailResponse{
 		ID:           cinema.ID,
 		CityID:       cinema.CityID,
-		City:         cityResp,
+		CityName:     cityName,
+		ProvinceName: provinceName,
 		Name:         cinema.Name,
 		Description:  description,
 		Address:      cinema.Address,

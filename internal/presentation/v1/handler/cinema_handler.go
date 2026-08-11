@@ -146,6 +146,32 @@ func (h *CinemaHandler) UpdateCinema(c *gin.Context) {
 	response.Success(c, http.StatusOK, "Cinema updated successfully", updatedCinema)
 }
 
+// DELETE /cinemas/:id
+func (h *CinemaHandler) DeleteCinema(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid cinema ID", err)
+		return
+	}
+
+	if err := h.cinemaService.Delete(c.Request.Context(), id); err != nil {
+		log.Printf("[SERVICE ERROR] DeleteCinema failed: %v", err)
+		switch {
+		case errors.Is(err, exception.ErrCinemaNotFound):
+			response.Error(c, http.StatusNotFound, "Cinema not found", err)
+
+		case errors.Is(err, exception.ErrDatabase):
+			response.Error(c, http.StatusInternalServerError, "Internal database error occurred", err)
+
+		default:
+			response.Error(c, http.StatusInternalServerError, "An unexpected error occurred", err)
+		}
+		return
+	}
+
+	response.Success(c, http.StatusOK, "Cinema deleted successfully", nil)
+}
+
 // POST /cinemas/:id/image
 func (h *CinemaHandler) UploadImage(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)

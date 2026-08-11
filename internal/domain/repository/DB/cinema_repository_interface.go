@@ -20,6 +20,7 @@ type CinemaRepository interface {
 	Create(ctx context.Context, cinema *entity.Cinema) (*entity.Cinema, error)
 	Update(ctx context.Context, cinema *entity.Cinema) (*entity.Cinema, error)
 	GetByID(ctx context.Context, id int64) (*entity.Cinema, error)
+	Delete(ctx context.Context, id int64) error
 
 	GetWithFilters(ctx context.Context, filter CinemaFilter) ([]entity.Cinema, error)
 

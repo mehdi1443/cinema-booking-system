@@ -12,6 +12,7 @@ func SetUpCinemaRouter(r *gin.RouterGroup, cinemaHandler *handler.CinemaHandler)
 		cinemas.GET("", cinemaHandler.GetCinemas)
 		cinemas.GET("/:id", cinemaHandler.GetCinemaByID)
 		cinemas.PUT("/:id", cinemaHandler.UpdateCinema)
+		cinemas.DELETE("/:id", cinemaHandler.DeleteCinema)
 
 		cinemas.POST("/:id/image", cinemaHandler.UploadImage)
 		cinemas.DELETE("/:id/image", cinemaHandler.DeleteImage)

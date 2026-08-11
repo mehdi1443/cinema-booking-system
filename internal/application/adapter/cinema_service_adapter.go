@@ -12,6 +12,7 @@ type CinemaServiceInterface interface {
 	GetByID(ctx context.Context, id int64) (*dto.CinemaDetailResponse, error)
 	GetWithFilters(ctx context.Context, req *dto.CinemaFilterRequest) (*dto.CinemaListWithCountResponse, error)
 	Update(ctx context.Context, id int64, req *dto.UpdateCinemaRequest) (*dto.CinemaDetailResponse, error)
+	Delete(ctx context.Context, id int64) error
 
 	UploadImage(ctx context.Context, id int64, file io.Reader, filename string) (*dto.CinemaDetailResponse, error)
 	DeleteImage(ctx context.Context, id int64) error

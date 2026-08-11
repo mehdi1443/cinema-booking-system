@@ -63,3 +63,33 @@ func (r *provinceRepository) GetAll(ctx context.Context) ([]entity.Province, err
 	}
 	return provinces, nil
 }
+
+func (r *provinceRepository) Update(ctx context.Context, province *entity.Province) (*entity.Province, error) {
+	err := r.db.GetDB().WithContext(ctx).
+		Model(&entity.Province{}).
+		Where("id = ?", province.ID).
+		Select("name").
+		Updates(map[string]interface{}{
+			"name": province.Name,
+		}).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return nil, exception.ErrDuplicateKey
+		}
+		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+	}
+
+	return province, nil
+}
+
+func (r *provinceRepository) Delete(ctx context.Context, id int64) error {
+	result := r.db.GetDB().WithContext(ctx).Delete(&entity.Province{}, id)
+	if result.Error != nil {
+		return fmt.Errorf("%w: %v", exception.ErrDatabase, result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return exception.ErrProvinceNotFound
+	}
+	return nil
+}

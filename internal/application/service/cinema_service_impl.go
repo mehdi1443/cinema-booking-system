@@ -55,7 +55,6 @@ func (s *cinemaService) Create(ctx context.Context, req *dto.CreateCinemaRequest
 		if err := s.cinemaRepo.UpdateFacilities(ctx, createdCinema.ID, req.FacilityIDs); err != nil {
 			return nil, fmt.Errorf("failed to assign facilities to cinema: %w", err)
 		}
-		// Refresh entity to reflect relations
 		createdCinema, _ = s.cinemaRepo.GetByID(ctx, createdCinema.ID)
 	}
 
@@ -142,6 +141,24 @@ func (s *cinemaService) Update(ctx context.Context, id int64, req *dto.UpdateCin
 	}
 
 	return dto.ToCinemaDetailResponse(updatedCinema), nil
+}
+
+func (s *cinemaService) Delete(ctx context.Context, id int64) error {
+	_, err := s.cinemaRepo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	lowKey := fmt.Sprintf("cinemas/cinema_%d_image_low.webp", id)
+	highKey := fmt.Sprintf("cinemas/cinema_%d_image_high.jpg", id)
+	_ = s.storage.DeleteObject(ctx, enum.CinemaPhoto, lowKey)
+	_ = s.storage.DeleteObject(ctx, enum.CinemaPhoto, highKey)
+
+	if err := s.cinemaRepo.Delete(ctx, id); err != nil {
+		return fmt.Errorf("failed to delete cinema: %w", err)
+	}
+
+	return nil
 }
 
 func (s *cinemaService) UploadImage(ctx context.Context, id int64, file io.Reader, filename string) (*dto.CinemaDetailResponse, error) {

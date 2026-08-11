@@ -65,13 +65,21 @@ func (s *addressService) UpdateProvince(ctx context.Context, id int64, req *dto.
 
 	province.Name = req.Name
 
-	return dto.ToProvinceResponse(province), nil
+	updatedProvince, err := s.provinceRepo.Update(ctx, province)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update province: %w", err)
+	}
+
+	return dto.ToProvinceResponse(updatedProvince), nil
 }
 
 func (s *addressService) DeleteProvince(ctx context.Context, id int64) error {
-	_, err := s.provinceRepo.GetByID(ctx, id)
-	if err != nil {
+	if _, err := s.provinceRepo.GetByID(ctx, id); err != nil {
 		return err
+	}
+
+	if err := s.provinceRepo.Delete(ctx, id); err != nil {
+		return fmt.Errorf("failed to delete province: %w", err)
 	}
 
 	return nil
@@ -132,13 +140,21 @@ func (s *addressService) UpdateCity(ctx context.Context, id int64, req *dto.Upda
 		city.Name = *req.Name
 	}
 
-	return dto.ToCityResponse(city), nil
+	updatedCity, err := s.cityRepo.Update(ctx, city)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update city: %w", err)
+	}
+
+	return dto.ToCityResponse(updatedCity), nil
 }
 
 func (s *addressService) DeleteCity(ctx context.Context, id int64) error {
-	_, err := s.cityRepo.GetByID(ctx, id)
-	if err != nil {
+	if _, err := s.cityRepo.GetByID(ctx, id); err != nil {
 		return err
+	}
+
+	if err := s.cityRepo.Delete(ctx, id); err != nil {
+		return fmt.Errorf("failed to delete city: %w", err)
 	}
 
 	return nil

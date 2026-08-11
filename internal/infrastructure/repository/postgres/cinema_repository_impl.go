@@ -37,6 +37,9 @@ func (r *cinemaRepository) Create(ctx context.Context, cinema *entity.Cinema) (*
 			if errors.Is(err, gorm.ErrDuplicatedKey) {
 				return exception.ErrDuplicateKey
 			}
+			if errors.Is(err, gorm.ErrForeignKeyViolated) {
+				return exception.ErrCityNotFound
+			}
 			return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 		}
 
@@ -49,6 +52,9 @@ func (r *cinemaRepository) Create(ctx context.Context, cinema *entity.Cinema) (*
 				})
 			}
 			if err := tx.Create(&cinemaFacilities).Error; err != nil {
+				if errors.Is(err, gorm.ErrForeignKeyViolated) {
+					return exception.ErrFacilityNotFound
+				}
 				return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 			}
 		}
@@ -103,6 +109,9 @@ func (r *cinemaRepository) Update(ctx context.Context, cinema *entity.Cinema) (*
 			if errors.Is(res.Error, gorm.ErrDuplicatedKey) {
 				return exception.ErrDuplicateKey
 			}
+			if errors.Is(res.Error, gorm.ErrForeignKeyViolated) {
+				return exception.ErrCityNotFound
+			}
 			return fmt.Errorf("%w: %v", exception.ErrDatabase, res.Error)
 		}
 		if res.RowsAffected == 0 {
@@ -119,20 +128,36 @@ func (r *cinemaRepository) Update(ctx context.Context, cinema *entity.Cinema) (*
 	return r.GetByID(ctx, cinema.ID)
 }
 
+func (r *cinemaRepository) Delete(ctx context.Context, id int64) error {
+	return r.db.WithTransaction(func(txWrapper database.Database) error {
+		tx := txWrapper.GetDB().WithContext(ctx)
+
+		if err := tx.Where("cinema_id = ?", id).Delete(&CinemaFacility{}).Error; err != nil {
+			return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		}
+
+		res := tx.Delete(&entity.Cinema{}, id)
+		if res.Error != nil {
+			return fmt.Errorf("%w: %v", exception.ErrDatabase, res.Error)
+		}
+		if res.RowsAffected == 0 {
+			return exception.ErrCinemaNotFound
+		}
+
+		return nil
+	})
+}
+
 func (r *cinemaRepository) GetWithFilters(ctx context.Context, filter DB.CinemaFilter) ([]entity.Cinema, error) {
 	var cinemas []entity.Cinema
-	query := r.db.GetDB().WithContext(ctx).Model(&entity.Cinema{})
 
-	query = r.applyFilters(query, filter)
+	subQuery := r.db.GetDB().WithContext(ctx).Table("cinemas").Select("cinemas.id")
+	subQuery = r.applyFilters(subQuery, filter)
 
-	if filter.Limit > 0 {
-		query = query.Limit(filter.Limit)
-	}
-	if filter.Offset > 0 {
-		query = query.Offset(filter.Offset)
-	}
-
-	err := query.
+	err := r.db.GetDB().WithContext(ctx).
+		Where("id IN (?)", subQuery).
+		Limit(filter.Limit).
+		Offset(filter.Offset).
 		Preload("City").
 		Preload("City.Province").
 		Preload("Facilities").
@@ -169,6 +194,9 @@ func (r *cinemaRepository) AddFacility(ctx context.Context, cinemaID int64, faci
 	if err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			return exception.ErrDuplicateKey
+		}
+		if errors.Is(err, gorm.ErrForeignKeyViolated) {
+			return exception.ErrFacilityNotFound
 		}
 		return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
@@ -209,6 +237,9 @@ func (r *cinemaRepository) UpdateFacilities(ctx context.Context, cinemaID int64,
 				})
 			}
 			if err := tx.Create(&cinemaFacilities).Error; err != nil {
+				if errors.Is(err, gorm.ErrForeignKeyViolated) {
+					return exception.ErrFacilityNotFound
+				}
 				return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 			}
 		}
