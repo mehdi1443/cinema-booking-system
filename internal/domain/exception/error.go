@@ -75,4 +75,6 @@ var (
 	ErrCinemaNotFound   = errors.New("cinema not found")
 	ErrFacilityNotFound = errors.New("facility not found")
 	ErrInvalidStatus    = errors.New("invalid cinema status")
+
+	ErrRecordNotFound = errors.New("record not found")
 )
