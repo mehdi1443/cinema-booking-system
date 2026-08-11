@@ -25,6 +25,7 @@ type Handlers struct {
 	Address   handler.AddressHandler
 	Facilitie handler.FacilityHandler
 	Cinema    handler.CinemaHandler
+	Favorite  handler.FavoriteHandler
 }
 
 type Repositories struct {
@@ -115,6 +116,18 @@ func SetUpRouter(handler *Handlers, services *Services, repositories *Repositori
 	SetUpFacilityRouter(v1, &handler.Facilitie)
 
 	SetUpCinemaRouter(v1, &handler.Cinema)
+
+	SetUpFavoriteRouter(
+		v1,
+		&handler.Favorite,
+		authMiddleware,
+		repositories.RBACRepo,
+		repositories.UserPermissionCacheRepo,
+		services.ContextTokenService,
+		repositories.UserRepo,
+		&config.Environment.UserPermissionCache,
+		appLogger,
+	)
 
 	SetUpCaptchaRouter(v1, &handler.Captcha, limiter, &config.Environment.Limiter, appLogger)
 	return r
