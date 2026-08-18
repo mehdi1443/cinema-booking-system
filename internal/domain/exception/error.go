@@ -77,4 +77,6 @@ var (
 	ErrInvalidStatus    = errors.New("invalid cinema status")
 
 	ErrRecordNotFound = errors.New("record not found")
+
+	ErrCommentNotFound = errors.New("comment not found")
 )
