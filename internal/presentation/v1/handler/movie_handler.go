@@ -9,7 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
-	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
@@ -85,41 +84,16 @@ func (h *MovieHandler) GetMovieByID(c *gin.Context) {
 }
 
 // GET /movies
-// Support optional query params: /movies?status=... or /movies?genre_id=...
 func (h *MovieHandler) GetMovies(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	if statusParam := c.Query("status"); statusParam != "" {
-		movies, err := h.movieService.GetByStatus(ctx, enum.MovieStatus(statusParam))
-		if err != nil {
-			log.Printf("[SERVICE ERROR] GetByStatus failed: %v", err)
-			response.Error(c, http.StatusInternalServerError, "Failed to retrieve movies by status", err)
-			return
-		}
-		response.Success(c, http.StatusOK, "Movies retrieved successfully", movies)
+	var req dto.MovieFilterRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid filter parameters", err)
 		return
 	}
 
-	if genreIDParam := c.Query("genre_id"); genreIDParam != "" {
-		genreID, err := strconv.ParseInt(genreIDParam, 10, 64)
-		if err != nil {
-			response.Error(c, http.StatusBadRequest, "Invalid genre ID format", err)
-			return
-		}
-
-		movies, err := h.movieService.GetByGenreID(ctx, genreID)
-		if err != nil {
-			log.Printf("[SERVICE ERROR] GetByGenreID failed: %v", err)
-			response.Error(c, http.StatusInternalServerError, "Failed to retrieve movies by genre", err)
-			return
-		}
-		response.Success(c, http.StatusOK, "Movies retrieved successfully", movies)
-		return
-	}
-
-	movies, err := h.movieService.GetAll(ctx)
+	movies, err := h.movieService.GetFilteredMovies(c.Request.Context(), req)
 	if err != nil {
-		log.Printf("[SERVICE ERROR] GetAllMovies failed: %v", err)
+		log.Printf("[SERVICE ERROR] GetMovies failed: %v", err)
 		switch {
 		case errors.Is(err, exception.ErrDatabase):
 			response.Error(c, http.StatusInternalServerError, "Internal database error occurred", err)

@@ -13,8 +13,8 @@ type CreatePersonRequest struct {
 }
 
 type UpdatePersonRequest struct {
-	Name      string `json:"name" binding:"required,min=2,max=100"`
-	Biography string `json:"biography"`
+	Name      *string `json:"name" binding:"required,min=2,max=100"`
+	Biography *string `json:"biography"`
 }
 
 type PersonListResponse struct {

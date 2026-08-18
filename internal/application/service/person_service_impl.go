@@ -67,8 +67,13 @@ func (s *personService) Update(ctx context.Context, id int64, req *dto.UpdatePer
 		return nil, err
 	}
 
-	person.Name = req.Name
-	person.Biography = req.Biography
+	if req.Name != nil {
+		person.Name = *req.Name
+	}
+
+	if req.Biography != nil {
+		person.Biography = *req.Biography
+	}
 
 	updatedPerson, err := s.personRepo.Update(ctx, person)
 	if err != nil {

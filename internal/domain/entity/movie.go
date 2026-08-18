@@ -21,6 +21,6 @@ type Movie struct {
 	UpdatedAt       time.Time        `gorm:"autoUpdateTime" json:"updated_at"`
 	DeletedAt       *time.Time       `gorm:"index" json:"deleted_at,omitempty"`
 
-	Genres []Genre  `gorm:"many2many:movie_genres;" json:"genres,omitempty"`
-	People []Person `gorm:"many2many:movie_people;" json:"people,omitempty"`
+	Genres []Genre       `gorm:"many2many:movie_genres;" json:"genres,omitempty"`
+	People []MoviePerson `gorm:"foreignKey:MovieID" json:"people,omitempty"`
 }

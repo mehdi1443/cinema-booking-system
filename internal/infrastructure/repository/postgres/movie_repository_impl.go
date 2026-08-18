@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
@@ -12,16 +13,6 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
 	"gorm.io/gorm"
 )
-
-type MoviePerson struct {
-	MovieID  int64                `gorm:"primaryKey;column:movie_id"`
-	PersonID int64                `gorm:"primaryKey;column:person_id"`
-	Role     enum.MoviePersonRole `gorm:"primaryKey;column:role"`
-}
-
-func (MoviePerson) TableName() string {
-	return "movie_people"
-}
 
 type MovieGenre struct {
 	MovieID int64 `gorm:"primaryKey;column:movie_id"`
@@ -65,9 +56,9 @@ func (r *movieRepository) Create(ctx context.Context, movie *entity.Movie, genre
 		}
 
 		if len(peopleIDs) > 0 {
-			var moviePeople []MoviePerson
+			var moviePeople []entity.MoviePerson
 			for personID, role := range peopleIDs {
-				moviePeople = append(moviePeople, MoviePerson{
+				moviePeople = append(moviePeople, entity.MoviePerson{
 					MovieID:  movie.ID,
 					PersonID: personID,
 					Role:     role,
@@ -92,7 +83,7 @@ func (r *movieRepository) GetByID(ctx context.Context, id int64) (*entity.Movie,
 	var movie entity.Movie
 	err := r.db.GetDB().WithContext(ctx).
 		Preload("Genres").
-		Preload("People").
+		Preload("People.Person").
 		First(&movie, id).Error
 
 	if err != nil {
@@ -108,7 +99,7 @@ func (r *movieRepository) GetByStatus(ctx context.Context, status enum.MovieStat
 	var movies []entity.Movie
 	err := r.db.GetDB().WithContext(ctx).
 		Preload("Genres").
-		Preload("People").
+		Preload("People.Person").
 		Where("status = ?", status).
 		Find(&movies).Error
 
@@ -122,7 +113,7 @@ func (r *movieRepository) GetByGenreID(ctx context.Context, genreID int64) ([]en
 	var movies []entity.Movie
 	err := r.db.GetDB().WithContext(ctx).
 		Preload("Genres").
-		Preload("People").
+		Preload("People.Person").
 		Joins("JOIN movie_genres ON movie_genres.movie_id = movies.id").
 		Where("movie_genres.genre_id = ?", genreID).
 		Find(&movies).Error
@@ -133,11 +124,53 @@ func (r *movieRepository) GetByGenreID(ctx context.Context, genreID int64) ([]en
 	return movies, nil
 }
 
+func (r *movieRepository) GetFiltered(ctx context.Context, filter dto.MovieFilterRequest) ([]entity.Movie, error) {
+	var movies []entity.Movie
+	query := r.db.GetDB().WithContext(ctx).
+		Preload("Genres").
+		Preload("People.Person")
+
+	if filter.Status != nil {
+		query = query.Where("movies.status = ?", *filter.Status)
+	}
+
+	if filter.Country != nil && *filter.Country != "" {
+		query = query.Where("movies.country = ?", *filter.Country)
+	}
+
+	if filter.Search != nil && *filter.Search != "" {
+		query = query.Where("movies.title ILIKE ?", "%"+*filter.Search+"%")
+	}
+
+	if filter.GenreID != nil {
+		query = query.Joins("JOIN movie_genres ON movie_genres.movie_id = movies.id").
+			Where("movie_genres.genre_id = ?", *filter.GenreID)
+	}
+
+	page := filter.Page
+	if page <= 0 {
+		page = 1
+	}
+
+	limit := filter.Limit
+	if limit <= 0 {
+		limit = 10
+	}
+
+	offset := (page - 1) * limit
+	err := query.Offset(offset).Limit(limit).Find(&movies).Error
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+	}
+
+	return movies, nil
+}
+
 func (r *movieRepository) GetAll(ctx context.Context) ([]entity.Movie, error) {
 	var movies []entity.Movie
 	err := r.db.GetDB().WithContext(ctx).
 		Preload("Genres").
-		Preload("People").
+		Preload("People.Person").
 		Find(&movies).Error
 
 	if err != nil {
@@ -194,14 +227,14 @@ func (r *movieRepository) Update(ctx context.Context, movie *entity.Movie, genre
 		}
 
 		if peopleIDs != nil {
-			if err := tx.Where("movie_id = ?", movie.ID).Delete(&MoviePerson{}).Error; err != nil {
+			if err := tx.Where("movie_id = ?", movie.ID).Delete(&entity.MoviePerson{}).Error; err != nil {
 				return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 			}
 
 			if len(peopleIDs) > 0 {
-				var moviePeople []MoviePerson
+				var moviePeople []entity.MoviePerson
 				for personID, role := range peopleIDs {
-					moviePeople = append(moviePeople, MoviePerson{
+					moviePeople = append(moviePeople, entity.MoviePerson{
 						MovieID:  movie.ID,
 						PersonID: personID,
 						Role:     role,

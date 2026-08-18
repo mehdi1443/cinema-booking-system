@@ -81,6 +81,15 @@ func (s *movieService) GetByGenreID(ctx context.Context, genreID int64) ([]*dto.
 	return dto.ToMovieListResponseSlice(movies), nil
 }
 
+func (s *movieService) GetFilteredMovies(ctx context.Context, req dto.MovieFilterRequest) ([]*dto.MovieListResponse, error) {
+	movies, err := s.movieRepo.GetFiltered(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return dto.ToMovieListResponseSlice(movies), nil
+}
+
 func (s *movieService) GetAll(ctx context.Context) ([]*dto.MovieListResponse, error) {
 	movies, err := s.movieRepo.GetAll(ctx)
 	if err != nil {
