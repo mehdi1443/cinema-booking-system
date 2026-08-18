@@ -276,3 +276,18 @@ func (r *cinemaRepository) applyFilters(query *gorm.DB, filter DB.CinemaFilter) 
 
 	return query
 }
+
+func (r *cinemaRepository) UpdateRatingAggregate(ctx context.Context, cinemaID int64) error {
+	query := `
+        UPDATE cinemas
+        SET 
+            rating_avg = COALESCE((SELECT ROUND(AVG(score)::numeric, 2) FROM ratings WHERE movie_id IS NULL AND cinema_id = ?), 0.00),
+            rating_count = (SELECT COUNT(*) FROM ratings WHERE movie_id IS NULL AND cinema_id = ?)
+        WHERE id = ?
+    `
+	err := r.db.GetDB().WithContext(ctx).Exec(query, cinemaID, cinemaID, cinemaID).Error
+	if err != nil {
+		return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+	}
+	return nil
+}

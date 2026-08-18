@@ -29,4 +29,5 @@ type CinemaRepository interface {
 	AddFacility(ctx context.Context, cinemaID int64, facilityID int64) error
 	RemoveFacility(ctx context.Context, cinemaID int64, facilityID int64) error
 	UpdateFacilities(ctx context.Context, cinemaID int64, facilityIDs []int64) error
+	UpdateRatingAggregate(ctx context.Context, cinemaID int64) error
 }

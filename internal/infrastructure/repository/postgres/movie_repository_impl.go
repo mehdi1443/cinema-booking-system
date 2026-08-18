@@ -268,3 +268,18 @@ func (r *movieRepository) Delete(ctx context.Context, id int64) error {
 
 	return nil
 }
+
+func (r *movieRepository) UpdateRatingAggregate(ctx context.Context, movieID int64) error {
+	query := `
+        UPDATE movies
+        SET 
+            rating_avg = COALESCE((SELECT ROUND(AVG(score)::numeric, 2) FROM ratings WHERE movie_id = ?), 0.00),
+            rating_count = (SELECT COUNT(*) FROM ratings WHERE movie_id = ?)
+        WHERE id = ?
+    `
+	err := r.db.GetDB().WithContext(ctx).Exec(query, movieID, movieID, movieID).Error
+	if err != nil {
+		return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+	}
+	return nil
+}

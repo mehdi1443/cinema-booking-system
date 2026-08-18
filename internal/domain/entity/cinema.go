@@ -18,6 +18,8 @@ type Cinema struct {
 	ImageURLLow  *string           `gorm:"type:varchar(255)" json:"image_url_low,omitempty"`
 	ImageURLHigh *string           `gorm:"type:varchar(255)" json:"image_url_high,omitempty"`
 	Status       enum.CinemaStatus `gorm:"type:varchar(50)" json:"status"`
+	RatingAvg    float64           `gorm:"type:decimal(3,2);not null;default:0.00" json:"rating_avg"`
+	RatingCount  int               `gorm:"not null;default:0" json:"rating_count"`
 	CreatedAt    time.Time         `json:"created_at"`
 	UpdatedAt    time.Time         `json:"updated_at"`
 

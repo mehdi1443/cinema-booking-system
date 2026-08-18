@@ -63,6 +63,8 @@ type MovieListResponse struct {
 	ReleaseDate     time.Time        `json:"release_date"`
 	PosterURLLow    string           `json:"poster_url_low"`
 	Status          enum.MovieStatus `json:"status"`
+	RatingAvg       float64          `json:"rating_avg"`
+	RatingCount     int              `json:"rating_count"`
 }
 
 type MovieDetailResponse struct {
@@ -76,6 +78,8 @@ type MovieDetailResponse struct {
 	PosterURLHigh   string                `json:"poster_url_high"`
 	TrailerURL      string                `json:"trailer_url"`
 	Status          enum.MovieStatus      `json:"status"`
+	RatingAvg       float64               `json:"rating_avg"`
+	RatingCount     int                   `json:"rating_count"`
 	Genres          []MovieGenreResponse  `json:"genres,omitempty"`
 	People          []MoviePersonResponse `json:"people,omitempty"`
 	CreatedAt       *time.Time            `json:"created_at,omitempty"`
@@ -94,6 +98,8 @@ func ToMovieListResponse(movie *entity.Movie) *MovieListResponse {
 		ReleaseDate:     movie.ReleaseDate,
 		PosterURLLow:    movie.PosterURLLow,
 		Status:          movie.Status,
+		RatingAvg:       movie.RatingAvg,
+		RatingCount:     movie.RatingCount,
 	}
 }
 
@@ -151,6 +157,8 @@ func ToMovieDetailResponse(movie *entity.Movie) *MovieDetailResponse {
 		PosterURLHigh:   movie.PosterURLHigh,
 		TrailerURL:      movie.TrailerURL,
 		Status:          movie.Status,
+		RatingAvg:       movie.RatingAvg,
+		RatingCount:     movie.RatingCount,
 		Genres:          genres,
 		People:          people,
 		CreatedAt:       helper.TimeToPtr(movie.CreatedAt),

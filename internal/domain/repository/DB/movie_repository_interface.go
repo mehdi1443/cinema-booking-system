@@ -17,4 +17,6 @@ type MovieInterface interface {
 	GetAll(ctx context.Context) ([]entity.Movie, error)
 	Update(ctx context.Context, movie *entity.Movie, genreIDs []int64, peopleIDs map[int64]enum.MoviePersonRole) (*entity.Movie, error)
 	Delete(ctx context.Context, id int64) error
+
+	UpdateRatingAggregate(ctx context.Context, movieID int64) error
 }

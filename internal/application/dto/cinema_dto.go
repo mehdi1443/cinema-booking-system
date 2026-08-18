@@ -48,6 +48,8 @@ type CinemaListResponse struct {
 	Address      string            `json:"address"`
 	ImageURLLow  string            `json:"image_url_low"`
 	Status       enum.CinemaStatus `json:"status"`
+	RatingAvg    float64           `json:"rating_avg"`
+	RatingCount  int               `json:"rating_count"`
 	CityName     string            `json:"city_name,omitempty"`
 	ProvinceName string            `json:"province_name,omitempty"`
 }
@@ -66,6 +68,8 @@ type CinemaDetailResponse struct {
 	ImageURLLow  string             `json:"image_url_low"`
 	ImageURLHigh string             `json:"image_url_high"`
 	Status       enum.CinemaStatus  `json:"status"`
+	RatingAvg    float64            `json:"rating_avg"`
+	RatingCount  int                `json:"rating_count"`
 	Facilities   []FacilityResponse `json:"facilities,omitempty"`
 	CreatedAt    *time.Time         `json:"created_at,omitempty"`
 	UpdatedAt    *time.Time         `json:"updated_at,omitempty"`
@@ -101,6 +105,8 @@ func ToCinemaListResponse(cinema *entity.Cinema) *CinemaListResponse {
 		Address:      cinema.Address,
 		ImageURLLow:  imageURLLow,
 		Status:       cinema.Status,
+		RatingAvg:    cinema.RatingAvg,
+		RatingCount:  cinema.RatingCount,
 		CityName:     cityName,
 		ProvinceName: provinceName,
 	}
@@ -172,6 +178,8 @@ func ToCinemaDetailResponse(cinema *entity.Cinema) *CinemaDetailResponse {
 		ImageURLLow:  imageURLLow,
 		ImageURLHigh: imageURLHigh,
 		Status:       cinema.Status,
+		RatingAvg:    cinema.RatingAvg,
+		RatingCount:  cinema.RatingCount,
 		Facilities:   facilities,
 		CreatedAt:    helper.TimeToPtr(cinema.CreatedAt),
 		UpdatedAt:    helper.TimeToPtr(cinema.UpdatedAt),
