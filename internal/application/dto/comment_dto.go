@@ -1,6 +1,7 @@
 package dto
 
 import (
+	"strings"
 	"time"
 
 	"github.com/mehdi1443/cinema-booking-system/internal/application/helper"
@@ -34,7 +35,6 @@ type CommentUserResponse struct {
 
 type CommentResponse struct {
 	ID              int64                `json:"id"`
-	UserID          int64                `json:"user_id"`
 	MovieID         *int64               `json:"movie_id,omitempty"`
 	CinemaID        *int64               `json:"cinema_id,omitempty"`
 	ParentID        *int64               `json:"parent_id,omitempty"`
@@ -56,7 +56,10 @@ func ToCommentResponse(comment *entity.Comment, currentUserVote *enum.VoteType) 
 
 	var userResp *CommentUserResponse
 	if comment.User != nil {
-		fullName := comment.User.FirstName + " " + comment.User.LastName
+		fullName := strings.TrimSpace(comment.User.FirstName + " " + comment.User.LastName)
+		if fullName == "" {
+			fullName = "کاربر"
+		}
 		userResp = &CommentUserResponse{
 			ID:   comment.User.ID,
 			Name: fullName,
@@ -75,7 +78,6 @@ func ToCommentResponse(comment *entity.Comment, currentUserVote *enum.VoteType) 
 
 	return &CommentResponse{
 		ID:              comment.ID,
-		UserID:          comment.UserID,
 		MovieID:         comment.MovieID,
 		CinemaID:        comment.CinemaID,
 		ParentID:        comment.ParentID,

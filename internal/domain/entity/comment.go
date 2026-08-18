@@ -25,3 +25,7 @@ type Comment struct {
 	Parent  *Comment  `gorm:"foreignKey:ParentID" json:"parent,omitempty"`
 	Replies []Comment `gorm:"foreignKey:ParentID" json:"replies,omitempty"`
 }
+
+func (Comment) TableName() string {
+	return "reviews"
+}

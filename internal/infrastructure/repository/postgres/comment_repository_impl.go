@@ -50,17 +50,20 @@ func (r *commentRepository) GetByID(ctx context.Context, id int64) (*entity.Comm
 	return &comment, nil
 }
 
-func (r *commentRepository) GetByMovieID(ctx context.Context, movieID int64, limit, offset int) ([]entity.Comment, error) {
+func (r *commentRepository) GetByMovieID(ctx context.Context, movieID int64, limit, offset int, statuses ...enum.CommentStatus) ([]entity.Comment, error) {
 	var comments []entity.Comment
-	err := r.db.GetDB().WithContext(ctx).
+	query := r.db.GetDB().WithContext(ctx).
 		Preload("User").
-		Preload("Replies.User").
-		Where("movie_id = ? AND parent_id IS NULL", movieID).
-		Order("created_at DESC").
-		Limit(limit).
-		Offset(offset).
-		Find(&comments).Error
+		Where("movie_id = ? AND parent_id IS NULL", movieID)
 
+	if len(statuses) > 0 {
+		query = query.Where("status IN ?", statuses)
+		query = query.Preload("Replies", "status IN ?", statuses).Preload("Replies.User")
+	} else {
+		query = query.Preload("Replies.User")
+	}
+
+	err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&comments).Error
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
@@ -68,17 +71,20 @@ func (r *commentRepository) GetByMovieID(ctx context.Context, movieID int64, lim
 	return comments, nil
 }
 
-func (r *commentRepository) GetByCinemaID(ctx context.Context, cinemaID int64, limit, offset int) ([]entity.Comment, error) {
+func (r *commentRepository) GetByCinemaID(ctx context.Context, cinemaID int64, limit, offset int, statuses ...enum.CommentStatus) ([]entity.Comment, error) {
 	var comments []entity.Comment
-	err := r.db.GetDB().WithContext(ctx).
+	query := r.db.GetDB().WithContext(ctx).
 		Preload("User").
-		Preload("Replies.User").
-		Where("cinema_id = ? AND parent_id IS NULL", cinemaID).
-		Order("created_at DESC").
-		Limit(limit).
-		Offset(offset).
-		Find(&comments).Error
+		Where("cinema_id = ? AND parent_id IS NULL", cinemaID)
 
+	if len(statuses) > 0 {
+		query = query.Where("status IN ?", statuses)
+		query = query.Preload("Replies", "status IN ?", statuses).Preload("Replies.User")
+	} else {
+		query = query.Preload("Replies.User")
+	}
+
+	err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&comments).Error
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
@@ -86,16 +92,17 @@ func (r *commentRepository) GetByCinemaID(ctx context.Context, cinemaID int64, l
 	return comments, nil
 }
 
-func (r *commentRepository) GetRepliesByParentID(ctx context.Context, parentID int64, limit, offset int) ([]entity.Comment, error) {
+func (r *commentRepository) GetRepliesByParentID(ctx context.Context, parentID int64, limit, offset int, statuses ...enum.CommentStatus) ([]entity.Comment, error) {
 	var replies []entity.Comment
-	err := r.db.GetDB().WithContext(ctx).
+	query := r.db.GetDB().WithContext(ctx).
 		Preload("User").
-		Where("parent_id = ?", parentID).
-		Order("created_at ASC").
-		Limit(limit).
-		Offset(offset).
-		Find(&replies).Error
+		Where("parent_id = ?", parentID)
 
+	if len(statuses) > 0 {
+		query = query.Where("status IN ?", statuses)
+	}
+
+	err := query.Order("created_at ASC").Limit(limit).Offset(offset).Find(&replies).Error
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
@@ -168,7 +175,7 @@ func (r *commentRepository) AddVote(ctx context.Context, vote *entity.CommentVot
 				return nil
 			}
 
-			if err := tx.Model(&existing).Update("vote", vote.Vote).Error; err != nil {
+			if err := tx.Model(&existing).Where("user_id = ? AND comment_id = ?", vote.UserID, vote.CommentID).Update("vote", vote.Vote).Error; err != nil {
 				return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 			}
 
@@ -226,7 +233,7 @@ func (r *commentRepository) RemoveVote(ctx context.Context, userID int64, commen
 			return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 		}
 
-		if err := tx.Delete(&existing).Error; err != nil {
+		if err := tx.Where("user_id = ? AND comment_id = ?", userID, commentID).Delete(&entity.CommentVote{}).Error; err != nil {
 			return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 		}
 
@@ -259,4 +266,23 @@ func (r *commentRepository) GetUserVote(ctx context.Context, userID int64, comme
 	}
 
 	return &vote, nil
+}
+
+func (r *commentRepository) GetListAdmin(ctx context.Context, status *enum.CommentStatus, limit, offset int) ([]entity.Comment, error) {
+	var comments []entity.Comment
+	query := r.db.GetDB().WithContext(ctx).
+		Preload("User").
+		Preload("Movie").
+		Preload("Cinema")
+
+	if status != nil {
+		query = query.Where("status = ?", *status)
+	}
+
+	err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&comments).Error
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+	}
+
+	return comments, nil
 }
