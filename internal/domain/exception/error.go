@@ -80,4 +80,5 @@ var (
 	ErrCommentNotFound = errors.New("comment not found")
 	ErrInvalidInput    = errors.New("invalid input")
 	ErrUnauthorized    = errors.New("unauthorized")
+	ErrRatingNotFound  = errors.New("rating not found")
 )
