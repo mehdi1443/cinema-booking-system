@@ -119,6 +119,7 @@ func main() {
 	cinemaRepo := postgres_repo.NewCinemaRepository(pgDB)
 	favoriteRepo := postgres_repo.NewFavoriteRepository(pgDB)
 	commentRepo := postgres_repo.NewCommentRepository(pgDB)
+	ratingRepo := postgres_repo.NewRatingRepository(pgDB)
 
 	repositories := router.Repositories{
 		UserRepo:                userRepo,
@@ -173,6 +174,7 @@ func main() {
 	cinemaSrv := service.NewCinemaService(cinemaRepo, storage)
 	favoriteSrv := service.NewFavoriteService(favoriteRepo)
 	commentSrv := service.NewCommentService(commentRepo)
+	ratingSrv := service.NewRatingService(ratingRepo, movieRepo, cinemaRepo)
 
 	services := router.Services{
 		TokenService:        jwtSrv,
@@ -196,6 +198,7 @@ func main() {
 	cinemaHandler := *handler.NewCinemaHandler(cinemaSrv)
 	favoriteHandler := *handler.NewFavoriteHandler(favoriteSrv, contextokenSrv, appLogger)
 	commentHandler := *handler.NewCommentHandler(commentSrv)
+	ratingHandler := *handler.NewRatingHandler(ratingSrv)
 
 	handlers := router.Handlers{
 		Auth:      authHandler,
@@ -211,6 +214,7 @@ func main() {
 		Cinema:    cinemaHandler,
 		Favorite:  favoriteHandler,
 		Comment:   commentHandler,
+		Rating:    ratingHandler,
 	}
 
 	// --- LIMITER ---

@@ -27,6 +27,7 @@ type Handlers struct {
 	Cinema    handler.CinemaHandler
 	Favorite  handler.FavoriteHandler
 	Comment   handler.CommentHandler
+	Rating    handler.RatingHandler
 }
 
 type Repositories struct {
@@ -133,6 +134,18 @@ func SetUpRouter(handler *Handlers, services *Services, repositories *Repositori
 	SetUpCommentRouter(
 		v1,
 		&handler.Comment,
+		authMiddleware,
+		repositories.RBACRepo,
+		repositories.UserPermissionCacheRepo,
+		services.ContextTokenService,
+		repositories.UserRepo,
+		&config.Environment.UserPermissionCache,
+		appLogger,
+	)
+
+	SetUpRatingRouter(
+		v1,
+		&handler.Rating,
 		authMiddleware,
 		repositories.RBACRepo,
 		repositories.UserPermissionCacheRepo,

@@ -10,7 +10,6 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type ratingRepository struct {
@@ -22,19 +21,35 @@ func NewRatingRepository(db database.Database) DB.RatingInterface {
 }
 
 func (r *ratingRepository) Upsert(ctx context.Context, rating *entity.Rating) (*entity.Rating, error) {
-	err := r.db.GetDB().WithContext(ctx).
-		Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "user_id"}, {Name: "movie_id"}, {Name: "cinema_id"}},
-			DoUpdates: clause.AssignmentColumns([]string{"score", "updated_at"}),
-		}).
-		Omit("User", "Movie", "Cinema").
-		Create(rating).Error
+	db := r.db.GetDB().WithContext(ctx)
 
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+	var existing entity.Rating
+	var err error
+
+	if rating.MovieID != nil {
+		err = db.Where("user_id = ? AND movie_id = ?", rating.UserID, *rating.MovieID).First(&existing).Error
+	} else if rating.CinemaID != nil {
+		err = db.Where("user_id = ? AND cinema_id = ? AND movie_id IS NULL", rating.UserID, *rating.CinemaID).First(&existing).Error
+	} else {
+		return nil, exception.ErrInvalidInput
 	}
 
-	return r.GetByID(ctx, rating.ID)
+	if err == nil {
+		existing.Score = rating.Score
+		if err := db.Model(&existing).Select("score", "updated_at").Updates(existing).Error; err != nil {
+			return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		}
+		return r.GetByID(ctx, existing.ID)
+	}
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		if err := db.Omit("User", "Movie", "Cinema").Create(rating).Error; err != nil {
+			return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		}
+		return r.GetByID(ctx, rating.ID)
+	}
+
+	return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 }
 
 func (r *ratingRepository) GetByID(ctx context.Context, id int64) (*entity.Rating, error) {
