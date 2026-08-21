@@ -23,7 +23,6 @@ func NewGenreHandler(genreService service_contract.GenreServiceInterface) *Genre
 	}
 }
 
-// POST /genres
 func (h *GenreHandler) CreateGenre(c *gin.Context) {
 	var req dto.CreateGenreRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -35,8 +34,11 @@ func (h *GenreHandler) CreateGenre(c *gin.Context) {
 	if err != nil {
 		log.Printf("[SERVICE ERROR] CreateGenre failed: %v", err)
 		switch {
-		case errors.Is(err, exception.ErrGenreAlreadyExists):
+		case errors.Is(err, exception.ErrDuplicateKey), errors.Is(err, exception.ErrGenreAlreadyExists):
 			response.Error(c, http.StatusConflict, "Genre already exists", err)
+
+		case errors.Is(err, exception.ErrInvalidInput):
+			response.Error(c, http.StatusBadRequest, "Invalid genre name", err)
 
 		case errors.Is(err, exception.ErrDatabase):
 			response.Error(c, http.StatusInternalServerError, "Internal database error occurred", err)
@@ -50,7 +52,6 @@ func (h *GenreHandler) CreateGenre(c *gin.Context) {
 	response.Success(c, http.StatusCreated, "Genre created successfully", genre)
 }
 
-// GET /genres/:id
 func (h *GenreHandler) GetGenreByID(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
@@ -77,7 +78,6 @@ func (h *GenreHandler) GetGenreByID(c *gin.Context) {
 	response.Success(c, http.StatusOK, "Genre retrieved successfully", genre)
 }
 
-// GET /genres
 func (h *GenreHandler) GetGenres(c *gin.Context) {
 	var req dto.GenreFilterRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -99,12 +99,17 @@ func (h *GenreHandler) GetGenres(c *gin.Context) {
 	}
 
 	page := req.Page
-	if page <= 0 {
+	if page < 1 {
 		page = 1
+	} else if page > 1000 {
+		page = 1000
 	}
+
 	limit := req.Limit
-	if limit <= 0 {
+	if limit < 1 {
 		limit = 10
+	} else if limit > 100 {
+		limit = 100
 	}
 
 	meta := response.Meta{
@@ -116,7 +121,6 @@ func (h *GenreHandler) GetGenres(c *gin.Context) {
 	response.SuccessWithMeta(c, http.StatusOK, "Genres retrieved successfully", genres, meta)
 }
 
-// PUT /genres/:id
 func (h *GenreHandler) UpdateGenre(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
@@ -137,8 +141,11 @@ func (h *GenreHandler) UpdateGenre(c *gin.Context) {
 		case errors.Is(err, exception.ErrGenreNotFound):
 			response.Error(c, http.StatusNotFound, "Genre not found", err)
 
-		case errors.Is(err, exception.ErrGenreAlreadyExists):
+		case errors.Is(err, exception.ErrDuplicateKey), errors.Is(err, exception.ErrGenreAlreadyExists):
 			response.Error(c, http.StatusConflict, "Genre name already exists", err)
+
+		case errors.Is(err, exception.ErrInvalidInput):
+			response.Error(c, http.StatusBadRequest, "Invalid genre name", err)
 
 		case errors.Is(err, exception.ErrDatabase):
 			response.Error(c, http.StatusInternalServerError, "Internal database error occurred", err)
@@ -152,7 +159,6 @@ func (h *GenreHandler) UpdateGenre(c *gin.Context) {
 	response.Success(c, http.StatusOK, "Genre updated successfully", updatedGenre)
 }
 
-// DELETE /genres/:id
 func (h *GenreHandler) DeleteGenre(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {

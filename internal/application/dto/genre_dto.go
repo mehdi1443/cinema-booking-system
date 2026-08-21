@@ -1,6 +1,7 @@
 package dto
 
 import (
+	"strings"
 	"time"
 
 	"github.com/mehdi1443/cinema-booking-system/internal/application/helper"
@@ -9,16 +10,24 @@ import (
 
 type GenreFilterRequest struct {
 	Search *string `form:"search"`
-	Page   int     `form:"page,default=1"`
-	Limit  int     `form:"limit,default=10"`
+	Page   int     `form:"page,default=1" binding:"omitempty,gte=1,lte=10000"`
+	Limit  int     `form:"limit,default=10" binding:"omitempty,gte=1,lte=100"`
 }
 
 type CreateGenreRequest struct {
 	Name string `json:"name" binding:"required,min=2,max=50"`
 }
 
+func (r *CreateGenreRequest) Sanitize() {
+	r.Name = strings.TrimSpace(r.Name)
+}
+
 type UpdateGenreRequest struct {
 	Name string `json:"name" binding:"required,min=2,max=50"`
+}
+
+func (r *UpdateGenreRequest) Sanitize() {
+	r.Name = strings.TrimSpace(r.Name)
 }
 
 type GenreResponse struct {

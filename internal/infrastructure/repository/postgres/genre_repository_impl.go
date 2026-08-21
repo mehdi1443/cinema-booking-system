@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
@@ -20,10 +22,24 @@ func NewGenreRepository(db database.Database) DB.GenreInterface {
 	return &genreRepository{db: db}
 }
 
+func isDuplicateError(err error) bool {
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return true
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		return true
+	}
+	if strings.Contains(err.Error(), "23505") || strings.Contains(err.Error(), "duplicate key value") {
+		return true
+	}
+	return false
+}
+
 func (r *genreRepository) Create(ctx context.Context, genre *entity.Genre) (*entity.Genre, error) {
 	err := r.db.GetDB().WithContext(ctx).Create(genre).Error
 	if err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
+		if isDuplicateError(err) {
 			return nil, exception.ErrDuplicateKey
 		}
 		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
@@ -59,8 +75,8 @@ func (r *genreRepository) GetGenres(ctx context.Context, filter DB.GenreFilter, 
 	var genres []entity.Genre
 	q := r.db.GetDB().WithContext(ctx).Model(&entity.Genre{})
 
-	if filter.SearchKeyword != "" {
-		q = q.Where("name ILIKE ?", "%"+filter.SearchKeyword+"%")
+	if strings.TrimSpace(filter.SearchKeyword) != "" {
+		q = q.Where("name ILIKE ?", "%"+strings.TrimSpace(filter.SearchKeyword)+"%")
 	}
 
 	var total int64
@@ -84,7 +100,7 @@ func (r *genreRepository) GetGenres(ctx context.Context, filter DB.GenreFilter, 
 func (r *genreRepository) Update(ctx context.Context, genre *entity.Genre) (*entity.Genre, error) {
 	res := r.db.GetDB().WithContext(ctx).Model(genre).Where("id = ?", genre.ID).Updates(genre)
 	if res.Error != nil {
-		if errors.Is(res.Error, gorm.ErrDuplicatedKey) {
+		if isDuplicateError(res.Error) {
 			return nil, exception.ErrDuplicateKey
 		}
 		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, res.Error)
