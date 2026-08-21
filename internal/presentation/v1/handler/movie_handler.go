@@ -13,6 +13,11 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
 
+const (
+	maxPosterSize  = 5 * 1024 * 1024   // 5 MB
+	maxTrailerSize = 100 * 1024 * 1024 // 100 MB
+)
+
 type MovieHandler struct {
 	movieService service_contract.MovieServiceInterface
 }
@@ -35,6 +40,9 @@ func (h *MovieHandler) CreateMovie(c *gin.Context) {
 	if err != nil {
 		log.Printf("[SERVICE ERROR] CreateMovie failed: %v", err)
 		switch {
+		case errors.Is(err, exception.ErrInvalidInput):
+			response.Error(c, http.StatusBadRequest, "Invalid input data or enum value", err)
+
 		case errors.Is(err, exception.ErrMovieAlreadyExists):
 			response.Error(c, http.StatusConflict, "Movie already exists", err)
 
@@ -91,10 +99,15 @@ func (h *MovieHandler) GetMovies(c *gin.Context) {
 		return
 	}
 
+	req.Normalize()
+
 	movies, total, err := h.movieService.GetMovies(c.Request.Context(), req)
 	if err != nil {
 		log.Printf("[SERVICE ERROR] GetMovies failed: %v", err)
 		switch {
+		case errors.Is(err, exception.ErrInvalidInput):
+			response.Error(c, http.StatusBadRequest, "Invalid filter parameter or enum value", err)
+
 		case errors.Is(err, exception.ErrDatabase):
 			response.Error(c, http.StatusInternalServerError, "Internal database error occurred", err)
 
@@ -104,18 +117,9 @@ func (h *MovieHandler) GetMovies(c *gin.Context) {
 		return
 	}
 
-	page := req.Page
-	if page <= 0 {
-		page = 1
-	}
-	limit := req.Limit
-	if limit <= 0 {
-		limit = 10
-	}
-
 	meta := response.Meta{
-		Page:  page,
-		Limit: limit,
+		Page:  req.Page,
+		Limit: req.Limit,
 		Total: int(total),
 	}
 
@@ -140,6 +144,9 @@ func (h *MovieHandler) UpdateMovie(c *gin.Context) {
 	if err != nil {
 		log.Printf("[SERVICE ERROR] UpdateMovie failed: %v", err)
 		switch {
+		case errors.Is(err, exception.ErrInvalidInput):
+			response.Error(c, http.StatusBadRequest, "Invalid input data or enum value", err)
+
 		case errors.Is(err, exception.ErrMovieNotFound):
 			response.Error(c, http.StatusNotFound, "Movie not found", err)
 
@@ -201,6 +208,11 @@ func (h *MovieHandler) UploadPoster(c *gin.Context) {
 		return
 	}
 
+	if fileHeader.Size > maxPosterSize {
+		response.Error(c, http.StatusRequestEntityTooLarge, "Poster size exceeds allowed limit (5MB)", exception.ErrFileSizeTooLarge)
+		return
+	}
+
 	file, err := fileHeader.Open()
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, "Failed to read poster file", err)
@@ -217,6 +229,9 @@ func (h *MovieHandler) UploadPoster(c *gin.Context) {
 
 		case errors.Is(err, exception.ErrInvalidFileType):
 			response.Error(c, http.StatusBadRequest, "Invalid poster image format", err)
+
+		case errors.Is(err, exception.ErrFileSizeTooLarge):
+			response.Error(c, http.StatusRequestEntityTooLarge, "Poster size exceeds allowed limit (5MB)", err)
 
 		case errors.Is(err, exception.ErrDatabase):
 			response.Error(c, http.StatusInternalServerError, "Internal database error occurred", err)
@@ -270,6 +285,11 @@ func (h *MovieHandler) UploadTrailer(c *gin.Context) {
 		return
 	}
 
+	if fileHeader.Size > maxTrailerSize {
+		response.Error(c, http.StatusRequestEntityTooLarge, "Trailer size exceeds allowed limit (100MB)", exception.ErrFileSizeTooLarge)
+		return
+	}
+
 	file, err := fileHeader.Open()
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, "Failed to read trailer file", err)
@@ -286,6 +306,9 @@ func (h *MovieHandler) UploadTrailer(c *gin.Context) {
 
 		case errors.Is(err, exception.ErrInvalidFileType):
 			response.Error(c, http.StatusBadRequest, "Invalid trailer video format", err)
+
+		case errors.Is(err, exception.ErrFileSizeTooLarge):
+			response.Error(c, http.StatusRequestEntityTooLarge, "Trailer size exceeds allowed limit (100MB)", err)
 
 		case errors.Is(err, exception.ErrDatabase):
 			response.Error(c, http.StatusInternalServerError, "Internal database error occurred", err)

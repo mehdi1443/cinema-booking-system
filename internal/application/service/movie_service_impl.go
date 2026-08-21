@@ -1,21 +1,27 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum/sort"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/storage"
 	"github.com/mehdi1443/cinema-booking-system/pkg/image"
 )
 
-const maxTrailerSize = 100 * 1024 * 1024
+const (
+	maxPosterSize  = 5 * 1024 * 1024   // 5 MB
+	maxTrailerSize = 100 * 1024 * 1024 // 100 MB
+)
 
 type movieService struct {
 	movieRepo repository_contract.MovieInterFace
@@ -32,7 +38,24 @@ func NewMovieService(
 	}
 }
 
+// تابع کمکی بررسی و اعمال محدودیت حجم فایل
+func checkFileSize(r io.Reader, maxSize int64) (io.Reader, error) {
+	lr := io.LimitReader(r, maxSize+1)
+	buf, err := io.ReadAll(lr)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", exception.ErrInvalidFileType, err)
+	}
+	if int64(len(buf)) > maxSize {
+		return nil, exception.ErrFileSizeTooLarge
+	}
+	return bytes.NewReader(buf), nil
+}
+
 func (s *movieService) Create(ctx context.Context, req *dto.CreateMovieRequest) (*dto.MovieDetailResponse, error) {
+	if !req.Status.IsValid() {
+		return nil, exception.ErrInvalidInput
+	}
+
 	movie := &entity.Movie{
 		Title:           req.Title,
 		Description:     req.Description,
@@ -44,6 +67,9 @@ func (s *movieService) Create(ctx context.Context, req *dto.CreateMovieRequest) 
 
 	peopleMap := make(map[int64]enum.MoviePersonRole, len(req.People))
 	for _, p := range req.People {
+		if !p.Role.IsValid() {
+			return nil, exception.ErrInvalidInput
+		}
 		peopleMap[p.PersonID] = p.Role
 	}
 
@@ -65,14 +91,26 @@ func (s *movieService) GetByID(ctx context.Context, id int64) (*dto.MovieDetailR
 }
 
 func (s *movieService) GetMovies(ctx context.Context, req dto.MovieFilterRequest) ([]*dto.MovieListResponse, int64, error) {
+	if req.Status != nil && !req.Status.IsValid() {
+		return nil, 0, exception.ErrInvalidInput
+	}
+	if req.PersonRole != nil && !req.PersonRole.IsValid() {
+		return nil, 0, exception.ErrInvalidInput
+	}
+
 	filter := repository_contract.MovieFilter{
 		Status:      req.Status,
-		GenreID:     req.GenreID,
-		PersonID:    req.PersonID,
+		GenreIDs:    req.GenreIDs,
+		PersonIDs:   req.PersonIDs,
 		PersonRole:  req.PersonRole,
 		Country:     req.Country,
 		MinRating:   req.MinRating,
-		ReleaseYear: req.ReleaseYear,
+		MaxRating:   req.MaxRating,
+		FromYear:    req.FromYear,
+		ToYear:      req.ToYear,
+		MinDuration: req.MinDuration,
+		MaxDuration: req.MaxDuration,
+		HasTrailer:  req.HasTrailer,
 	}
 
 	if req.Search != nil {
@@ -93,16 +131,8 @@ func (s *movieService) GetMovies(ctx context.Context, req dto.MovieFilterRequest
 		}
 	}
 
-	page := req.Page
-	if page < 1 {
-		page = 1
-	}
-	limit := req.Limit
-	if limit < 1 {
-		limit = 10
-	}
-	offset := (page - 1) * limit
-	opts.WithPagination(limit, offset)
+	req.Normalize()
+	opts.WithPagination(req.Limit, req.GetOffset())
 
 	movies, total, err := s.movieRepo.GetMovies(ctx, filter, opts)
 	if err != nil {
@@ -134,6 +164,9 @@ func (s *movieService) Update(ctx context.Context, id int64, req *dto.UpdateMovi
 		movie.Country = *req.Country
 	}
 	if req.Status != nil {
+		if !req.Status.IsValid() {
+			return nil, exception.ErrInvalidInput
+		}
 		movie.Status = *req.Status
 	}
 
@@ -151,6 +184,9 @@ func (s *movieService) Update(ctx context.Context, id int64, req *dto.UpdateMovi
 	if req.People != nil {
 		peopleMap = make(map[int64]enum.MoviePersonRole, len(*req.People))
 		for _, p := range *req.People {
+			if !p.Role.IsValid() {
+				return nil, exception.ErrInvalidInput
+			}
 			peopleMap[p.PersonID] = p.Role
 		}
 	}
@@ -186,9 +222,16 @@ func (s *movieService) UploadPoster(ctx context.Context, id int64, file io.Reade
 		return nil, err
 	}
 
-	img, err := image.DecodeImage(file)
+	// ۱. بررسی حجم فایل (سقف ۵ مگابایت)
+	fileReader, err := checkFileSize(file, maxPosterSize)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode poster image: %w", err)
+		return nil, err
+	}
+
+	// ۲. بررسی فرمت تصویر (دیکود شدن صحت فرمت JPEG/PNG/WebP را تضمین می‌کند)
+	img, err := image.DecodeImage(fileReader)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", exception.ErrInvalidFileType, err)
 	}
 
 	lowImg := image.Resize(300, 450, img)
@@ -263,10 +306,29 @@ func (s *movieService) UploadTrailer(ctx context.Context, id int64, file io.Read
 		return nil, err
 	}
 
-	limitedReader := io.LimitReader(file, maxTrailerSize+1)
-	trailerKey := fmt.Sprintf("movies/movie_%d_trailer.mp4", id)
+	// ۱. بررسی حجم فایل (سقف ۱۰۰ مگابایت)
+	fileReader, err := checkFileSize(file, maxTrailerSize)
+	if err != nil {
+		return nil, err
+	}
 
-	trailerURL, err := s.storage.UploadObject(ctx, enum.MovieTrailer, trailerKey, limitedReader, "video/mp4")
+	// ۲. اعتبارسنجی فرمت واقعی ویدیو با ۵۱۲ بایت اول فایل (Magic Bytes)
+	header := make([]byte, 512)
+	n, readErr := fileReader.Read(header)
+	if readErr != nil && readErr != io.EOF {
+		return nil, fmt.Errorf("%w: failed to read file header", exception.ErrInvalidFileType)
+	}
+
+	contentType := http.DetectContentType(header[:n])
+	if contentType != "video/mp4" && contentType != "video/webm" && contentType != "application/octet-stream" {
+		return nil, exception.ErrInvalidFileType
+	}
+
+	// بازسازی Reader برای آپلود کامل فایل
+	fullStream := io.MultiReader(bytes.NewReader(header[:n]), fileReader)
+
+	trailerKey := fmt.Sprintf("movies/movie_%d_trailer.mp4", id)
+	trailerURL, err := s.storage.UploadObject(ctx, enum.MovieTrailer, trailerKey, fullStream, "video/mp4")
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload trailer: %w", err)
 	}

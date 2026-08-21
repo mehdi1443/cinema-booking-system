@@ -11,11 +11,16 @@ type MovieFilter struct {
 	SearchKeyword string
 	IDs           []int64
 	Status        *enum.MovieStatus
-	GenreID       *int64
-	PersonID      *int64
+	GenreIDs      []int64
+	PersonIDs     []int64
 	PersonRole    *enum.MoviePersonRole
 	MinRating     *float64
-	ReleaseYear   *int
+	MaxRating     *float64
+	FromYear      *int
+	ToYear        *int
+	MinDuration   *int
+	MaxDuration   *int
+	HasTrailer    *bool
 	Country       *string
 }
 

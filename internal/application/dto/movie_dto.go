@@ -9,18 +9,22 @@ import (
 )
 
 type MovieFilterRequest struct {
+	PaginationRequest
 	Status      *enum.MovieStatus     `form:"status"`
-	GenreID     *int64                `form:"genre_id"`
-	PersonID    *int64                `form:"person_id"`
+	GenreIDs    []int64               `form:"genre_ids"`
+	PersonIDs   []int64               `form:"person_ids"`
 	PersonRole  *enum.MoviePersonRole `form:"person_role"`
 	Country     *string               `form:"country"`
 	Search      *string               `form:"search"`
 	MinRating   *float64              `form:"min_rating"`
-	ReleaseYear *int                  `form:"release_year"`
+	MaxRating   *float64              `form:"max_rating"`
+	FromYear    *int                  `form:"from_year"`
+	ToYear      *int                  `form:"to_year"`
+	MinDuration *int                  `form:"min_duration"`
+	MaxDuration *int                  `form:"max_duration"`
+	HasTrailer  *bool                 `form:"has_trailer"`
 	SortBy      string                `form:"sort_by"`
 	SortDir     string                `form:"sort_dir"`
-	Page        int                   `form:"page,default=1"`
-	Limit       int                   `form:"limit,default=10"`
 }
 
 type MoviePersonRoleRequest struct {
@@ -29,7 +33,7 @@ type MoviePersonRoleRequest struct {
 }
 
 type CreateMovieRequest struct {
-	Title           string                   `json:"title" binding:"required,min=1,max=255"`
+	Title           string                   `json:"title" binding:"required,notblank,min=1,max=255"`
 	Description     string                   `json:"description"`
 	DurationMinutes int                      `json:"duration_minutes" binding:"required,gt=0"`
 	ReleaseDate     time.Time                `json:"release_date" binding:"required"`
@@ -40,7 +44,7 @@ type CreateMovieRequest struct {
 }
 
 type UpdateMovieRequest struct {
-	Title           *string                   `json:"title" binding:"omitempty,min=1,max=255"`
+	Title           *string                   `json:"title" binding:"omitempty,notblank,min=1,max=255"`
 	Description     *string                   `json:"description"`
 	DurationMinutes *int                      `json:"duration_minutes" binding:"omitempty,gt=0"`
 	ReleaseDate     *time.Time                `json:"release_date"`
@@ -115,8 +119,8 @@ func ToMovieListResponseSlice(movies []entity.Movie) []*MovieListResponse {
 	}
 
 	responses := make([]*MovieListResponse, 0, len(movies))
-	for ind := range movies {
-		if resp := ToMovieListResponse(&movies[ind]); resp != nil {
+	for i := range movies {
+		if resp := ToMovieListResponse(&movies[i]); resp != nil {
 			responses = append(responses, resp)
 		}
 	}

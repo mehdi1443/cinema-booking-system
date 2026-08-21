@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
@@ -30,15 +32,44 @@ func NewMovieRepository(db database.Database) DB.MovieInterFace {
 	return &movieRepository{db: db}
 }
 
+func handleDBError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return exception.ErrDuplicateKey
+	}
+
+	if errors.Is(err, gorm.ErrForeignKeyViolated) {
+		return exception.ErrGenreNotFound
+	}
+
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch pgErr.Code {
+		case "23505": // unique_violation
+			return exception.ErrDuplicateKey
+		case "23503": // foreign_key_violation
+			if strings.Contains(pgErr.ConstraintName, "genre") || strings.Contains(pgErr.Detail, "movie_genres") {
+				return exception.ErrGenreNotFound
+			}
+			if strings.Contains(pgErr.ConstraintName, "person") || strings.Contains(pgErr.Detail, "movie_people") {
+				return exception.ErrPersonNotFound
+			}
+			return exception.ErrGenreNotFound
+		}
+	}
+
+	return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+}
+
 func (r *movieRepository) Create(ctx context.Context, movie *entity.Movie, genreIDs []int64, peopleIDs map[int64]enum.MoviePersonRole) (*entity.Movie, error) {
 	err := r.db.WithTransaction(func(txWrapper database.Database) error {
 		tx := txWrapper.GetDB().WithContext(ctx)
 
 		if err := tx.Omit("ID", "Genres", "People").Create(movie).Error; err != nil {
-			if errors.Is(err, gorm.ErrDuplicatedKey) {
-				return exception.ErrDuplicateKey
-			}
-			return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+			return handleDBError(err)
 		}
 
 		if len(genreIDs) > 0 {
@@ -50,7 +81,7 @@ func (r *movieRepository) Create(ctx context.Context, movie *entity.Movie, genre
 				})
 			}
 			if err := tx.Create(&movieGenres).Error; err != nil {
-				return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+				return handleDBError(err)
 			}
 		}
 
@@ -64,7 +95,7 @@ func (r *movieRepository) Create(ctx context.Context, movie *entity.Movie, genre
 				})
 			}
 			if err := tx.Create(&moviePeople).Error; err != nil {
-				return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+				return handleDBError(err)
 			}
 		}
 
@@ -89,7 +120,7 @@ func (r *movieRepository) GetByID(ctx context.Context, id int64) (*entity.Movie,
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, exception.ErrMovieNotFound
 		}
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, handleDBError(err)
 	}
 	return &movie, nil
 }
@@ -97,9 +128,8 @@ func (r *movieRepository) GetByID(ctx context.Context, id int64) (*entity.Movie,
 func (r *movieRepository) GetMovies(ctx context.Context, filter DB.MovieFilter, opts *DB.QueryOptions) ([]entity.Movie, int64, error) {
 	var movies []entity.Movie
 
-	q := r.db.GetDB().WithContext(ctx).Model(&entity.Movie{}).
-		Preload("Genres").
-		Preload("People.Person")
+	db := r.db.GetDB().WithContext(ctx)
+	q := db.Model(&entity.Movie{})
 
 	if filter.SearchKeyword != "" {
 		q = q.Where("movies.title ILIKE ?", "%"+filter.SearchKeyword+"%")
@@ -117,29 +147,67 @@ func (r *movieRepository) GetMovies(ctx context.Context, filter DB.MovieFilter, 
 		q = q.Where("movies.rating_avg >= ?", *filter.MinRating)
 	}
 
+	if filter.MaxRating != nil {
+		q = q.Where("movies.rating_avg <= ?", *filter.MaxRating)
+	}
+
 	if filter.Country != nil && *filter.Country != "" {
 		q = q.Where("movies.country = ?", *filter.Country)
 	}
 
-	if filter.GenreID != nil {
-		q = q.Joins("JOIN movie_genres ON movie_genres.movie_id = movies.id").
-			Where("movie_genres.genre_id = ?", *filter.GenreID)
+	if filter.FromYear != nil {
+		q = q.Where("EXTRACT(YEAR FROM movies.release_date) >= ?", *filter.FromYear)
 	}
 
-	if filter.PersonID != nil {
-		q = q.Joins("JOIN movie_people ON movie_people.movie_id = movies.id").
-			Where("movie_people.person_id = ?", *filter.PersonID)
+	if filter.ToYear != nil {
+		q = q.Where("EXTRACT(YEAR FROM movies.release_date) <= ?", *filter.ToYear)
+	}
+
+	if filter.MinDuration != nil {
+		q = q.Where("movies.duration_minutes >= ?", *filter.MinDuration)
+	}
+
+	if filter.MaxDuration != nil {
+		q = q.Where("movies.duration_minutes <= ?", *filter.MaxDuration)
+	}
+
+	if filter.HasTrailer != nil {
+		if *filter.HasTrailer {
+			q = q.Where("movies.trailer_url IS NOT NULL AND movies.trailer_url != ''")
+		} else {
+			q = q.Where("movies.trailer_url IS NULL OR movies.trailer_url = ''")
+		}
+	}
+
+	if len(filter.GenreIDs) > 0 {
+		subQuery := db.Table("movie_genres").
+			Select("movie_id").
+			Where("genre_id IN ?", filter.GenreIDs).
+			Group("movie_id").
+			Having("COUNT(DISTINCT genre_id) = ?", len(filter.GenreIDs))
+
+		q = q.Where("movies.id IN (?)", subQuery)
+	}
+
+	if len(filter.PersonIDs) > 0 {
+		subQuery := db.Table("movie_people").Select("movie_id").Where("person_id IN ?", filter.PersonIDs)
 
 		if filter.PersonRole != nil {
-			q = q.Where("movie_people.role = ?", *filter.PersonRole)
+			subQuery = subQuery.Where("role = ?", *filter.PersonRole)
 		}
-		q = q.Group("movies.id")
+
+		subQuery = subQuery.Group("movie_id").
+			Having("COUNT(DISTINCT person_id) = ?", len(filter.PersonIDs))
+
+		q = q.Where("movies.id IN (?)", subQuery)
 	}
 
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
-		return nil, 0, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, 0, handleDBError(err)
 	}
+
+	q = q.Preload("Genres").Preload("People.Person")
 
 	if opts != nil && opts.HasSorting() {
 		direction := "ASC"
@@ -156,7 +224,7 @@ func (r *movieRepository) GetMovies(ctx context.Context, filter DB.MovieFilter, 
 	}
 
 	if err := q.Find(&movies).Error; err != nil {
-		return nil, 0, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, 0, handleDBError(err)
 	}
 
 	return movies, total, nil
@@ -181,10 +249,7 @@ func (r *movieRepository) Update(ctx context.Context, movie *entity.Movie, genre
 
 		res := tx.Model(&entity.Movie{}).Where("id = ?", movie.ID).Updates(updateData)
 		if res.Error != nil {
-			if errors.Is(res.Error, gorm.ErrDuplicatedKey) {
-				return exception.ErrDuplicateKey
-			}
-			return fmt.Errorf("%w: %v", exception.ErrDatabase, res.Error)
+			return handleDBError(res.Error)
 		}
 		if res.RowsAffected == 0 {
 			return exception.ErrMovieNotFound
@@ -192,7 +257,7 @@ func (r *movieRepository) Update(ctx context.Context, movie *entity.Movie, genre
 
 		if genreIDs != nil {
 			if err := tx.Where("movie_id = ?", movie.ID).Delete(&MovieGenre{}).Error; err != nil {
-				return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+				return handleDBError(err)
 			}
 
 			if len(genreIDs) > 0 {
@@ -204,14 +269,14 @@ func (r *movieRepository) Update(ctx context.Context, movie *entity.Movie, genre
 					})
 				}
 				if err := tx.Create(&movieGenres).Error; err != nil {
-					return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+					return handleDBError(err)
 				}
 			}
 		}
 
 		if peopleIDs != nil {
 			if err := tx.Where("movie_id = ?", movie.ID).Delete(&entity.MoviePerson{}).Error; err != nil {
-				return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+				return handleDBError(err)
 			}
 
 			if len(peopleIDs) > 0 {
@@ -224,7 +289,7 @@ func (r *movieRepository) Update(ctx context.Context, movie *entity.Movie, genre
 					})
 				}
 				if err := tx.Create(&moviePeople).Error; err != nil {
-					return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+					return handleDBError(err)
 				}
 			}
 		}
@@ -242,7 +307,7 @@ func (r *movieRepository) Update(ctx context.Context, movie *entity.Movie, genre
 func (r *movieRepository) Delete(ctx context.Context, id int64) error {
 	res := r.db.GetDB().WithContext(ctx).Delete(&entity.Movie{}, id)
 	if res.Error != nil {
-		return fmt.Errorf("%w: %v", exception.ErrDatabase, res.Error)
+		return handleDBError(res.Error)
 	}
 
 	if res.RowsAffected == 0 {
@@ -262,7 +327,7 @@ func (r *movieRepository) UpdateRatingAggregate(ctx context.Context, movieID int
     `
 	err := r.db.GetDB().WithContext(ctx).Exec(query, movieID, movieID, movieID).Error
 	if err != nil {
-		return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return handleDBError(err)
 	}
 	return nil
 }
