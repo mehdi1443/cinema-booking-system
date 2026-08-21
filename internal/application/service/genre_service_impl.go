@@ -50,13 +50,31 @@ func (s *genreService) GetGenreByName(ctx context.Context, name string) (*dto.Ge
 	return dto.ToGenreResponse(genre), nil
 }
 
-func (s *genreService) GetAllGenres(ctx context.Context) ([]*dto.GenreResponse, error) {
-	genres, err := s.genreRepo.GetAll(ctx)
-	if err != nil {
-		return nil, err
+func (s *genreService) GetGenres(ctx context.Context, req dto.GenreFilterRequest) ([]*dto.GenreResponse, int64, error) {
+	filter := repository_contract.GenreFilter{}
+	if req.Search != nil {
+		filter.SearchKeyword = *req.Search
 	}
 
-	return dto.ToGenreResponseSlice(genres), nil
+	opts := repository_contract.NewQueryOptions()
+
+	page := req.Page
+	if page < 1 {
+		page = 1
+	}
+	limit := req.Limit
+	if limit < 1 {
+		limit = 10
+	}
+	offset := (page - 1) * limit
+	opts.WithPagination(limit, offset)
+
+	genres, total, err := s.genreRepo.GetGenres(ctx, filter, opts)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return dto.ToGenreResponseSlice(genres), total, nil
 }
 
 func (s *genreService) UpdateGenre(ctx context.Context, id int64, req *dto.UpdateGenreRequest) (*dto.GenreResponse, error) {

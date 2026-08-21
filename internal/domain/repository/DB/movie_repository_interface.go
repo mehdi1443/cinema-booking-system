@@ -12,6 +12,8 @@ type MovieFilter struct {
 	IDs           []int64
 	Status        *enum.MovieStatus
 	GenreID       *int64
+	PersonID      *int64
+	PersonRole    *enum.MoviePersonRole
 	MinRating     *float64
 	ReleaseYear   *int
 	Country       *string

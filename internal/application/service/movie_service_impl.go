@@ -68,6 +68,8 @@ func (s *movieService) GetMovies(ctx context.Context, req dto.MovieFilterRequest
 	filter := repository_contract.MovieFilter{
 		Status:      req.Status,
 		GenreID:     req.GenreID,
+		PersonID:    req.PersonID,
+		PersonRole:  req.PersonRole,
 		Country:     req.Country,
 		MinRating:   req.MinRating,
 		ReleaseYear: req.ReleaseYear,
@@ -91,7 +93,6 @@ func (s *movieService) GetMovies(ctx context.Context, req dto.MovieFilterRequest
 		}
 	}
 
-	// ب) تنظیم صفحه‌بندی
 	page := req.Page
 	if page < 1 {
 		page = 1
@@ -103,13 +104,11 @@ func (s *movieService) GetMovies(ctx context.Context, req dto.MovieFilterRequest
 	offset := (page - 1) * limit
 	opts.WithPagination(limit, offset)
 
-	// ۳. فراخوانی ریپازیتوری
 	movies, total, err := s.movieRepo.GetMovies(ctx, filter, opts)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	// ۴. تبدیل نتیجه و برگرداندن
 	return dto.ToMovieListResponseSlice(movies), total, nil
 }
 

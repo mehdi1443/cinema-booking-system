@@ -23,6 +23,9 @@ func NewPersonRepository(db database.Database) DB.PersonInterface {
 func (r *personRepository) Create(ctx context.Context, person *entity.Person) (*entity.Person, error) {
 	err := r.db.GetDB().WithContext(ctx).Create(person).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return nil, exception.ErrDuplicateKey
+		}
 		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
 	}
 	return person, nil
@@ -52,13 +55,30 @@ func (r *personRepository) GetByName(ctx context.Context, name string) (*entity.
 	return &person, nil
 }
 
-func (r *personRepository) GetAll(ctx context.Context) ([]entity.Person, error) {
-	var people []entity.Person
-	err := r.db.GetDB().WithContext(ctx).Find(&people).Error
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+func (r *personRepository) GetPersons(ctx context.Context, filter DB.PersonFilter, opts *DB.QueryOptions) ([]entity.Person, int64, error) {
+	var persons []entity.Person
+	q := r.db.GetDB().WithContext(ctx).Model(&entity.Person{})
+
+	if filter.SearchKeyword != "" {
+		q = q.Where("name ILIKE ?", "%"+filter.SearchKeyword+"%")
 	}
-	return people, nil
+
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+	}
+
+	q = q.Order("id DESC")
+
+	if opts != nil && opts.HasPagination() {
+		q = q.Offset(opts.Pagination.Offset).Limit(opts.Pagination.Limit)
+	}
+
+	if err := q.Find(&persons).Error; err != nil {
+		return nil, 0, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+	}
+
+	return persons, total, nil
 }
 
 func (r *personRepository) Update(ctx context.Context, person *entity.Person) (*entity.Person, error) {
@@ -71,6 +91,9 @@ func (r *personRepository) Update(ctx context.Context, person *entity.Person) (*
 
 	res := r.db.GetDB().WithContext(ctx).Model(&entity.Person{}).Where("id = ?", person.ID).Updates(updateData)
 	if res.Error != nil {
+		if errors.Is(res.Error, gorm.ErrDuplicatedKey) {
+			return nil, exception.ErrDuplicateKey
+		}
 		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, res.Error)
 	}
 

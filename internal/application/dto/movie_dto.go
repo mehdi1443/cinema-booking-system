@@ -9,16 +9,18 @@ import (
 )
 
 type MovieFilterRequest struct {
-	Status      *enum.MovieStatus `form:"status"`
-	GenreID     *int64            `form:"genre_id"`
-	Country     *string           `form:"country"`
-	Search      *string           `form:"search"`
-	MinRating   *float64          `form:"min_rating"`
-	ReleaseYear *int              `form:"release_year"`
-	SortBy      string            `form:"sort_by"`
-	SortDir     string            `form:"sort_dir"`
-	Page        int               `form:"page,default=1"`
-	Limit       int               `form:"limit,default=10"`
+	Status      *enum.MovieStatus     `form:"status"`
+	GenreID     *int64                `form:"genre_id"`
+	PersonID    *int64                `form:"person_id"`
+	PersonRole  *enum.MoviePersonRole `form:"person_role"`
+	Country     *string               `form:"country"`
+	Search      *string               `form:"search"`
+	MinRating   *float64              `form:"min_rating"`
+	ReleaseYear *int                  `form:"release_year"`
+	SortBy      string                `form:"sort_by"`
+	SortDir     string                `form:"sort_dir"`
+	Page        int                   `form:"page,default=1"`
+	Limit       int                   `form:"limit,default=10"`
 }
 
 type MoviePersonRoleRequest struct {

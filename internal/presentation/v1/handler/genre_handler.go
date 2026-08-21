@@ -78,10 +78,16 @@ func (h *GenreHandler) GetGenreByID(c *gin.Context) {
 }
 
 // GET /genres
-func (h *GenreHandler) GetAllGenres(c *gin.Context) {
-	genres, err := h.genreService.GetAllGenres(c.Request.Context())
+func (h *GenreHandler) GetGenres(c *gin.Context) {
+	var req dto.GenreFilterRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid filter parameters", err)
+		return
+	}
+
+	genres, total, err := h.genreService.GetGenres(c.Request.Context(), req)
 	if err != nil {
-		log.Printf("[SERVICE ERROR] GetAllGenres failed: %v", err)
+		log.Printf("[SERVICE ERROR] GetGenres failed: %v", err)
 		switch {
 		case errors.Is(err, exception.ErrDatabase):
 			response.Error(c, http.StatusInternalServerError, "Internal database error occurred", err)
@@ -92,7 +98,22 @@ func (h *GenreHandler) GetAllGenres(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, http.StatusOK, "Genres retrieved successfully", genres)
+	page := req.Page
+	if page <= 0 {
+		page = 1
+	}
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 10
+	}
+
+	meta := response.Meta{
+		Page:  page,
+		Limit: limit,
+		Total: int(total),
+	}
+
+	response.SuccessWithMeta(c, http.StatusOK, "Genres retrieved successfully", genres, meta)
 }
 
 // PUT /genres/:id

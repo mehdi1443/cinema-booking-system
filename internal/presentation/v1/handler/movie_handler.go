@@ -91,7 +91,7 @@ func (h *MovieHandler) GetMovies(c *gin.Context) {
 		return
 	}
 
-	movies, err := h.movieService.GetFilteredMovies(c.Request.Context(), req)
+	movies, total, err := h.movieService.GetMovies(c.Request.Context(), req)
 	if err != nil {
 		log.Printf("[SERVICE ERROR] GetMovies failed: %v", err)
 		switch {
@@ -104,7 +104,22 @@ func (h *MovieHandler) GetMovies(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, http.StatusOK, "Movies retrieved successfully", movies)
+	page := req.Page
+	if page <= 0 {
+		page = 1
+	}
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 10
+	}
+
+	meta := response.Meta{
+		Page:  page,
+		Limit: limit,
+		Total: int(total),
+	}
+
+	response.SuccessWithMeta(c, http.StatusOK, "Movies retrieved successfully", movies, meta)
 }
 
 // PUT /movies/:id

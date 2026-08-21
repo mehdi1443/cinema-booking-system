@@ -9,7 +9,7 @@ func SetUpPersonRouter(r *gin.RouterGroup, personHandler *handler.PersonHandler)
 	persons := r.Group("/persons")
 	{
 		persons.POST("", personHandler.CreatePerson)
-		persons.GET("", personHandler.GetAllPersons)
+		persons.GET("", personHandler.GetPersons)
 		persons.GET("/:id", personHandler.GetPersonByID)
 		persons.PUT("/:id", personHandler.UpdatePerson)
 		persons.DELETE("/:id", personHandler.DeletePerson)

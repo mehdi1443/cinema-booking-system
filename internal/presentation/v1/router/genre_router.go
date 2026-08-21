@@ -12,7 +12,7 @@ func SetUpGenreRouter(
 	genres := rg.Group("/genres")
 	{
 		genres.POST("", h.CreateGenre)
-		genres.GET("", h.GetAllGenres)
+		genres.GET("", h.GetGenres)
 		genres.GET("/:id", h.GetGenreByID)
 		genres.PUT("/:id", h.UpdateGenre)
 		genres.DELETE("/:id", h.DeleteGenre)

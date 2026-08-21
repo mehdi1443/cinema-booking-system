@@ -7,13 +7,19 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 )
 
+type PersonFilterRequest struct {
+	Search *string `form:"search"`
+	Page   int     `form:"page,default=1"`
+	Limit  int     `form:"limit,default=10"`
+}
+
 type CreatePersonRequest struct {
 	Name      string `json:"name" binding:"required,min=2,max=100"`
 	Biography string `json:"biography"`
 }
 
 type UpdatePersonRequest struct {
-	Name      *string `json:"name" binding:"required,min=2,max=100"`
+	Name      *string `json:"name" binding:"omitempty,min=2,max=100"`
 	Biography *string `json:"biography"`
 }
 

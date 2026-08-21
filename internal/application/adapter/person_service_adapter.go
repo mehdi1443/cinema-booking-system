@@ -10,7 +10,7 @@ import (
 type PersonServiceInterface interface {
 	Create(ctx context.Context, req *dto.CreatePersonRequest) (*dto.PersonDetailResponse, error)
 	GetByID(ctx context.Context, id int64) (*dto.PersonDetailResponse, error)
-	GetAll(ctx context.Context) ([]*dto.PersonListResponse, error)
+	GetPersons(ctx context.Context, req dto.PersonFilterRequest) ([]*dto.PersonListResponse, int64, error)
 	Update(ctx context.Context, id int64, req *dto.UpdatePersonRequest) (*dto.PersonDetailResponse, error)
 	Delete(ctx context.Context, id int64) error
 

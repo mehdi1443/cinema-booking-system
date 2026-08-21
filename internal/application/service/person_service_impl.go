@@ -52,13 +52,31 @@ func (s *personService) GetByID(ctx context.Context, id int64) (*dto.PersonDetai
 	return dto.ToPersonDetailResponse(person), nil
 }
 
-func (s *personService) GetAll(ctx context.Context) ([]*dto.PersonListResponse, error) {
-	persons, err := s.personRepo.GetAll(ctx)
-	if err != nil {
-		return nil, err
+func (s *personService) GetPersons(ctx context.Context, req dto.PersonFilterRequest) ([]*dto.PersonListResponse, int64, error) {
+	filter := repository_contract.PersonFilter{}
+	if req.Search != nil {
+		filter.SearchKeyword = *req.Search
 	}
 
-	return dto.ToPersonListResponseSlice(persons), nil
+	opts := repository_contract.NewQueryOptions()
+
+	page := req.Page
+	if page < 1 {
+		page = 1
+	}
+	limit := req.Limit
+	if limit < 1 {
+		limit = 10
+	}
+	offset := (page - 1) * limit
+	opts.WithPagination(limit, offset)
+
+	persons, total, err := s.personRepo.GetPersons(ctx, filter, opts)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return dto.ToPersonListResponseSlice(persons), total, nil
 }
 
 func (s *personService) Update(ctx context.Context, id int64, req *dto.UpdatePersonRequest) (*dto.PersonDetailResponse, error) {

@@ -78,10 +78,16 @@ func (h *PersonHandler) GetPersonByID(c *gin.Context) {
 }
 
 // GET /persons
-func (h *PersonHandler) GetAllPersons(c *gin.Context) {
-	persons, err := h.personService.GetAll(c.Request.Context())
+func (h *PersonHandler) GetPersons(c *gin.Context) {
+	var req dto.PersonFilterRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid filter parameters", err)
+		return
+	}
+
+	persons, total, err := h.personService.GetPersons(c.Request.Context(), req)
 	if err != nil {
-		log.Printf("[SERVICE ERROR] GetAllPersons failed: %v", err)
+		log.Printf("[SERVICE ERROR] GetPersons failed: %v", err)
 		switch {
 		case errors.Is(err, exception.ErrDatabase):
 			response.Error(c, http.StatusInternalServerError, "Internal database error occurred", err)
@@ -92,7 +98,22 @@ func (h *PersonHandler) GetAllPersons(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, http.StatusOK, "Persons retrieved successfully", persons)
+	page := req.Page
+	if page <= 0 {
+		page = 1
+	}
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 10
+	}
+
+	meta := response.Meta{
+		Page:  page,
+		Limit: limit,
+		Total: int(total),
+	}
+
+	response.SuccessWithMeta(c, http.StatusOK, "Persons retrieved successfully", persons, meta)
 }
 
 // PUT /persons/:id

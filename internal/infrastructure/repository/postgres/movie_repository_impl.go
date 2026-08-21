@@ -126,6 +126,16 @@ func (r *movieRepository) GetMovies(ctx context.Context, filter DB.MovieFilter, 
 			Where("movie_genres.genre_id = ?", *filter.GenreID)
 	}
 
+	if filter.PersonID != nil {
+		q = q.Joins("JOIN movie_people ON movie_people.movie_id = movies.id").
+			Where("movie_people.person_id = ?", *filter.PersonID)
+
+		if filter.PersonRole != nil {
+			q = q.Where("movie_people.role = ?", *filter.PersonRole)
+		}
+		q = q.Group("movies.id")
+	}
+
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("%w: %v", exception.ErrDatabase, err)

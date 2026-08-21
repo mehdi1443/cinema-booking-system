@@ -55,13 +55,30 @@ func (r *genreRepository) GetByName(ctx context.Context, name string) (*entity.G
 	return &genre, nil
 }
 
-func (r *genreRepository) GetAll(ctx context.Context) ([]entity.Genre, error) {
+func (r *genreRepository) GetGenres(ctx context.Context, filter DB.GenreFilter, opts *DB.QueryOptions) ([]entity.Genre, int64, error) {
 	var genres []entity.Genre
-	err := r.db.GetDB().WithContext(ctx).Find(&genres).Error
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+	q := r.db.GetDB().WithContext(ctx).Model(&entity.Genre{})
+
+	if filter.SearchKeyword != "" {
+		q = q.Where("name ILIKE ?", "%"+filter.SearchKeyword+"%")
 	}
-	return genres, nil
+
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+	}
+
+	q = q.Order("name ASC")
+
+	if opts != nil && opts.HasPagination() {
+		q = q.Offset(opts.Pagination.Offset).Limit(opts.Pagination.Limit)
+	}
+
+	if err := q.Find(&genres).Error; err != nil {
+		return nil, 0, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+	}
+
+	return genres, total, nil
 }
 
 func (r *genreRepository) Update(ctx context.Context, genre *entity.Genre) (*entity.Genre, error) {

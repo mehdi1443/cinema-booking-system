@@ -7,6 +7,12 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 )
 
+type GenreFilterRequest struct {
+	Search *string `form:"search"`
+	Page   int     `form:"page,default=1"`
+	Limit  int     `form:"limit,default=10"`
+}
+
 type CreateGenreRequest struct {
 	Name string `json:"name" binding:"required,min=2,max=50"`
 }
