@@ -54,31 +54,36 @@ var (
 	ErrInsufficientBalance = errors.New("insufficient wallet balance")
 	ErrReachManBalance     = errors.New("are you reach or something?!")
 
-	// Cinema Domain Errors
-	ErrMovieNotFound         = errors.New("movie not found")
-	ErrMovieAlreadyExists    = errors.New("movie already exists")
-	ErrCinemaAlreadyExists   = errors.New("cinema already exists")
-	ErrFacilityAlreadyExists = errors.New("facility already exists")
-	ErrCityAlreadyExists     = errors.New("city already exists")
-	ErrProvinceAlreadyExists = errors.New("province already exists")
+	// General Errors
+	ErrRecordNotFound = errors.New("record not found")
+	ErrInvalidInput   = errors.New("invalid input")
+	ErrUnauthorized   = errors.New("unauthorized")
 
-	ErrGenreNotFound      = errors.New("genre not found")
-	ErrGenreAlreadyExists = errors.New("genre already exists")
-
+	// Movie Domain Errors
+	ErrMovieNotFound       = errors.New("movie not found")
+	ErrMovieAlreadyExists  = errors.New("movie already exists")
+	ErrGenreNotFound       = errors.New("genre not found")
+	ErrGenreAlreadyExists  = errors.New("genre already exists")
 	ErrPersonNotFound      = errors.New("person not found")
 	ErrPersonAlreadyExists = errors.New("person already exists")
 
-	ErrInvalidFileType = errors.New("invalid file type provided")
+	// Cinema Domain Errors
+	ErrCinemaNotFound        = errors.New("cinema not found")
+	ErrCinemaAlreadyExists   = errors.New("cinema already exists")
+	ErrFacilityNotFound      = errors.New("facility not found")
+	ErrFacilityAlreadyExists = errors.New("facility already exists")
+	ErrInvalidStatus         = errors.New("invalid cinema status")
 
-	ErrProvinceNotFound = errors.New("province not found")
-	ErrCityNotFound     = errors.New("city not found")
-	ErrCinemaNotFound   = errors.New("cinema not found")
-	ErrFacilityNotFound = errors.New("facility not found")
-	ErrInvalidStatus    = errors.New("invalid cinema status")
+	// Location Domain Errors
+	ErrProvinceNotFound      = errors.New("province not found")
+	ErrProvinceAlreadyExists = errors.New("province already exists")
+	ErrCityNotFound          = errors.New("city not found")
+	ErrCityAlreadyExists     = errors.New("city already exists")
 
-	ErrRecordNotFound  = errors.New("record not found")
+	// User Interaction Errors
 	ErrCommentNotFound = errors.New("comment not found")
-	ErrInvalidInput    = errors.New("invalid input")
-	ErrUnauthorized    = errors.New("unauthorized")
 	ErrRatingNotFound  = errors.New("rating not found")
+
+	// Media Errors
+	ErrInvalidFileType = errors.New("invalid file type provided")
 )

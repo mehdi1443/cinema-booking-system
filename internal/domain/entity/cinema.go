@@ -1,13 +1,11 @@
 package entity
 
 import (
-	"time"
-
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 )
 
 type Cinema struct {
-	ID           int64             `gorm:"primaryKey;autoIncrement" json:"id"`
+	BaseEntity
 	CityID       int64             `gorm:"not null" json:"city_id"`
 	Name         string            `gorm:"type:varchar(255);not null" json:"name"`
 	Description  *string           `gorm:"type:text" json:"description,omitempty"`
@@ -20,8 +18,6 @@ type Cinema struct {
 	Status       enum.CinemaStatus `gorm:"type:varchar(50)" json:"status"`
 	RatingAvg    float64           `gorm:"type:decimal(3,2);not null;default:0.00" json:"rating_avg"`
 	RatingCount  int               `gorm:"not null;default:0" json:"rating_count"`
-	CreatedAt    time.Time         `json:"created_at"`
-	UpdatedAt    time.Time         `json:"updated_at"`
 
 	City       *City      `gorm:"foreignKey:CityID" json:"city,omitempty"`
 	Facilities []Facility `gorm:"many2many:cinema_facilities;foreignKey:ID;joinForeignKey:CinemaID;references:ID;joinReferences:FacilityID" json:"facilities,omitempty"`

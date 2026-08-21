@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"slices"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -98,8 +97,8 @@ func (s *S3Storage) EnsurePublicBuckets(ctx context.Context) error {
 }
 
 func (s *S3Storage) validateBucket(bucketType enum.BucketType) (string, error) {
-	validTypes := enum.GetAllBucketTypes()
-	if !slices.Contains(validTypes, bucketType) {
+	// تغییر مهم: استفاده مستقیم از متد IsValid به جای پکیج slices
+	if !bucketType.IsValid() {
 		return "", fmt.Errorf("bucket type %v does not exist", bucketType)
 	}
 

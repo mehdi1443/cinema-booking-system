@@ -5,10 +5,12 @@ import (
 	"time"
 
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
+	"gorm.io/gorm"
 )
 
 type User struct {
 	BaseEntity
+	DeletedAt     gorm.DeletedAt
 	Phone         string          `json:"phone"`
 	Email         string          `json:"email"`
 	PasswordHash  string          `json:"password_hash"`

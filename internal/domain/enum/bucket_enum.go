@@ -1,33 +1,44 @@
 package enum
 
-type BucketType uint
+import "strings"
+
+type BucketType string
 
 const (
-	MoviePoster BucketType = iota + 1
-	MovieTrailer
-	ActorPhoto
-	CinemaPhoto
+	MoviePoster  BucketType = "moviePoster"
+	MovieTrailer BucketType = "movieTrailer"
+	ActorPhoto   BucketType = "actorPhoto"
+	CinemaPhoto  BucketType = "cinemaPhoto"
 )
 
 func (bt BucketType) String() string {
-	switch bt {
-	case MoviePoster:
-		return "moviePoster"
-	case MovieTrailer:
-		return "movieTrailer"
-	case ActorPhoto:
-		return "actorPhoto"
-	case CinemaPhoto:
-		return "cinemaPhoto"
-	}
-	return ""
+	return string(bt)
 }
 
-func GetAllBucketTypes() []BucketType {
+func AllBucketTypes() []BucketType {
 	return []BucketType{
 		MoviePoster,
 		MovieTrailer,
 		ActorPhoto,
 		CinemaPhoto,
 	}
+}
+
+func (bt BucketType) IsValid() bool {
+	for _, b := range AllBucketTypes() {
+		if bt == b {
+			return true
+		}
+	}
+	return false
+}
+
+func ParseBucketType(str string) (BucketType, bool) {
+	str = strings.TrimSpace(str)
+	for _, b := range AllBucketTypes() {
+		if strings.EqualFold(string(b), str) {
+			return b, true
+		}
+	}
+	return "", false
 }

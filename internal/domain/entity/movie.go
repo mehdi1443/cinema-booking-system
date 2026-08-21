@@ -7,7 +7,7 @@ import (
 )
 
 type Movie struct {
-	ID              int64            `gorm:"primaryKey;autoIncrement" json:"id"`
+	BaseEntity
 	Title           string           `gorm:"type:varchar(255);not null" json:"title"`
 	Description     string           `gorm:"type:text" json:"description"`
 	DurationMinutes int              `gorm:"not null" json:"duration_minutes"`
@@ -19,8 +19,6 @@ type Movie struct {
 	Status          enum.MovieStatus `gorm:"type:varchar(50);not null" json:"status"`
 	RatingAvg       float64          `gorm:"type:decimal(3,2);not null;default:0.00" json:"rating_avg"`
 	RatingCount     int              `gorm:"not null;default:0" json:"rating_count"`
-	CreatedAt       time.Time        `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt       time.Time        `gorm:"autoUpdateTime" json:"updated_at"`
 	DeletedAt       *time.Time       `gorm:"index" json:"deleted_at,omitempty"`
 
 	Genres []Genre       `gorm:"many2many:movie_genres;" json:"genres,omitempty"`
