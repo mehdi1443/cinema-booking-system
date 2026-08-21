@@ -58,18 +58,10 @@ func (s *personService) GetPersons(ctx context.Context, req dto.PersonFilterRequ
 		filter.SearchKeyword = *req.Search
 	}
 
-	opts := repository_contract.NewQueryOptions()
+	req.Normalize()
 
-	page := req.Page
-	if page < 1 {
-		page = 1
-	}
-	limit := req.Limit
-	if limit < 1 {
-		limit = 10
-	}
-	offset := (page - 1) * limit
-	opts.WithPagination(limit, offset)
+	opts := repository_contract.NewQueryOptions()
+	opts.WithPagination(req.Limit, req.GetOffset())
 
 	persons, total, err := s.personRepo.GetPersons(ctx, filter, opts)
 	if err != nil {

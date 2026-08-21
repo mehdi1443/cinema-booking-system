@@ -9,17 +9,16 @@ import (
 
 type PersonFilterRequest struct {
 	Search *string `form:"search"`
-	Page   int     `form:"page,default=1"`
-	Limit  int     `form:"limit,default=10"`
+	PaginationRequest
 }
 
 type CreatePersonRequest struct {
-	Name      string `json:"name" binding:"required,min=2,max=100"`
+	Name      string `json:"name" binding:"required,notblank,min=2,max=100"`
 	Biography string `json:"biography"`
 }
 
 type UpdatePersonRequest struct {
-	Name      *string `json:"name" binding:"omitempty,min=2,max=100"`
+	Name      *string `json:"name" binding:"omitempty,notblank,min=2,max=100"`
 	Biography *string `json:"biography"`
 }
 
@@ -57,8 +56,8 @@ func ToPersonListResponseSlice(persons []entity.Person) []*PersonListResponse {
 	}
 
 	responses := make([]*PersonListResponse, 0, len(persons))
-	for ind := range persons {
-		if resp := ToPersonListResponse(&persons[ind]); resp != nil {
+	for i := range persons {
+		if resp := ToPersonListResponse(&persons[i]); resp != nil {
 			responses = append(responses, resp)
 		}
 	}

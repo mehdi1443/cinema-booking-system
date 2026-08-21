@@ -83,7 +83,8 @@ var (
 	// User Interaction Errors
 	ErrCommentNotFound = errors.New("comment not found")
 	ErrRatingNotFound  = errors.New("rating not found")
-
+	
 	// Media Errors
-	ErrInvalidFileType = errors.New("invalid file type provided")
+	ErrInvalidFileType  = errors.New("invalid file type provided")
+	ErrFileSizeTooLarge = errors.New("file size exceeds maximum allowed limit")
 )

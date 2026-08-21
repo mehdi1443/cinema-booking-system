@@ -189,12 +189,34 @@ func (h *PersonHandler) UploadImage(c *gin.Context) {
 		return
 	}
 
+	const maxFileSize = 5 * 1024 * 1024 // 5 MB
+	if fileHeader.Size > maxFileSize {
+		response.Error(c, http.StatusBadRequest, "File size exceeds limit (Max 5MB)", exception.ErrFileSizeTooLarge)
+		return
+	}
+
 	file, err := fileHeader.Open()
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, "Failed to read image file", err)
 		return
 	}
 	defer file.Close()
+
+	buff := make([]byte, 512)
+	if _, err := file.Read(buff); err != nil {
+		response.Error(c, http.StatusBadRequest, "Failed to inspect file format", err)
+		return
+	}
+	fileType := http.DetectContentType(buff)
+	if fileType != "image/jpeg" && fileType != "image/png" && fileType != "image/webp" {
+		response.Error(c, http.StatusBadRequest, "Only JPG, PNG and WebP formats are allowed", exception.ErrInvalidFileType)
+		return
+	}
+
+	if _, err := file.Seek(0, 0); err != nil {
+		response.Error(c, http.StatusInternalServerError, "Failed to reset file stream", err)
+		return
+	}
 
 	person, err := h.personService.UploadImage(c.Request.Context(), id, file)
 	if err != nil {

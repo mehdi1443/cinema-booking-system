@@ -9,6 +9,7 @@ import (
 	"io"
 
 	"github.com/chai2010/webp"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	"github.com/nfnt/resize"
 	"github.com/pixiv/go-libjpeg/jpeg"
 )
@@ -21,9 +22,11 @@ const (
 )
 
 func DecodeImage(r io.Reader) (image.Image, error) {
+	image.RegisterFormat("webp", "RIFF????WEBP", webp.Decode, webp.DecodeConfig)
+
 	img, _, err := image.Decode(r)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode image: %w", err)
+		return nil, fmt.Errorf("%w: %v", exception.ErrInvalidFileType, err)
 	}
 	return img, nil
 }

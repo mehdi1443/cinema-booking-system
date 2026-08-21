@@ -231,6 +231,7 @@ func main() {
 		//HACK : gin handle email validation by default
 		// 	v.RegisterValidation("email", bookableDate)
 		v.RegisterValidation("role-title", validation.ValidateRoleTitle)
+		v.RegisterValidation("notblank", validation.ValidateNotBlank)
 	}
 
 	serverAddr := fmt.Sprintf("%s:%s", config.Environment.HttpServer.Domain, config.Environment.HttpServer.Port)
