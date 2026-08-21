@@ -9,6 +9,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum/sort"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/storage"
 	"github.com/mehdi1443/cinema-booking-system/pkg/image"
@@ -17,12 +18,12 @@ import (
 const maxTrailerSize = 100 * 1024 * 1024
 
 type movieService struct {
-	movieRepo repository_contract.MovieInterface
+	movieRepo repository_contract.MovieInterFace
 	storage   storage.StorageInterFace
 }
 
 func NewMovieService(
-	movieRepo repository_contract.MovieInterface,
+	movieRepo repository_contract.MovieInterFace,
 	storage storage.StorageInterFace,
 ) service_contract.MovieServiceInterface {
 	return &movieService{
@@ -63,40 +64,53 @@ func (s *movieService) GetByID(ctx context.Context, id int64) (*dto.MovieDetailR
 	return dto.ToMovieDetailResponse(movie), nil
 }
 
-func (s *movieService) GetByStatus(ctx context.Context, status enum.MovieStatus) ([]*dto.MovieListResponse, error) {
-	movies, err := s.movieRepo.GetByStatus(ctx, status)
-	if err != nil {
-		return nil, err
+func (s *movieService) GetMovies(ctx context.Context, req dto.MovieFilterRequest) ([]*dto.MovieListResponse, int64, error) {
+	filter := repository_contract.MovieFilter{
+		Status:      req.Status,
+		GenreID:     req.GenreID,
+		Country:     req.Country,
+		MinRating:   req.MinRating,
+		ReleaseYear: req.ReleaseYear,
 	}
 
-	return dto.ToMovieListResponseSlice(movies), nil
-}
-
-func (s *movieService) GetByGenreID(ctx context.Context, genreID int64) ([]*dto.MovieListResponse, error) {
-	movies, err := s.movieRepo.GetByGenreID(ctx, genreID)
-	if err != nil {
-		return nil, err
+	if req.Search != nil {
+		filter.SearchKeyword = *req.Search
 	}
 
-	return dto.ToMovieListResponseSlice(movies), nil
-}
+	opts := repository_contract.NewQueryOptions()
 
-func (s *movieService) GetFilteredMovies(ctx context.Context, req dto.MovieFilterRequest) ([]*dto.MovieListResponse, error) {
-	movies, err := s.movieRepo.GetFiltered(ctx, req)
-	if err != nil {
-		return nil, err
+	if req.SortBy != "" {
+		if sortBy, ok := sort.ParseMovieSortBy(req.SortBy); ok {
+			asc := false
+			if req.SortDir != "" {
+				if dir, dirOk := sort.ParseSortDirection(req.SortDir); dirOk && dir == sort.SortAscending {
+					asc = true
+				}
+			}
+			opts.WithSorting(sortBy.DBColumn(), asc)
+		}
 	}
 
-	return dto.ToMovieListResponseSlice(movies), nil
-}
+	// ب) تنظیم صفحه‌بندی
+	page := req.Page
+	if page < 1 {
+		page = 1
+	}
+	limit := req.Limit
+	if limit < 1 {
+		limit = 10
+	}
+	offset := (page - 1) * limit
+	opts.WithPagination(limit, offset)
 
-func (s *movieService) GetAll(ctx context.Context) ([]*dto.MovieListResponse, error) {
-	movies, err := s.movieRepo.GetAll(ctx)
+	// ۳. فراخوانی ریپازیتوری
+	movies, total, err := s.movieRepo.GetMovies(ctx, filter, opts)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return dto.ToMovieListResponseSlice(movies), nil
+	// ۴. تبدیل نتیجه و برگرداندن
+	return dto.ToMovieListResponseSlice(movies), total, nil
 }
 
 func (s *movieService) Update(ctx context.Context, id int64, req *dto.UpdateMovieRequest) (*dto.MovieDetailResponse, error) {
