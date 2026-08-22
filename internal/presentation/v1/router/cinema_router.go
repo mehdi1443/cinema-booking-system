@@ -16,9 +16,5 @@ func SetUpCinemaRouter(r *gin.RouterGroup, cinemaHandler *handler.CinemaHandler)
 
 		cinemas.POST("/:id/image", cinemaHandler.UploadImage)
 		cinemas.DELETE("/:id/image", cinemaHandler.DeleteImage)
-
-		cinemas.POST("/:id/facilities/:facility_id", cinemaHandler.AddFacility)
-		cinemas.DELETE("/:id/facilities/:facility_id", cinemaHandler.RemoveFacility)
-		cinemas.PUT("/:id/facilities", cinemaHandler.UpdateFacilities)
 	}
 }

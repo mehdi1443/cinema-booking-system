@@ -4,23 +4,28 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum/sort"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/storage"
 	"github.com/mehdi1443/cinema-booking-system/pkg/image"
 )
 
+const maxCinemaImageSize = 5 * 1024 * 1024 // 5 MB
+
 type cinemaService struct {
-	cinemaRepo repository_contract.CinemaRepository
+	cinemaRepo repository_contract.CinemaInterface
 	storage    storage.StorageInterFace
 }
 
 func NewCinemaService(
-	cinemaRepo repository_contract.CinemaRepository,
+	cinemaRepo repository_contract.CinemaInterface,
 	storage storage.StorageInterFace,
 ) service_contract.CinemaServiceInterface {
 	return &cinemaService{
@@ -30,32 +35,34 @@ func NewCinemaService(
 }
 
 func (s *cinemaService) Create(ctx context.Context, req *dto.CreateCinemaRequest) (*dto.CinemaDetailResponse, error) {
+	if !req.Status.IsValid() {
+		return nil, exception.ErrInvalidInput
+	}
+
+	trimmedName := strings.TrimSpace(req.Name)
+	trimmedAddress := strings.TrimSpace(req.Address)
+
 	cinema := &entity.Cinema{
 		CityID:    req.CityID,
-		Name:      req.Name,
-		Address:   req.Address,
+		Name:      trimmedName,
+		Address:   trimmedAddress,
 		Latitude:  req.Latitude,
 		Longitude: req.Longitude,
 		Status:    req.Status,
 	}
 
 	if req.Description != "" {
-		cinema.Description = &req.Description
+		trimmedDesc := strings.TrimSpace(req.Description)
+		cinema.Description = &trimmedDesc
 	}
 	if req.Phone != "" {
-		cinema.Phone = &req.Phone
+		trimmedPhone := strings.TrimSpace(req.Phone)
+		cinema.Phone = &trimmedPhone
 	}
 
-	createdCinema, err := s.cinemaRepo.Create(ctx, cinema)
+	createdCinema, err := s.cinemaRepo.Create(ctx, cinema, req.FacilityIDs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create cinema: %w", err)
-	}
-
-	if len(req.FacilityIDs) > 0 {
-		if err := s.cinemaRepo.UpdateFacilities(ctx, createdCinema.ID, req.FacilityIDs); err != nil {
-			return nil, fmt.Errorf("failed to assign facilities to cinema: %w", err)
-		}
-		createdCinema, _ = s.cinemaRepo.GetByID(ctx, createdCinema.ID)
+		return nil, err
 	}
 
 	return dto.ToCinemaDetailResponse(createdCinema), nil
@@ -70,31 +77,47 @@ func (s *cinemaService) GetByID(ctx context.Context, id int64) (*dto.CinemaDetai
 	return dto.ToCinemaDetailResponse(cinema), nil
 }
 
-func (s *cinemaService) GetWithFilters(ctx context.Context, req *dto.CinemaFilterRequest) (*dto.CinemaListWithCountResponse, error) {
+func (s *cinemaService) GetCinemas(ctx context.Context, req dto.CinemaFilterRequest) ([]*dto.CinemaListResponse, int64, error) {
+	if req.Status != nil && !req.Status.IsValid() {
+		return nil, 0, exception.ErrInvalidInput
+	}
+
 	filter := repository_contract.CinemaFilter{
 		ProvinceID:  req.ProvinceID,
 		CityID:      req.CityID,
 		FacilityIDs: req.FacilityIDs,
 		Status:      req.Status,
-		Search:      req.Search,
-		Limit:       req.Limit,
-		Offset:      req.Offset,
+		MinRating:   req.MinRating,
+		MaxRating:   req.MaxRating,
 	}
 
-	cinemas, err := s.cinemaRepo.GetWithFilters(ctx, filter)
+	if req.Search != nil {
+		filter.SearchKeyword = strings.TrimSpace(*req.Search)
+	}
+
+	opts := repository_contract.NewQueryOptions()
+
+	if req.SortBy != "" {
+		if sortBy, ok := sort.ParseCinemaSortBy(req.SortBy); ok {
+			asc := false
+			if req.SortDir != "" {
+				if dir, dirOk := sort.ParseSortDirection(req.SortDir); dirOk && dir == sort.SortAscending {
+					asc = true
+				}
+			}
+			opts.WithSorting(sortBy.DBColumn(), asc)
+		}
+	}
+
+	req.Normalize()
+	opts.WithPagination(req.Limit, req.GetOffset())
+
+	cinemas, total, err := s.cinemaRepo.GetCinemas(ctx, filter, opts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch cinemas: %w", err)
+		return nil, 0, err
 	}
 
-	total, err := s.cinemaRepo.CountWithFilters(ctx, filter)
-	if err != nil {
-		return nil, fmt.Errorf("failed to count cinemas: %w", err)
-	}
-
-	return &dto.CinemaListWithCountResponse{
-		Cinemas: dto.ToCinemaListResponseSlice(cinemas),
-		Total:   total,
-	}, nil
+	return dto.ToCinemaListResponseSlice(cinemas), total, nil
 }
 
 func (s *cinemaService) Update(ctx context.Context, id int64, req *dto.UpdateCinemaRequest) (*dto.CinemaDetailResponse, error) {
@@ -107,13 +130,14 @@ func (s *cinemaService) Update(ctx context.Context, id int64, req *dto.UpdateCin
 		cinema.CityID = *req.CityID
 	}
 	if req.Name != nil {
-		cinema.Name = *req.Name
+		cinema.Name = strings.TrimSpace(*req.Name)
 	}
 	if req.Description != nil {
-		cinema.Description = req.Description
+		trimmedDesc := strings.TrimSpace(*req.Description)
+		cinema.Description = &trimmedDesc
 	}
 	if req.Address != nil {
-		cinema.Address = *req.Address
+		cinema.Address = strings.TrimSpace(*req.Address)
 	}
 	if req.Latitude != nil {
 		cinema.Latitude = req.Latitude
@@ -122,43 +146,45 @@ func (s *cinemaService) Update(ctx context.Context, id int64, req *dto.UpdateCin
 		cinema.Longitude = req.Longitude
 	}
 	if req.Phone != nil {
-		cinema.Phone = req.Phone
+		trimmedPhone := strings.TrimSpace(*req.Phone)
+		cinema.Phone = &trimmedPhone
 	}
 	if req.Status != nil {
+		if !req.Status.IsValid() {
+			return nil, exception.ErrInvalidInput
+		}
 		cinema.Status = *req.Status
 	}
 
-	updatedCinema, err := s.cinemaRepo.Update(ctx, cinema)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update cinema: %w", err)
+	var facilityIDs []int64
+	if req.FacilityIDs != nil {
+		facilityIDs = *req.FacilityIDs
+	} else {
+		facilityIDs = make([]int64, 0, len(cinema.Facilities))
+		for _, f := range cinema.Facilities {
+			facilityIDs = append(facilityIDs, f.ID)
+		}
 	}
 
-	if req.FacilityIDs != nil {
-		if err := s.cinemaRepo.UpdateFacilities(ctx, id, *req.FacilityIDs); err != nil {
-			return nil, fmt.Errorf("failed to update facilities: %w", err)
-		}
-		updatedCinema, _ = s.cinemaRepo.GetByID(ctx, id)
+	updatedCinema, err := s.cinemaRepo.Update(ctx, cinema, facilityIDs)
+	if err != nil {
+		return nil, err
 	}
 
 	return dto.ToCinemaDetailResponse(updatedCinema), nil
 }
 
 func (s *cinemaService) Delete(ctx context.Context, id int64) error {
-	_, err := s.cinemaRepo.GetByID(ctx, id)
+	cinema, err := s.cinemaRepo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	lowKey := fmt.Sprintf("cinemas/cinema_%d_image_low.webp", id)
-	highKey := fmt.Sprintf("cinemas/cinema_%d_image_high.jpg", id)
-	_ = s.storage.DeleteObject(ctx, enum.CinemaPhoto, lowKey)
-	_ = s.storage.DeleteObject(ctx, enum.CinemaPhoto, highKey)
-
-	if err := s.cinemaRepo.Delete(ctx, id); err != nil {
-		return fmt.Errorf("failed to delete cinema: %w", err)
+	if cinema.ImageURLLow != nil || cinema.ImageURLHigh != nil {
+		_ = s.DeleteImage(ctx, id)
 	}
 
-	return nil
+	return s.cinemaRepo.Delete(ctx, id)
 }
 
 func (s *cinemaService) UploadImage(ctx context.Context, id int64, file io.Reader, filename string) (*dto.CinemaDetailResponse, error) {
@@ -167,9 +193,14 @@ func (s *cinemaService) UploadImage(ctx context.Context, id int64, file io.Reade
 		return nil, err
 	}
 
-	img, err := image.DecodeImage(file)
+	fileReader, err := checkFileSize(file, maxCinemaImageSize)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode image: %w", err)
+		return nil, err
+	}
+
+	img, err := image.DecodeImage(fileReader)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", exception.ErrInvalidFileType, err)
 	}
 
 	lowImg := image.Resize(400, 300, img)
@@ -197,9 +228,14 @@ func (s *cinemaService) UploadImage(ctx context.Context, id int64, file io.Reade
 	cinema.ImageURLLow = &lowURL
 	cinema.ImageURLHigh = &highURL
 
-	updatedCinema, err := s.cinemaRepo.Update(ctx, cinema)
+	facilityIDs := make([]int64, 0, len(cinema.Facilities))
+	for _, f := range cinema.Facilities {
+		facilityIDs = append(facilityIDs, f.ID)
+	}
+
+	updatedCinema, err := s.cinemaRepo.Update(ctx, cinema, facilityIDs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update cinema image URL: %w", err)
+		return nil, err
 	}
 
 	return dto.ToCinemaDetailResponse(updatedCinema), nil
@@ -220,22 +256,15 @@ func (s *cinemaService) DeleteImage(ctx context.Context, id int64) error {
 	cinema.ImageURLLow = nil
 	cinema.ImageURLHigh = nil
 
-	_, err = s.cinemaRepo.Update(ctx, cinema)
+	facilityIDs := make([]int64, 0, len(cinema.Facilities))
+	for _, f := range cinema.Facilities {
+		facilityIDs = append(facilityIDs, f.ID)
+	}
+
+	_, err = s.cinemaRepo.Update(ctx, cinema, facilityIDs)
 	if err != nil {
-		return fmt.Errorf("failed to remove cinema image URL: %w", err)
+		return err
 	}
 
 	return nil
-}
-
-func (s *cinemaService) AddFacility(ctx context.Context, cinemaID int64, facilityID int64) error {
-	return s.cinemaRepo.AddFacility(ctx, cinemaID, facilityID)
-}
-
-func (s *cinemaService) RemoveFacility(ctx context.Context, cinemaID int64, facilityID int64) error {
-	return s.cinemaRepo.RemoveFacility(ctx, cinemaID, facilityID)
-}
-
-func (s *cinemaService) UpdateFacilities(ctx context.Context, cinemaID int64, facilityIDs []int64) error {
-	return s.cinemaRepo.UpdateFacilities(ctx, cinemaID, facilityIDs)
 }

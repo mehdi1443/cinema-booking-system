@@ -13,13 +13,13 @@ import (
 type ratingService struct {
 	ratingRepo repository_contract.RatingInterface
 	movieRepo  repository_contract.MovieInterFace
-	cinemaRepo repository_contract.CinemaRepository
+	cinemaRepo repository_contract.CinemaInterface
 }
 
 func NewRatingService(
 	ratingRepo repository_contract.RatingInterface,
 	movieRepo repository_contract.MovieInterFace,
-	cinemaRepo repository_contract.CinemaRepository,
+	cinemaRepo repository_contract.CinemaInterface,
 ) service_contract.RatingServiceInterface {
 	return &ratingService{
 		ratingRepo: ratingRepo,

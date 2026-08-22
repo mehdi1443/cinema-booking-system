@@ -9,20 +9,23 @@ import (
 )
 
 type CinemaFilterRequest struct {
+	PaginationRequest
 	ProvinceID  *int64             `form:"province_id"`
 	CityID      *int64             `form:"city_id"`
 	FacilityIDs []int64            `form:"facility_ids"`
 	Status      *enum.CinemaStatus `form:"status"`
 	Search      *string            `form:"search"`
-	Limit       int                `form:"limit,default=10" binding:"omitempty,gte=1,lte=100"`
-	Offset      int                `form:"offset,default=0" binding:"omitempty,gte=0"`
+	MinRating   *float64           `form:"min_rating"`
+	MaxRating   *float64           `form:"max_rating"`
+	SortBy      string             `form:"sort_by"`
+	SortDir     string             `form:"sort_dir"`
 }
 
 type CreateCinemaRequest struct {
 	CityID      int64             `json:"city_id" binding:"required"`
-	Name        string            `json:"name" binding:"required,min=2,max=255"`
+	Name        string            `json:"name" binding:"required,notblank,min=2,max=255"`
 	Description string            `json:"description"`
-	Address     string            `json:"address" binding:"required"`
+	Address     string            `json:"address" binding:"required,notblank"`
 	Latitude    *float64          `json:"latitude"`
 	Longitude   *float64          `json:"longitude"`
 	Phone       string            `json:"phone"`
@@ -32,9 +35,9 @@ type CreateCinemaRequest struct {
 
 type UpdateCinemaRequest struct {
 	CityID      *int64             `json:"city_id"`
-	Name        *string            `json:"name" binding:"omitempty,min=2,max=255"`
+	Name        *string            `json:"name" binding:"omitempty,notblank,min=2,max=255"`
 	Description *string            `json:"description"`
-	Address     *string            `json:"address"`
+	Address     *string            `json:"address" binding:"omitempty,notblank"`
 	Latitude    *float64           `json:"latitude"`
 	Longitude   *float64           `json:"longitude"`
 	Phone       *string            `json:"phone"`
@@ -75,11 +78,6 @@ type CinemaDetailResponse struct {
 	UpdatedAt    *time.Time         `json:"updated_at,omitempty"`
 }
 
-type CinemaListWithCountResponse struct {
-	Cinemas []CinemaListResponse `json:"cinemas"`
-	Total   int64                `json:"total"`
-}
-
 func ToCinemaListResponse(cinema *entity.Cinema) *CinemaListResponse {
 	if cinema == nil {
 		return nil
@@ -112,15 +110,15 @@ func ToCinemaListResponse(cinema *entity.Cinema) *CinemaListResponse {
 	}
 }
 
-func ToCinemaListResponseSlice(cinemas []entity.Cinema) []CinemaListResponse {
+func ToCinemaListResponseSlice(cinemas []entity.Cinema) []*CinemaListResponse {
 	if len(cinemas) == 0 {
-		return []CinemaListResponse{}
+		return []*CinemaListResponse{}
 	}
 
-	responses := make([]CinemaListResponse, 0, len(cinemas))
-	for ind := range cinemas {
-		if resp := ToCinemaListResponse(&cinemas[ind]); resp != nil {
-			responses = append(responses, *resp)
+	responses := make([]*CinemaListResponse, 0, len(cinemas))
+	for i := range cinemas {
+		if resp := ToCinemaListResponse(&cinemas[i]); resp != nil {
+			responses = append(responses, resp)
 		}
 	}
 	return responses
