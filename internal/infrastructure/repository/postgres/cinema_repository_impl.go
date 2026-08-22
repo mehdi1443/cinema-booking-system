@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
@@ -25,37 +27,60 @@ type cinemaRepository struct {
 	db database.Database
 }
 
-func NewCinemaRepository(db database.Database) DB.CinemaRepository {
+func NewCinemaRepository(db database.Database) DB.CinemaInterface {
 	return &cinemaRepository{db: db}
 }
 
-func (r *cinemaRepository) Create(ctx context.Context, cinema *entity.Cinema) (*entity.Cinema, error) {
+func handleCinemaDBError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return exception.ErrDuplicateKey
+	}
+
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch pgErr.Code {
+		case "23505": // unique_violation
+			return exception.ErrDuplicateKey
+		case "23503": // foreign_key_violation
+			if strings.Contains(pgErr.ConstraintName, "city") {
+				return exception.ErrCityNotFound
+			}
+			if strings.Contains(pgErr.ConstraintName, "facility") || strings.Contains(pgErr.Detail, "cinema_facilities") {
+				return exception.ErrFacilityNotFound
+			}
+			return exception.ErrDatabase // Fallback
+		}
+	}
+
+	if errors.Is(err, gorm.ErrForeignKeyViolated) {
+		return exception.ErrDatabase
+	}
+
+	return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+}
+
+func (r *cinemaRepository) Create(ctx context.Context, cinema *entity.Cinema, facilityIDs []int64) (*entity.Cinema, error) {
 	err := r.db.WithTransaction(func(txWrapper database.Database) error {
 		tx := txWrapper.GetDB().WithContext(ctx)
 
 		if err := tx.Omit("ID", "City", "Facilities").Create(cinema).Error; err != nil {
-			if errors.Is(err, gorm.ErrDuplicatedKey) {
-				return exception.ErrDuplicateKey
-			}
-			if errors.Is(err, gorm.ErrForeignKeyViolated) {
-				return exception.ErrCityNotFound
-			}
-			return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+			return handleCinemaDBError(err)
 		}
 
-		if len(cinema.Facilities) > 0 {
+		if len(facilityIDs) > 0 {
 			var cinemaFacilities []CinemaFacility
-			for _, facility := range cinema.Facilities {
+			for _, fID := range facilityIDs {
 				cinemaFacilities = append(cinemaFacilities, CinemaFacility{
 					CinemaID:   cinema.ID,
-					FacilityID: facility.ID,
+					FacilityID: fID,
 				})
 			}
 			if err := tx.Create(&cinemaFacilities).Error; err != nil {
-				if errors.Is(err, gorm.ErrForeignKeyViolated) {
-					return exception.ErrFacilityNotFound
-				}
-				return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+				return handleCinemaDBError(err)
 			}
 		}
 
@@ -81,12 +106,82 @@ func (r *cinemaRepository) GetByID(ctx context.Context, id int64) (*entity.Cinem
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, exception.ErrCinemaNotFound
 		}
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, handleCinemaDBError(err)
 	}
 	return &cinema, nil
 }
 
-func (r *cinemaRepository) Update(ctx context.Context, cinema *entity.Cinema) (*entity.Cinema, error) {
+func (r *cinemaRepository) GetCinemas(ctx context.Context, filter DB.CinemaFilter, opts *DB.QueryOptions) ([]entity.Cinema, int64, error) {
+	var cinemas []entity.Cinema
+
+	db := r.db.GetDB().WithContext(ctx)
+	q := db.Model(&entity.Cinema{})
+
+	if filter.SearchKeyword != "" {
+		searchTerm := "%" + filter.SearchKeyword + "%"
+		q = q.Where("cinemas.name ILIKE ? OR cinemas.address ILIKE ?", searchTerm, searchTerm)
+	}
+
+	if filter.CityID != nil {
+		q = q.Where("cinemas.city_id = ?", *filter.CityID)
+	}
+
+	if filter.ProvinceID != nil {
+		q = q.Joins("JOIN cities ON cities.id = cinemas.city_id").
+			Where("cities.province_id = ?", *filter.ProvinceID)
+	}
+
+	if filter.Status != nil {
+		q = q.Where("cinemas.status = ?", *filter.Status)
+	}
+
+	if filter.MinRating != nil {
+		q = q.Where("cinemas.rating_avg >= ?", *filter.MinRating)
+	}
+
+	if filter.MaxRating != nil {
+		q = q.Where("cinemas.rating_avg <= ?", *filter.MaxRating)
+	}
+
+	if len(filter.FacilityIDs) > 0 {
+		subQuery := db.Table("cinema_facilities").
+			Select("cinema_id").
+			Where("facility_id IN ?", filter.FacilityIDs).
+			Group("cinema_id").
+			Having("COUNT(DISTINCT facility_id) = ?", len(filter.FacilityIDs))
+
+		q = q.Where("cinemas.id IN (?)", subQuery)
+	}
+
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, handleCinemaDBError(err)
+	}
+
+	q = q.Preload("City").Preload("City.Province").Preload("Facilities")
+
+	if opts != nil && opts.HasSorting() {
+		direction := "ASC"
+		if !opts.Sorting.Asc {
+			direction = "DESC"
+		}
+		q = q.Order(fmt.Sprintf("cinemas.%s %s", opts.Sorting.Column, direction))
+	} else {
+		q = q.Order("cinemas.created_at DESC")
+	}
+
+	if opts != nil && opts.HasPagination() {
+		q = q.Offset(opts.Pagination.Offset).Limit(opts.Pagination.Limit)
+	}
+
+	if err := q.Find(&cinemas).Error; err != nil {
+		return nil, 0, handleCinemaDBError(err)
+	}
+
+	return cinemas, total, nil
+}
+
+func (r *cinemaRepository) Update(ctx context.Context, cinema *entity.Cinema, facilityIDs []int64) (*entity.Cinema, error) {
 	err := r.db.WithTransaction(func(txWrapper database.Database) error {
 		tx := txWrapper.GetDB().WithContext(ctx)
 
@@ -106,16 +201,29 @@ func (r *cinemaRepository) Update(ctx context.Context, cinema *entity.Cinema) (*
 
 		res := tx.Model(&entity.Cinema{}).Where("id = ?", cinema.ID).Updates(updateData)
 		if res.Error != nil {
-			if errors.Is(res.Error, gorm.ErrDuplicatedKey) {
-				return exception.ErrDuplicateKey
-			}
-			if errors.Is(res.Error, gorm.ErrForeignKeyViolated) {
-				return exception.ErrCityNotFound
-			}
-			return fmt.Errorf("%w: %v", exception.ErrDatabase, res.Error)
+			return handleCinemaDBError(res.Error)
 		}
 		if res.RowsAffected == 0 {
 			return exception.ErrCinemaNotFound
+		}
+
+		if facilityIDs != nil {
+			if err := tx.Where("cinema_id = ?", cinema.ID).Delete(&CinemaFacility{}).Error; err != nil {
+				return handleCinemaDBError(err)
+			}
+
+			if len(facilityIDs) > 0 {
+				var cinemaFacilities []CinemaFacility
+				for _, fID := range facilityIDs {
+					cinemaFacilities = append(cinemaFacilities, CinemaFacility{
+						CinemaID:   cinema.ID,
+						FacilityID: fID,
+					})
+				}
+				if err := tx.Create(&cinemaFacilities).Error; err != nil {
+					return handleCinemaDBError(err)
+				}
+			}
 		}
 
 		return nil
@@ -133,12 +241,12 @@ func (r *cinemaRepository) Delete(ctx context.Context, id int64) error {
 		tx := txWrapper.GetDB().WithContext(ctx)
 
 		if err := tx.Where("cinema_id = ?", id).Delete(&CinemaFacility{}).Error; err != nil {
-			return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+			return handleCinemaDBError(err)
 		}
 
 		res := tx.Delete(&entity.Cinema{}, id)
 		if res.Error != nil {
-			return fmt.Errorf("%w: %v", exception.ErrDatabase, res.Error)
+			return handleCinemaDBError(res.Error)
 		}
 		if res.RowsAffected == 0 {
 			return exception.ErrCinemaNotFound
@@ -146,135 +254,6 @@ func (r *cinemaRepository) Delete(ctx context.Context, id int64) error {
 
 		return nil
 	})
-}
-
-func (r *cinemaRepository) GetWithFilters(ctx context.Context, filter DB.CinemaFilter) ([]entity.Cinema, error) {
-	var cinemas []entity.Cinema
-
-	subQuery := r.db.GetDB().WithContext(ctx).Table("cinemas").Select("cinemas.id")
-	subQuery = r.applyFilters(subQuery, filter)
-
-	err := r.db.GetDB().WithContext(ctx).
-		Where("id IN (?)", subQuery).
-		Limit(filter.Limit).
-		Offset(filter.Offset).
-		Preload("City").
-		Preload("City.Province").
-		Preload("Facilities").
-		Find(&cinemas).Error
-
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
-	}
-
-	return cinemas, nil
-}
-
-func (r *cinemaRepository) CountWithFilters(ctx context.Context, filter DB.CinemaFilter) (int64, error) {
-	var count int64
-	query := r.db.GetDB().WithContext(ctx).Model(&entity.Cinema{})
-
-	query = r.applyFilters(query, filter)
-
-	err := query.Count(&count).Error
-	if err != nil {
-		return 0, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
-	}
-
-	return count, nil
-}
-
-func (r *cinemaRepository) AddFacility(ctx context.Context, cinemaID int64, facilityID int64) error {
-	cinemaFacility := CinemaFacility{
-		CinemaID:   cinemaID,
-		FacilityID: facilityID,
-	}
-
-	err := r.db.GetDB().WithContext(ctx).Create(&cinemaFacility).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return exception.ErrDuplicateKey
-		}
-		if errors.Is(err, gorm.ErrForeignKeyViolated) {
-			return exception.ErrFacilityNotFound
-		}
-		return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
-	}
-
-	return nil
-}
-
-func (r *cinemaRepository) RemoveFacility(ctx context.Context, cinemaID int64, facilityID int64) error {
-	res := r.db.GetDB().WithContext(ctx).
-		Where("cinema_id = ? AND facility_id = ?", cinemaID, facilityID).
-		Delete(&CinemaFacility{})
-
-	if res.Error != nil {
-		return fmt.Errorf("%w: %v", exception.ErrDatabase, res.Error)
-	}
-
-	if res.RowsAffected == 0 {
-		return exception.ErrFacilityNotFound
-	}
-
-	return nil
-}
-
-func (r *cinemaRepository) UpdateFacilities(ctx context.Context, cinemaID int64, facilityIDs []int64) error {
-	return r.db.WithTransaction(func(txWrapper database.Database) error {
-		tx := txWrapper.GetDB().WithContext(ctx)
-
-		if err := tx.Where("cinema_id = ?", cinemaID).Delete(&CinemaFacility{}).Error; err != nil {
-			return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
-		}
-
-		if len(facilityIDs) > 0 {
-			var cinemaFacilities []CinemaFacility
-			for _, fID := range facilityIDs {
-				cinemaFacilities = append(cinemaFacilities, CinemaFacility{
-					CinemaID:   cinemaID,
-					FacilityID: fID,
-				})
-			}
-			if err := tx.Create(&cinemaFacilities).Error; err != nil {
-				if errors.Is(err, gorm.ErrForeignKeyViolated) {
-					return exception.ErrFacilityNotFound
-				}
-				return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
-			}
-		}
-
-		return nil
-	})
-}
-
-func (r *cinemaRepository) applyFilters(query *gorm.DB, filter DB.CinemaFilter) *gorm.DB {
-	if filter.CityID != nil {
-		query = query.Where("cinemas.city_id = ?", *filter.CityID)
-	}
-
-	if filter.ProvinceID != nil {
-		query = query.Joins("JOIN cities ON cities.id = cinemas.city_id").
-			Where("cities.province_id = ?", *filter.ProvinceID)
-	}
-
-	if filter.Status != nil {
-		query = query.Where("cinemas.status = ?", *filter.Status)
-	}
-
-	if filter.Search != nil && *filter.Search != "" {
-		searchTerm := "%" + *filter.Search + "%"
-		query = query.Where("cinemas.name ILIKE ? OR cinemas.address ILIKE ?", searchTerm, searchTerm)
-	}
-
-	if len(filter.FacilityIDs) > 0 {
-		query = query.Joins("JOIN cinema_facilities ON cinema_facilities.cinema_id = cinemas.id").
-			Where("cinema_facilities.facility_id IN ?", filter.FacilityIDs).
-			Group("cinemas.id").
-			Having("COUNT(DISTINCT cinema_facilities.facility_id) = ?", len(filter.FacilityIDs))
-	}
-
-	return query
 }
 
 func (r *cinemaRepository) UpdateRatingAggregate(ctx context.Context, cinemaID int64) error {
@@ -287,7 +266,7 @@ func (r *cinemaRepository) UpdateRatingAggregate(ctx context.Context, cinemaID i
     `
 	err := r.db.GetDB().WithContext(ctx).Exec(query, cinemaID, cinemaID, cinemaID).Error
 	if err != nil {
-		return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return handleCinemaDBError(err)
 	}
 	return nil
 }
