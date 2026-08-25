@@ -14,30 +14,34 @@ const (
 	CodeUnauthorized ErrorCode = "UNAUTHORIZED"
 	CodeForbidden    ErrorCode = "FORBIDDEN"
 
-	CodeNotFound       ErrorCode = "NOT_FOUND"
-	CodeUserNotFound   ErrorCode = "USER_NOT_FOUND"
-	CodeMovieNotFound  ErrorCode = "MOVIE_NOT_FOUND"
-	CodeGenreNotFound  ErrorCode = "GENRE_NOT_FOUND"
-	CodePersonNotFound ErrorCode = "PERSON_NOT_FOUND"
+	CodeNotFound         ErrorCode = "NOT_FOUND"
+	CodeUserNotFound     ErrorCode = "USER_NOT_FOUND"
+	CodeMovieNotFound    ErrorCode = "MOVIE_NOT_FOUND"
+	CodeGenreNotFound    ErrorCode = "GENRE_NOT_FOUND"
+	CodePersonNotFound   ErrorCode = "PERSON_NOT_FOUND"
+	CodeCinemaNotFound   ErrorCode = "CINEMA_NOT_FOUND"
+	CodeFacilityNotFound ErrorCode = "FACILITY_NOT_FOUND"
+	CodeCityNotFound     ErrorCode = "CITY_NOT_FOUND"
+	CodeProvinceNotFound ErrorCode = "PROVINCE_NOT_FOUND"
 
-	CodeConflict          ErrorCode = "CONFLICT"
-	CodeDuplicateKey      ErrorCode = "DUPLICATE_KEY"
-	CodeUserAlreadyExists ErrorCode = "USER_ALREADY_EXISTS"
+	CodeConflict              ErrorCode = "CONFLICT"
+	CodeDuplicateKey          ErrorCode = "DUPLICATE_KEY"
+	CodeUserAlreadyExists     ErrorCode = "USER_ALREADY_EXISTS"
+	CodeMovieAlreadyExists    ErrorCode = "MOVIE_ALREADY_EXISTS"
+	CodeGenreAlreadyExists    ErrorCode = "GENRE_ALREADY_EXISTS"
+	CodePersonAlreadyExists   ErrorCode = "PERSON_ALREADY_EXISTS"
+	CodeCinemaAlreadyExists   ErrorCode = "CINEMA_ALREADY_EXISTS"
+	CodeFacilityAlreadyExists ErrorCode = "FACILITY_ALREADY_EXISTS"
+	CodeCityAlreadyExists     ErrorCode = "CITY_ALREADY_EXISTS"
+	CodeProvinceAlreadyExists ErrorCode = "PROVINCE_ALREADY_EXISTS"
+	CodeResourceInUse         ErrorCode = "RESOURCE_IN_USE"
 
-	CodeInvalidPassword ErrorCode = "INVALID_PASSWORD"
-
-	CodeDatabase ErrorCode = "DATABASE_ERROR"
-	CodeInternal ErrorCode = "INTERNAL_ERROR"
-
-	CodeTokenContext ErrorCode = "TOKEN_CONTEXT_INVALID"
-
-	CodeMovieAlreadyExists ErrorCode = "MOVIE_ALREADY_EXISTS"
-	CodeInvalidFileType    ErrorCode = "INVALID_FILE_TYPE"
-	CodeFileSizeTooLarge   ErrorCode = "FILE_SIZE_TOO_LARGE"
-
-	CodeGenreAlreadyExists  ErrorCode = "GENRE_ALREADY_EXISTS"
-	CodePersonAlreadyExists ErrorCode = "PERSON_ALREADY_EXISTS"
-	CodeResourceInUse       ErrorCode = "RESOURCE_IN_USE"
+	CodeInvalidPassword  ErrorCode = "INVALID_PASSWORD"
+	CodeDatabase         ErrorCode = "DATABASE_ERROR"
+	CodeInternal         ErrorCode = "INTERNAL_ERROR"
+	CodeTokenContext     ErrorCode = "TOKEN_CONTEXT_INVALID"
+	CodeInvalidFileType  ErrorCode = "INVALID_FILE_TYPE"
+	CodeFileSizeTooLarge ErrorCode = "FILE_SIZE_TOO_LARGE"
 )
 
 type ErrorKind string
@@ -159,7 +163,7 @@ var ErrInvalidPassword = &AppError{
 }
 
 // -----------------------------------------------------------------------------
-// Movies
+// Movies & Entities
 // -----------------------------------------------------------------------------
 
 var ErrMovieNotFound = &AppError{
@@ -168,44 +172,16 @@ var ErrMovieNotFound = &AppError{
 	Message: "movie not found",
 }
 
+var ErrMovieAlreadyExists = &AppError{
+	Code:    CodeMovieAlreadyExists,
+	Kind:    KindConflict,
+	Message: "movie already exists",
+}
+
 var ErrGenreNotFound = &AppError{
 	Code:    CodeGenreNotFound,
 	Kind:    KindNotFound,
 	Message: "genre not found",
-}
-
-var ErrPersonNotFound = &AppError{
-	Code:    CodePersonNotFound,
-	Kind:    KindNotFound,
-	Message: "person not found",
-}
-
-// -----------------------------------------------------------------------------
-// Generic
-// -----------------------------------------------------------------------------
-
-var ErrDuplicateKey = &AppError{
-	Code:    CodeDuplicateKey,
-	Kind:    KindConflict,
-	Message: "duplicate key",
-}
-
-var ErrInvalidFilter = &AppError{
-	Code:    CodeInvalidFilter,
-	Kind:    KindValidation,
-	Message: "invalid filter",
-}
-
-var ErrDatabase = &AppError{
-	Code:    CodeDatabase,
-	Kind:    KindDatabase,
-	Message: "database operation failed",
-}
-
-var ErrInternal = &AppError{
-	Code:    CodeInternal,
-	Kind:    KindInternal,
-	Message: "internal server error",
 }
 
 var ErrGenreAlreadyExists = &AppError{
@@ -214,10 +190,78 @@ var ErrGenreAlreadyExists = &AppError{
 	Message: "genre already exists",
 }
 
+var ErrPersonNotFound = &AppError{
+	Code:    CodePersonNotFound,
+	Kind:    KindNotFound,
+	Message: "person not found",
+}
+
 var ErrPersonAlreadyExists = &AppError{
 	Code:    CodePersonAlreadyExists,
 	Kind:    KindConflict,
 	Message: "person already exists",
+}
+
+// -----------------------------------------------------------------------------
+// Cinema & Infrastructure
+// -----------------------------------------------------------------------------
+
+var ErrCinemaNotFound = &AppError{
+	Code:    CodeCinemaNotFound,
+	Kind:    KindNotFound,
+	Message: "cinema not found",
+}
+
+var ErrCinemaAlreadyExists = &AppError{
+	Code:    CodeCinemaAlreadyExists,
+	Kind:    KindConflict,
+	Message: "cinema already exists",
+}
+
+var ErrFacilityNotFound = &AppError{
+	Code:    CodeFacilityNotFound,
+	Kind:    KindNotFound,
+	Message: "facility not found",
+}
+
+var ErrFacilityAlreadyExists = &AppError{
+	Code:    CodeFacilityAlreadyExists,
+	Kind:    KindConflict,
+	Message: "facility already exists",
+}
+
+var ErrCityNotFound = &AppError{
+	Code:    CodeCityNotFound,
+	Kind:    KindNotFound,
+	Message: "city not found",
+}
+
+var ErrCityAlreadyExists = &AppError{
+	Code:    CodeCityAlreadyExists,
+	Kind:    KindConflict,
+	Message: "city already exists",
+}
+
+var ErrProvinceNotFound = &AppError{
+	Code:    CodeProvinceNotFound,
+	Kind:    KindNotFound,
+	Message: "province not found",
+}
+
+var ErrProvinceAlreadyExists = &AppError{
+	Code:    CodeProvinceAlreadyExists,
+	Kind:    KindConflict,
+	Message: "province already exists",
+}
+
+// -----------------------------------------------------------------------------
+// Generic & System
+// -----------------------------------------------------------------------------
+
+var ErrDuplicateKey = &AppError{
+	Code:    CodeDuplicateKey,
+	Kind:    KindConflict,
+	Message: "duplicate key",
 }
 
 var ErrResourceInUse = &AppError{
@@ -226,16 +270,16 @@ var ErrResourceInUse = &AppError{
 	Message: "resource is in use and cannot be modified or deleted",
 }
 
+var ErrInvalidFilter = &AppError{
+	Code:    CodeInvalidFilter,
+	Kind:    KindValidation,
+	Message: "invalid filter",
+}
+
 var ErrInvalidInput = &AppError{
 	Code:    CodeInvalidInput,
 	Kind:    KindValidation,
 	Message: "invalid input",
-}
-
-var ErrMovieAlreadyExists = &AppError{
-	Code:    CodeMovieAlreadyExists,
-	Kind:    KindConflict,
-	Message: "movie already exists",
 }
 
 var ErrInvalidFileType = &AppError{
@@ -248,4 +292,16 @@ var ErrFileSizeTooLarge = &AppError{
 	Code:    CodeFileSizeTooLarge,
 	Kind:    KindValidation,
 	Message: "file size is too large",
+}
+
+var ErrDatabase = &AppError{
+	Code:    CodeDatabase,
+	Kind:    KindDatabase,
+	Message: "database operation failed",
+}
+
+var ErrInternal = &AppError{
+	Code:    CodeInternal,
+	Kind:    KindInternal,
+	Message: "internal server error",
 }

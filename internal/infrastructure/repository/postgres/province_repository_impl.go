@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
@@ -20,13 +21,34 @@ func NewProvinceRepository(db database.Database) DB.ProvinceRepository {
 	return &provinceRepository{db: db}
 }
 
+func handleProvinceDBError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return fmt.Errorf("duplicate province key: %w", exception.ErrProvinceAlreadyExists)
+	}
+
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch pgErr.Code {
+		case "23505": // unique_violation
+			return fmt.Errorf("postgres unique violation: %w", exception.ErrProvinceAlreadyExists)
+		case "23503": // foreign_key_violation
+			return fmt.Errorf("province is in use: %w", exception.ErrResourceInUse)
+		default:
+			return fmt.Errorf("database constraint/transaction error: %w", exception.ErrDatabase)
+		}
+	}
+
+	return fmt.Errorf("province database operation failed: %w", exception.ErrDatabase)
+}
+
 func (r *provinceRepository) Create(ctx context.Context, province *entity.Province) error {
 	err := r.db.GetDB().WithContext(ctx).Create(province).Error
 	if err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return exception.ErrDuplicateKey
-		}
-		return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return handleProvinceDBError(err)
 	}
 	return nil
 }
@@ -38,7 +60,7 @@ func (r *provinceRepository) GetByID(ctx context.Context, id int64) (*entity.Pro
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, exception.ErrProvinceNotFound
 		}
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, handleProvinceDBError(err)
 	}
 	return &province, nil
 }
@@ -50,7 +72,7 @@ func (r *provinceRepository) GetByName(ctx context.Context, name string) (*entit
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, exception.ErrProvinceNotFound
 		}
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, handleProvinceDBError(err)
 	}
 	return &province, nil
 }
@@ -59,7 +81,7 @@ func (r *provinceRepository) GetAll(ctx context.Context) ([]entity.Province, err
 	var provinces []entity.Province
 	err := r.db.GetDB().WithContext(ctx).Find(&provinces).Error
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, handleProvinceDBError(err)
 	}
 	return provinces, nil
 }
@@ -74,10 +96,7 @@ func (r *provinceRepository) Update(ctx context.Context, province *entity.Provin
 		}).Error
 
 	if err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return nil, exception.ErrDuplicateKey
-		}
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, handleProvinceDBError(err)
 	}
 
 	return province, nil
@@ -86,7 +105,7 @@ func (r *provinceRepository) Update(ctx context.Context, province *entity.Provin
 func (r *provinceRepository) Delete(ctx context.Context, id int64) error {
 	result := r.db.GetDB().WithContext(ctx).Delete(&entity.Province{}, id)
 	if result.Error != nil {
-		return fmt.Errorf("%w: %v", exception.ErrDatabase, result.Error)
+		return handleProvinceDBError(result.Error)
 	}
 	if result.RowsAffected == 0 {
 		return exception.ErrProvinceNotFound

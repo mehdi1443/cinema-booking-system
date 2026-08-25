@@ -35,12 +35,20 @@ func NewCinemaService(
 }
 
 func (s *cinemaService) Create(ctx context.Context, req *dto.CreateCinemaRequest) (*dto.CinemaDetailResponse, error) {
+	if req == nil {
+		return nil, exception.ErrInvalidInput
+	}
+
 	if !req.Status.IsValid() {
 		return nil, exception.ErrInvalidInput
 	}
 
 	trimmedName := strings.TrimSpace(req.Name)
 	trimmedAddress := strings.TrimSpace(req.Address)
+
+	if trimmedName == "" || trimmedAddress == "" {
+		return nil, exception.ErrInvalidInput
+	}
 
 	cinema := &entity.Cinema{
 		CityID:    req.CityID,
@@ -62,16 +70,20 @@ func (s *cinemaService) Create(ctx context.Context, req *dto.CreateCinemaRequest
 
 	createdCinema, err := s.cinemaRepo.Create(ctx, cinema, req.FacilityIDs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create cinema: %w", err)
 	}
 
 	return dto.ToCinemaDetailResponse(createdCinema), nil
 }
 
 func (s *cinemaService) GetByID(ctx context.Context, id int64) (*dto.CinemaDetailResponse, error) {
+	if id <= 0 {
+		return nil, exception.ErrInvalidInput
+	}
+
 	cinema, err := s.cinemaRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get cinema by id %d: %w", id, err)
 	}
 
 	return dto.ToCinemaDetailResponse(cinema), nil
@@ -114,30 +126,45 @@ func (s *cinemaService) GetCinemas(ctx context.Context, req dto.CinemaFilterRequ
 
 	cinemas, total, err := s.cinemaRepo.GetCinemas(ctx, filter, opts)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, fmt.Errorf("get cinemas: %w", err)
 	}
 
 	return dto.ToCinemaListResponseSlice(cinemas), total, nil
 }
 
 func (s *cinemaService) Update(ctx context.Context, id int64, req *dto.UpdateCinemaRequest) (*dto.CinemaDetailResponse, error) {
+	if id <= 0 || req == nil {
+		return nil, exception.ErrInvalidInput
+	}
+
 	cinema, err := s.cinemaRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get cinema before update %d: %w", id, err)
 	}
 
 	if req.CityID != nil {
+		if *req.CityID <= 0 {
+			return nil, exception.ErrInvalidInput
+		}
 		cinema.CityID = *req.CityID
 	}
 	if req.Name != nil {
-		cinema.Name = strings.TrimSpace(*req.Name)
+		trimmedName := strings.TrimSpace(*req.Name)
+		if trimmedName == "" {
+			return nil, exception.ErrInvalidInput
+		}
+		cinema.Name = trimmedName
 	}
 	if req.Description != nil {
 		trimmedDesc := strings.TrimSpace(*req.Description)
 		cinema.Description = &trimmedDesc
 	}
 	if req.Address != nil {
-		cinema.Address = strings.TrimSpace(*req.Address)
+		trimmedAddress := strings.TrimSpace(*req.Address)
+		if trimmedAddress == "" {
+			return nil, exception.ErrInvalidInput
+		}
+		cinema.Address = trimmedAddress
 	}
 	if req.Latitude != nil {
 		cinema.Latitude = req.Latitude
@@ -168,29 +195,45 @@ func (s *cinemaService) Update(ctx context.Context, id int64, req *dto.UpdateCin
 
 	updatedCinema, err := s.cinemaRepo.Update(ctx, cinema, facilityIDs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("update cinema %d: %w", id, err)
 	}
 
 	return dto.ToCinemaDetailResponse(updatedCinema), nil
 }
 
 func (s *cinemaService) Delete(ctx context.Context, id int64) error {
+	if id <= 0 {
+		return exception.ErrInvalidInput
+	}
+
 	cinema, err := s.cinemaRepo.GetByID(ctx, id)
 	if err != nil {
-		return err
+		return fmt.Errorf("get cinema before delete %d: %w", id, err)
 	}
 
 	if cinema.ImageURLLow != nil || cinema.ImageURLHigh != nil {
 		_ = s.DeleteImage(ctx, id)
 	}
 
-	return s.cinemaRepo.Delete(ctx, id)
+	if err := s.cinemaRepo.Delete(ctx, id); err != nil {
+		return fmt.Errorf("delete cinema %d: %w", id, err)
+	}
+
+	return nil
 }
 
 func (s *cinemaService) UploadImage(ctx context.Context, id int64, file io.Reader, filename string) (*dto.CinemaDetailResponse, error) {
+	if id <= 0 {
+		return nil, exception.ErrInvalidInput
+	}
+
+	if file == nil {
+		return nil, exception.ErrInvalidFileType
+	}
+
 	cinema, err := s.cinemaRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get cinema before image upload %d: %w", id, err)
 	}
 
 	fileReader, err := checkFileSize(file, maxCinemaImageSize)
@@ -206,23 +249,25 @@ func (s *cinemaService) UploadImage(ctx context.Context, id int64, file io.Reade
 	lowImg := image.Resize(400, 300, img)
 	lowBuf, err := image.EncodeToBuffer(lowImg, image.FormatWebP)
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode low-res image: %w", err)
+		return nil, fmt.Errorf("encode low resolution cinema image: %w", exception.ErrInternal)
 	}
+
 	lowKey := fmt.Sprintf("cinemas/cinema_%d_image_low.webp", id)
 	lowURL, err := s.storage.UploadObject(ctx, enum.CinemaPhoto, lowKey, lowBuf, image.GetContentType(image.FormatWebP))
 	if err != nil {
-		return nil, fmt.Errorf("failed to upload low-res image: %w", err)
+		return nil, fmt.Errorf("upload low resolution cinema image: %w", exception.ErrInternal)
 	}
 
 	highImg := image.Resize(1200, 900, img)
 	highBuf, err := image.EncodeToBuffer(highImg, image.FormatJPEG)
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode high-res image: %w", err)
+		return nil, fmt.Errorf("encode high resolution cinema image: %w", exception.ErrInternal)
 	}
+
 	highKey := fmt.Sprintf("cinemas/cinema_%d_image_high.jpg", id)
 	highURL, err := s.storage.UploadObject(ctx, enum.CinemaPhoto, highKey, highBuf, image.GetContentType(image.FormatJPEG))
 	if err != nil {
-		return nil, fmt.Errorf("failed to upload high-res image: %w", err)
+		return nil, fmt.Errorf("upload high resolution cinema image: %w", exception.ErrInternal)
 	}
 
 	cinema.ImageURLLow = &lowURL
@@ -235,16 +280,20 @@ func (s *cinemaService) UploadImage(ctx context.Context, id int64, file io.Reade
 
 	updatedCinema, err := s.cinemaRepo.Update(ctx, cinema, facilityIDs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("save image URLs for cinema %d: %w", id, err)
 	}
 
 	return dto.ToCinemaDetailResponse(updatedCinema), nil
 }
 
 func (s *cinemaService) DeleteImage(ctx context.Context, id int64) error {
+	if id <= 0 {
+		return exception.ErrInvalidInput
+	}
+
 	cinema, err := s.cinemaRepo.GetByID(ctx, id)
 	if err != nil {
-		return err
+		return fmt.Errorf("get cinema before image deletion %d: %w", id, err)
 	}
 
 	lowKey := fmt.Sprintf("cinemas/cinema_%d_image_low.webp", id)
@@ -263,7 +312,7 @@ func (s *cinemaService) DeleteImage(ctx context.Context, id int64) error {
 
 	_, err = s.cinemaRepo.Update(ctx, cinema, facilityIDs)
 	if err != nil {
-		return err
+		return fmt.Errorf("remove image URLs for cinema %d: %w", id, err)
 	}
 
 	return nil

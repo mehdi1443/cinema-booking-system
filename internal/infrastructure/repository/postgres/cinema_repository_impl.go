@@ -37,30 +37,34 @@ func handleCinemaDBError(err error) error {
 	}
 
 	if errors.Is(err, gorm.ErrDuplicatedKey) {
-		return exception.ErrDuplicateKey
+		return fmt.Errorf("duplicate database key: %w", exception.ErrCinemaAlreadyExists)
 	}
 
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
 		switch pgErr.Code {
 		case "23505": // unique_violation
-			return exception.ErrDuplicateKey
+			return fmt.Errorf("postgres unique violation: %w", exception.ErrCinemaAlreadyExists)
+
 		case "23503": // foreign_key_violation
-			if strings.Contains(pgErr.ConstraintName, "city") {
-				return exception.ErrCityNotFound
+			constraint := strings.ToLower(pgErr.ConstraintName)
+			detail := strings.ToLower(pgErr.Detail)
+			table := strings.ToLower(pgErr.TableName)
+
+			if strings.Contains(constraint, "city") || strings.Contains(detail, "city_id") || strings.Contains(table, "cities") {
+				return fmt.Errorf("city foreign key violation: %w", exception.ErrCityNotFound)
 			}
-			if strings.Contains(pgErr.ConstraintName, "facility") || strings.Contains(pgErr.Detail, "cinema_facilities") {
-				return exception.ErrFacilityNotFound
+			if strings.Contains(constraint, "facility") || strings.Contains(detail, "cinema_facilities") || strings.Contains(table, "cinema_facilities") {
+				return fmt.Errorf("facility foreign key violation: %w", exception.ErrFacilityNotFound)
 			}
-			return exception.ErrDatabase // Fallback
+			return fmt.Errorf("unknown foreign key violation: %w", exception.ErrDatabase)
+
+		case "23502", "23514", "40001", "40P01":
+			return fmt.Errorf("database constraint/transaction error: %w", exception.ErrDatabase)
 		}
 	}
 
-	if errors.Is(err, gorm.ErrForeignKeyViolated) {
-		return exception.ErrDatabase
-	}
-
-	return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+	return fmt.Errorf("cinema database operation failed: %w", exception.ErrDatabase)
 }
 
 func (r *cinemaRepository) Create(ctx context.Context, cinema *entity.Cinema, facilityIDs []int64) (*entity.Cinema, error) {
