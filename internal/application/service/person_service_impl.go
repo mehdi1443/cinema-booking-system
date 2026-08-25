@@ -4,15 +4,19 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/storage"
 	"github.com/mehdi1443/cinema-booking-system/pkg/image"
 )
+
+const maxPersonImageSize = 5 * 1024 * 1024 // 5 MB
 
 type personService struct {
 	personRepo repository_contract.PersonInterface
@@ -30,23 +34,36 @@ func NewPersonService(
 }
 
 func (s *personService) Create(ctx context.Context, req *dto.CreatePersonRequest) (*dto.PersonDetailResponse, error) {
+	if req == nil {
+		return nil, exception.ErrInvalidInput
+	}
+
+	trimmedName := strings.TrimSpace(req.Name)
+	if trimmedName == "" {
+		return nil, exception.ErrInvalidInput
+	}
+
 	person := &entity.Person{
-		Name:      req.Name,
+		Name:      trimmedName,
 		Biography: req.Biography,
 	}
 
 	createdPerson, err := s.personRepo.Create(ctx, person)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create person: %w", err)
 	}
 
 	return dto.ToPersonDetailResponse(createdPerson), nil
 }
 
 func (s *personService) GetByID(ctx context.Context, id int64) (*dto.PersonDetailResponse, error) {
+	if id <= 0 {
+		return nil, exception.ErrInvalidInput
+	}
+
 	person, err := s.personRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get person by id %d: %w", id, err)
 	}
 
 	return dto.ToPersonDetailResponse(person), nil
@@ -55,7 +72,7 @@ func (s *personService) GetByID(ctx context.Context, id int64) (*dto.PersonDetai
 func (s *personService) GetPersons(ctx context.Context, req dto.PersonFilterRequest) ([]*dto.PersonListResponse, int64, error) {
 	filter := repository_contract.PersonFilter{}
 	if req.Search != nil {
-		filter.SearchKeyword = *req.Search
+		filter.SearchKeyword = strings.TrimSpace(*req.Search)
 	}
 
 	req.Normalize()
@@ -65,20 +82,28 @@ func (s *personService) GetPersons(ctx context.Context, req dto.PersonFilterRequ
 
 	persons, total, err := s.personRepo.GetPersons(ctx, filter, opts)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, fmt.Errorf("get persons: %w", err)
 	}
 
 	return dto.ToPersonListResponseSlice(persons), total, nil
 }
 
 func (s *personService) Update(ctx context.Context, id int64, req *dto.UpdatePersonRequest) (*dto.PersonDetailResponse, error) {
+	if id <= 0 || req == nil {
+		return nil, exception.ErrInvalidInput
+	}
+
 	person, err := s.personRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get person before update %d: %w", id, err)
 	}
 
 	if req.Name != nil {
-		person.Name = *req.Name
+		trimmedName := strings.TrimSpace(*req.Name)
+		if trimmedName == "" {
+			return nil, exception.ErrInvalidInput
+		}
+		person.Name = trimmedName
 	}
 
 	if req.Biography != nil {
@@ -87,56 +112,79 @@ func (s *personService) Update(ctx context.Context, id int64, req *dto.UpdatePer
 
 	updatedPerson, err := s.personRepo.Update(ctx, person)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("update person %d: %w", id, err)
 	}
 
 	return dto.ToPersonDetailResponse(updatedPerson), nil
 }
 
 func (s *personService) Delete(ctx context.Context, id int64) error {
+	if id <= 0 {
+		return exception.ErrInvalidInput
+	}
+
 	person, err := s.personRepo.GetByID(ctx, id)
 	if err != nil {
-		return err
+		return fmt.Errorf("get person before delete %d: %w", id, err)
 	}
 
 	if person.ImageURLLow != "" || person.ImageURLHigh != "" {
 		_ = s.DeleteImage(ctx, id)
 	}
 
-	return s.personRepo.Delete(ctx, id)
+	if err := s.personRepo.Delete(ctx, id); err != nil {
+		return fmt.Errorf("delete person %d: %w", id, err)
+	}
+
+	return nil
 }
 
 func (s *personService) UploadImage(ctx context.Context, id int64, file io.Reader) (*dto.PersonDetailResponse, error) {
+	if id <= 0 {
+		return nil, exception.ErrInvalidInput
+	}
+
+	if file == nil {
+		return nil, exception.ErrInvalidFileType
+	}
+
 	person, err := s.personRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("get person before image upload %d: %w", id, err)
+	}
+
+	fileReader, err := checkFileSize(file, maxPersonImageSize)
 	if err != nil {
 		return nil, err
 	}
 
-	img, err := image.DecodeImage(file)
+	img, err := image.DecodeImage(fileReader)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode image: %w", err)
+		return nil, fmt.Errorf("%w: invalid person image", exception.ErrInvalidFileType)
 	}
 
 	lowImg := image.Resize(200, 200, img)
 	lowBuf, err := image.EncodeToBuffer(lowImg, image.FormatWebP)
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode low-res image: %w", err)
+		return nil, fmt.Errorf("encode low resolution person image: %w", exception.ErrInternal)
 	}
+
 	lowKey := fmt.Sprintf("persons/person_%d_low.webp", id)
 	lowURL, err := s.storage.UploadObject(ctx, enum.ActorPhoto, lowKey, lowBuf, image.GetContentType(image.FormatWebP))
 	if err != nil {
-		return nil, fmt.Errorf("failed to upload low-res image: %w", err)
+		return nil, fmt.Errorf("upload low resolution person image: %w", exception.ErrInternal)
 	}
 
 	highImg := image.Resize(800, 800, img)
 	highBuf, err := image.EncodeToBuffer(highImg, image.FormatJPEG)
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode high-res image: %w", err)
+		return nil, fmt.Errorf("encode high resolution person image: %w", exception.ErrInternal)
 	}
+
 	highKey := fmt.Sprintf("persons/person_%d_high.jpg", id)
 	highURL, err := s.storage.UploadObject(ctx, enum.ActorPhoto, highKey, highBuf, image.GetContentType(image.FormatJPEG))
 	if err != nil {
-		return nil, fmt.Errorf("failed to upload high-res image: %w", err)
+		return nil, fmt.Errorf("upload high resolution person image: %w", exception.ErrInternal)
 	}
 
 	person.ImageURLLow = lowURL
@@ -144,21 +192,27 @@ func (s *personService) UploadImage(ctx context.Context, id int64, file io.Reade
 
 	updatedPerson, err := s.personRepo.Update(ctx, person)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("save image URLs for person %d: %w", id, err)
 	}
 
 	return dto.ToPersonDetailResponse(updatedPerson), nil
 }
 
 func (s *personService) DeleteImage(ctx context.Context, id int64) error {
+	if id <= 0 {
+		return exception.ErrInvalidInput
+	}
+
 	person, err := s.personRepo.GetByID(ctx, id)
 	if err != nil {
-		return err
+		return fmt.Errorf("get person before image deletion %d: %w", id, err)
 	}
 
 	lowKey := fmt.Sprintf("persons/person_%d_low.webp", id)
 	highKey := fmt.Sprintf("persons/person_%d_high.jpg", id)
 
+	// Keep existing behavior:
+	// storage deletion errors are intentionally ignored.
 	_ = s.storage.DeleteObject(ctx, enum.ActorPhoto, lowKey)
 	_ = s.storage.DeleteObject(ctx, enum.ActorPhoto, highKey)
 
@@ -167,7 +221,7 @@ func (s *personService) DeleteImage(ctx context.Context, id int64) error {
 
 	_, err = s.personRepo.Update(ctx, person)
 	if err != nil {
-		return err
+		return fmt.Errorf("remove image URLs for person %d: %w", id, err)
 	}
 
 	return nil

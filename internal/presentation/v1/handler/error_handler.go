@@ -21,119 +21,65 @@ func Handle(c *gin.Context, err error) {
 
 	info := mapError(err)
 
-	// برای Errorهای داخلی هیچ‌وقت err خام را به response نده.
 	response.Error(
 		c,
 		info.StatusCode,
 		info.Message,
 	)
-
-	return
 }
 
 func HandleBadRequest(c *gin.Context, message string) {
-	response.Error(
-		c,
-		http.StatusBadRequest,
-		message,
-	)
+	response.Error(c, http.StatusBadRequest, message)
 }
 
 func HandleNotFound(c *gin.Context, message string) {
-	response.Error(
-		c,
-		http.StatusNotFound,
-		message,
-	)
+	response.Error(c, http.StatusNotFound, message)
 }
 
 func HandleInternal(c *gin.Context) {
-	response.Error(
-		c,
-		http.StatusInternalServerError,
-		"Internal server error occurred",
-	)
+	response.Error(c, http.StatusInternalServerError, "Internal server error occurred")
 }
 
 func mapError(err error) ErrorInfo {
-	switch {
+	var appErr *exception.AppError
 
-	case errors.Is(err, exception.ErrInvalidInput):
-		return ErrorInfo{
-			StatusCode: http.StatusBadRequest,
-			Message:    "Invalid input data or enum value",
+	if errors.As(err, &appErr) {
+		status := http.StatusInternalServerError
+
+		switch appErr.Kind {
+		case exception.KindValidation:
+			if appErr.Code == exception.CodeFileSizeTooLarge {
+				status = http.StatusRequestEntityTooLarge
+			} else {
+				status = http.StatusBadRequest
+			}
+		case exception.KindNotFound:
+			status = http.StatusNotFound
+		case exception.KindConflict:
+			status = http.StatusConflict
+		case exception.KindForbidden:
+			status = http.StatusForbidden
+		case exception.KindAuth:
+			status = http.StatusUnauthorized
+		case exception.KindDatabase, exception.KindInternal:
+			status = http.StatusInternalServerError
 		}
 
-	case errors.Is(err, exception.ErrInvalidFilter):
-		return ErrorInfo{
-			StatusCode: http.StatusBadRequest,
-			Message:    "Invalid filter parameter",
+		if status == http.StatusInternalServerError {
+			return ErrorInfo{
+				StatusCode: status,
+				Message:    "An unexpected internal error occurred",
+			}
 		}
 
-	case errors.Is(err, exception.ErrInvalidFileType):
 		return ErrorInfo{
-			StatusCode: http.StatusBadRequest,
-			Message:    "Invalid file type",
+			StatusCode: status,
+			Message:    appErr.Message,
 		}
+	}
 
-	case errors.Is(err, exception.ErrFileSizeTooLarge):
-		return ErrorInfo{
-			StatusCode: http.StatusRequestEntityTooLarge,
-			Message:    "File size exceeds the allowed limit",
-		}
-
-	case errors.Is(err, exception.ErrMovieNotFound):
-		return ErrorInfo{
-			StatusCode: http.StatusNotFound,
-			Message:    "Movie not found",
-		}
-
-	case errors.Is(err, exception.ErrGenreNotFound):
-		return ErrorInfo{
-			StatusCode: http.StatusBadRequest,
-			Message:    "One or more specified genres were not found",
-		}
-
-	case errors.Is(err, exception.ErrPersonNotFound):
-		return ErrorInfo{
-			StatusCode: http.StatusBadRequest,
-			Message:    "One or more specified persons were not found",
-		}
-
-	case errors.Is(err, exception.ErrMovieAlreadyExists):
-		return ErrorInfo{
-			StatusCode: http.StatusConflict,
-			Message:    "Movie already exists",
-		}
-
-	case errors.Is(err, exception.ErrDuplicateKey):
-		return ErrorInfo{
-			StatusCode: http.StatusConflict,
-			Message:    "Resource already exists",
-		}
-
-	case errors.Is(err, exception.ErrDatabase):
-		return ErrorInfo{
-			StatusCode: http.StatusInternalServerError,
-			Message:    "Internal database error occurred",
-		}
-
-	case errors.Is(err, exception.ErrNoteAccessible):
-		return ErrorInfo{
-			StatusCode: http.StatusForbidden,
-			Message:    "You do not have permission to perform this action",
-		}
-
-	case errors.Is(err, exception.ErrGetTokenFromContext):
-		return ErrorInfo{
-			StatusCode: http.StatusUnauthorized,
-			Message:    "Authentication context is invalid",
-		}
-
-	default:
-		return ErrorInfo{
-			StatusCode: http.StatusInternalServerError,
-			Message:    "An unexpected error occurred",
-		}
+	return ErrorInfo{
+		StatusCode: http.StatusInternalServerError,
+		Message:    "An unexpected error occurred",
 	}
 }

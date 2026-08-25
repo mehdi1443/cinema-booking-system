@@ -3,8 +3,8 @@ package postgres_repo
 import (
 	"context"
 	"errors"
-	"fmt"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
@@ -20,13 +20,34 @@ func NewPersonRepository(db database.Database) DB.PersonInterface {
 	return &personRepository{db: db}
 }
 
+func handlePersonDBError(err error, operation string) error {
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return exception.ErrPersonNotFound
+	}
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return exception.ErrPersonAlreadyExists
+	}
+
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch pgErr.Code {
+		case "23505": // unique_violation
+			return exception.ErrPersonAlreadyExists
+		case "23503": // foreign_key_violation
+			return exception.ErrResourceInUse
+		}
+	}
+
+	return exception.Wrap(exception.ErrDatabase, "database error during "+operation, err)
+}
+
 func (r *personRepository) Create(ctx context.Context, person *entity.Person) (*entity.Person, error) {
 	err := r.db.GetDB().WithContext(ctx).Create(person).Error
 	if err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return nil, exception.ErrDuplicateKey
-		}
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, handlePersonDBError(err, "CreatePerson")
 	}
 	return person, nil
 }
@@ -35,10 +56,7 @@ func (r *personRepository) GetByID(ctx context.Context, id int64) (*entity.Perso
 	var person entity.Person
 	err := r.db.GetDB().WithContext(ctx).First(&person, id).Error
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, exception.ErrPersonNotFound
-		}
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, handlePersonDBError(err, "GetPersonByID")
 	}
 	return &person, nil
 }
@@ -47,10 +65,7 @@ func (r *personRepository) GetByName(ctx context.Context, name string) (*entity.
 	var person entity.Person
 	err := r.db.GetDB().WithContext(ctx).Where("name = ?", name).First(&person).Error
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, exception.ErrPersonNotFound
-		}
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, handlePersonDBError(err, "GetPersonByName")
 	}
 	return &person, nil
 }
@@ -65,7 +80,7 @@ func (r *personRepository) GetPersons(ctx context.Context, filter DB.PersonFilte
 
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
-		return nil, 0, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, 0, handlePersonDBError(err, "CountPersons")
 	}
 
 	q = q.Order("id DESC")
@@ -75,7 +90,7 @@ func (r *personRepository) GetPersons(ctx context.Context, filter DB.PersonFilte
 	}
 
 	if err := q.Find(&persons).Error; err != nil {
-		return nil, 0, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, 0, handlePersonDBError(err, "FindPersons")
 	}
 
 	return persons, total, nil
@@ -91,10 +106,7 @@ func (r *personRepository) Update(ctx context.Context, person *entity.Person) (*
 
 	res := r.db.GetDB().WithContext(ctx).Model(&entity.Person{}).Where("id = ?", person.ID).Updates(updateData)
 	if res.Error != nil {
-		if errors.Is(res.Error, gorm.ErrDuplicatedKey) {
-			return nil, exception.ErrDuplicateKey
-		}
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, res.Error)
+		return nil, handlePersonDBError(res.Error, "UpdatePerson")
 	}
 
 	if res.RowsAffected == 0 {
@@ -107,7 +119,7 @@ func (r *personRepository) Update(ctx context.Context, person *entity.Person) (*
 func (r *personRepository) Delete(ctx context.Context, id int64) error {
 	res := r.db.GetDB().WithContext(ctx).Delete(&entity.Person{}, id)
 	if res.Error != nil {
-		return fmt.Errorf("%w: %v", exception.ErrDatabase, res.Error)
+		return handlePersonDBError(res.Error, "DeletePerson")
 	}
 
 	if res.RowsAffected == 0 {

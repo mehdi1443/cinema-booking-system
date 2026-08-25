@@ -3,7 +3,6 @@ package postgres_repo
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -22,27 +21,34 @@ func NewGenreRepository(db database.Database) DB.GenreInterface {
 	return &genreRepository{db: db}
 }
 
-func isDuplicateError(err error) bool {
+func handleGenreDBError(err error, operation string) error {
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return exception.ErrGenreNotFound
+	}
 	if errors.Is(err, gorm.ErrDuplicatedKey) {
-		return true
+		return exception.ErrGenreAlreadyExists
 	}
+
 	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-		return true
+	if errors.As(err, &pgErr) {
+		switch pgErr.Code {
+		case "23505": // unique_violation
+			return exception.ErrGenreAlreadyExists
+		case "23503": // foreign_key_violation
+			return exception.ErrResourceInUse
+		}
 	}
-	if strings.Contains(err.Error(), "23505") || strings.Contains(err.Error(), "duplicate key value") {
-		return true
-	}
-	return false
+
+	return exception.Wrap(exception.ErrDatabase, "database error during "+operation, err)
 }
 
 func (r *genreRepository) Create(ctx context.Context, genre *entity.Genre) (*entity.Genre, error) {
 	err := r.db.GetDB().WithContext(ctx).Create(genre).Error
 	if err != nil {
-		if isDuplicateError(err) {
-			return nil, exception.ErrDuplicateKey
-		}
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, handleGenreDBError(err, "CreateGenre")
 	}
 	return genre, nil
 }
@@ -51,10 +57,7 @@ func (r *genreRepository) GetByID(ctx context.Context, id int64) (*entity.Genre,
 	var genre entity.Genre
 	err := r.db.GetDB().WithContext(ctx).First(&genre, id).Error
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, exception.ErrGenreNotFound
-		}
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, handleGenreDBError(err, "GetGenreByID")
 	}
 	return &genre, nil
 }
@@ -63,10 +66,7 @@ func (r *genreRepository) GetByName(ctx context.Context, name string) (*entity.G
 	var genre entity.Genre
 	err := r.db.GetDB().WithContext(ctx).Where("name = ?", name).First(&genre).Error
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, exception.ErrGenreNotFound
-		}
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, handleGenreDBError(err, "GetGenreByName")
 	}
 	return &genre, nil
 }
@@ -81,7 +81,7 @@ func (r *genreRepository) GetGenres(ctx context.Context, filter DB.GenreFilter, 
 
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
-		return nil, 0, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, 0, handleGenreDBError(err, "CountGenres")
 	}
 
 	q = q.Order("name ASC")
@@ -91,7 +91,7 @@ func (r *genreRepository) GetGenres(ctx context.Context, filter DB.GenreFilter, 
 	}
 
 	if err := q.Find(&genres).Error; err != nil {
-		return nil, 0, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, 0, handleGenreDBError(err, "FindGenres")
 	}
 
 	return genres, total, nil
@@ -100,10 +100,7 @@ func (r *genreRepository) GetGenres(ctx context.Context, filter DB.GenreFilter, 
 func (r *genreRepository) Update(ctx context.Context, genre *entity.Genre) (*entity.Genre, error) {
 	res := r.db.GetDB().WithContext(ctx).Model(genre).Where("id = ?", genre.ID).Updates(genre)
 	if res.Error != nil {
-		if isDuplicateError(res.Error) {
-			return nil, exception.ErrDuplicateKey
-		}
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, res.Error)
+		return nil, handleGenreDBError(res.Error, "UpdateGenre")
 	}
 
 	if res.RowsAffected == 0 {
@@ -116,7 +113,7 @@ func (r *genreRepository) Update(ctx context.Context, genre *entity.Genre) (*ent
 func (r *genreRepository) Delete(ctx context.Context, id int64) error {
 	res := r.db.GetDB().WithContext(ctx).Delete(&entity.Genre{}, id)
 	if res.Error != nil {
-		return fmt.Errorf("%w: %v", exception.ErrDatabase, res.Error)
+		return handleGenreDBError(res.Error, "DeleteGenre")
 	}
 
 	if res.RowsAffected == 0 {

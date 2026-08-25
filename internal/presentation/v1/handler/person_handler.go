@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"errors"
-	"log"
 	"net/http"
 	"strconv"
 
@@ -12,6 +10,8 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
+
+const maxPersonImageSize = 5 * 1024 * 1024 // 5 MB
 
 type PersonHandler struct {
 	personService service_contract.PersonServiceInterface
@@ -23,243 +23,178 @@ func NewPersonHandler(personService service_contract.PersonServiceInterface) *Pe
 	}
 }
 
+// -----------------------------------------------------------------------------
+// Helpers
+// -----------------------------------------------------------------------------
+
+func parsePersonID(c *gin.Context) (int64, bool) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		HandleBadRequest(c, "Invalid person ID")
+		return 0, false
+	}
+	return id, true
+}
+
+// -----------------------------------------------------------------------------
 // POST /persons
+// -----------------------------------------------------------------------------
+
 func (h *PersonHandler) CreatePerson(c *gin.Context) {
 	var req dto.CreatePersonRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, "Invalid request payload", err)
+		HandleBadRequest(c, "Invalid request payload")
 		return
 	}
 
 	person, err := h.personService.Create(c.Request.Context(), &req)
 	if err != nil {
-		log.Printf("[SERVICE ERROR] CreatePerson failed: %v", err)
-		switch {
-		case errors.Is(err, exception.ErrPersonAlreadyExists):
-			response.Error(c, http.StatusConflict, "Person already exists", err)
-
-		case errors.Is(err, exception.ErrDatabase):
-			response.Error(c, http.StatusInternalServerError, "Internal database error occurred", err)
-
-		default:
-			response.Error(c, http.StatusInternalServerError, "An unexpected error occurred", err)
-		}
+		Handle(c, err)
 		return
 	}
 
 	response.Success(c, http.StatusCreated, "Person created successfully", person)
 }
 
+// -----------------------------------------------------------------------------
 // GET /persons/:id
+// -----------------------------------------------------------------------------
+
 func (h *PersonHandler) GetPersonByID(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		response.Error(c, http.StatusBadRequest, "Invalid person ID", err)
+	id, ok := parsePersonID(c)
+	if !ok {
 		return
 	}
 
 	person, err := h.personService.GetByID(c.Request.Context(), id)
 	if err != nil {
-		log.Printf("[SERVICE ERROR] GetPersonByID failed: %v", err)
-		switch {
-		case errors.Is(err, exception.ErrPersonNotFound):
-			response.Error(c, http.StatusNotFound, "Person not found", err)
-
-		case errors.Is(err, exception.ErrDatabase):
-			response.Error(c, http.StatusInternalServerError, "Internal database error occurred", err)
-
-		default:
-			response.Error(c, http.StatusInternalServerError, "An unexpected error occurred", err)
-		}
+		Handle(c, err)
 		return
 	}
 
 	response.Success(c, http.StatusOK, "Person retrieved successfully", person)
 }
 
+// -----------------------------------------------------------------------------
 // GET /persons
+// -----------------------------------------------------------------------------
+
 func (h *PersonHandler) GetPersons(c *gin.Context) {
 	var req dto.PersonFilterRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, "Invalid filter parameters", err)
+		HandleBadRequest(c, "Invalid filter parameters")
 		return
 	}
+
+	req.Normalize()
 
 	persons, total, err := h.personService.GetPersons(c.Request.Context(), req)
 	if err != nil {
-		log.Printf("[SERVICE ERROR] GetPersons failed: %v", err)
-		switch {
-		case errors.Is(err, exception.ErrDatabase):
-			response.Error(c, http.StatusInternalServerError, "Internal database error occurred", err)
-
-		default:
-			response.Error(c, http.StatusInternalServerError, "An unexpected error occurred", err)
-		}
+		Handle(c, err)
 		return
 	}
 
-	page := req.Page
-	if page <= 0 {
-		page = 1
-	}
-	limit := req.Limit
-	if limit <= 0 {
-		limit = 10
-	}
-
 	meta := response.Meta{
-		Page:  page,
-		Limit: limit,
+		Page:  req.Page,
+		Limit: req.Limit,
 		Total: int(total),
 	}
 
 	response.SuccessWithMeta(c, http.StatusOK, "Persons retrieved successfully", persons, meta)
 }
 
+// -----------------------------------------------------------------------------
 // PUT /persons/:id
+// -----------------------------------------------------------------------------
+
 func (h *PersonHandler) UpdatePerson(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		response.Error(c, http.StatusBadRequest, "Invalid person ID", err)
+	id, ok := parsePersonID(c)
+	if !ok {
 		return
 	}
 
 	var req dto.UpdatePersonRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, "Invalid request payload", err)
+		HandleBadRequest(c, "Invalid request payload")
 		return
 	}
 
 	updatedPerson, err := h.personService.Update(c.Request.Context(), id, &req)
 	if err != nil {
-		log.Printf("[SERVICE ERROR] UpdatePerson failed: %v", err)
-		switch {
-		case errors.Is(err, exception.ErrPersonNotFound):
-			response.Error(c, http.StatusNotFound, "Person not found", err)
-
-		case errors.Is(err, exception.ErrDatabase):
-			response.Error(c, http.StatusInternalServerError, "Internal database error occurred", err)
-
-		default:
-			response.Error(c, http.StatusInternalServerError, "An unexpected error occurred", err)
-		}
+		Handle(c, err)
 		return
 	}
 
 	response.Success(c, http.StatusOK, "Person updated successfully", updatedPerson)
 }
 
+// -----------------------------------------------------------------------------
 // DELETE /persons/:id
+// -----------------------------------------------------------------------------
+
 func (h *PersonHandler) DeletePerson(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		response.Error(c, http.StatusBadRequest, "Invalid person ID", err)
+	id, ok := parsePersonID(c)
+	if !ok {
 		return
 	}
 
 	if err := h.personService.Delete(c.Request.Context(), id); err != nil {
-		log.Printf("[SERVICE ERROR] DeletePerson failed: %v", err)
-		switch {
-		case errors.Is(err, exception.ErrPersonNotFound):
-			response.Error(c, http.StatusNotFound, "Person not found", err)
-
-		case errors.Is(err, exception.ErrDatabase):
-			response.Error(c, http.StatusInternalServerError, "Internal database error occurred", err)
-
-		default:
-			response.Error(c, http.StatusInternalServerError, "An unexpected error occurred", err)
-		}
+		Handle(c, err)
 		return
 	}
 
 	response.Success(c, http.StatusOK, "Person deleted successfully", nil)
 }
 
+// -----------------------------------------------------------------------------
 // POST /persons/:id/image
+// -----------------------------------------------------------------------------
+
 func (h *PersonHandler) UploadImage(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		response.Error(c, http.StatusBadRequest, "Invalid person ID", err)
+	id, ok := parsePersonID(c)
+	if !ok {
 		return
 	}
 
 	fileHeader, err := c.FormFile("image")
 	if err != nil {
-		response.Error(c, http.StatusBadRequest, "Image file is required", err)
+		HandleBadRequest(c, "Image file is required")
 		return
 	}
 
-	const maxFileSize = 5 * 1024 * 1024 // 5 MB
-	if fileHeader.Size > maxFileSize {
-		response.Error(c, http.StatusBadRequest, "File size exceeds limit (Max 5MB)", exception.ErrFileSizeTooLarge)
+	if fileHeader.Size > maxPersonImageSize {
+		Handle(c, exception.ErrFileSizeTooLarge)
 		return
 	}
 
 	file, err := fileHeader.Open()
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, "Failed to read image file", err)
+		Handle(c, exception.ErrInternal)
 		return
 	}
 	defer file.Close()
 
-	buff := make([]byte, 512)
-	if _, err := file.Read(buff); err != nil {
-		response.Error(c, http.StatusBadRequest, "Failed to inspect file format", err)
-		return
-	}
-	fileType := http.DetectContentType(buff)
-	if fileType != "image/jpeg" && fileType != "image/png" && fileType != "image/webp" {
-		response.Error(c, http.StatusBadRequest, "Only JPG, PNG and WebP formats are allowed", exception.ErrInvalidFileType)
-		return
-	}
-
-	if _, err := file.Seek(0, 0); err != nil {
-		response.Error(c, http.StatusInternalServerError, "Failed to reset file stream", err)
-		return
-	}
-
 	person, err := h.personService.UploadImage(c.Request.Context(), id, file)
 	if err != nil {
-		log.Printf("[SERVICE ERROR] UploadImage failed: %v", err)
-		switch {
-		case errors.Is(err, exception.ErrPersonNotFound):
-			response.Error(c, http.StatusNotFound, "Person not found", err)
-
-		case errors.Is(err, exception.ErrInvalidFileType):
-			response.Error(c, http.StatusBadRequest, "Invalid image format", err)
-
-		case errors.Is(err, exception.ErrDatabase):
-			response.Error(c, http.StatusInternalServerError, "Internal database error occurred", err)
-
-		default:
-			response.Error(c, http.StatusInternalServerError, "Failed to upload image", err)
-		}
+		Handle(c, err)
 		return
 	}
 
 	response.Success(c, http.StatusOK, "Person image uploaded successfully", person)
 }
 
+// -----------------------------------------------------------------------------
 // DELETE /persons/:id/image
+// -----------------------------------------------------------------------------
+
 func (h *PersonHandler) DeleteImage(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		response.Error(c, http.StatusBadRequest, "Invalid person ID", err)
+	id, ok := parsePersonID(c)
+	if !ok {
 		return
 	}
 
 	if err := h.personService.DeleteImage(c.Request.Context(), id); err != nil {
-		log.Printf("[SERVICE ERROR] DeleteImage failed: %v", err)
-		switch {
-		case errors.Is(err, exception.ErrPersonNotFound):
-			response.Error(c, http.StatusNotFound, "Person not found", err)
-
-		case errors.Is(err, exception.ErrDatabase):
-			response.Error(c, http.StatusInternalServerError, "Internal database error occurred", err)
-
-		default:
-			response.Error(c, http.StatusInternalServerError, "Failed to delete image", err)
-		}
+		Handle(c, err)
 		return
 	}
 

@@ -34,6 +34,10 @@ const (
 	CodeMovieAlreadyExists ErrorCode = "MOVIE_ALREADY_EXISTS"
 	CodeInvalidFileType    ErrorCode = "INVALID_FILE_TYPE"
 	CodeFileSizeTooLarge   ErrorCode = "FILE_SIZE_TOO_LARGE"
+
+	CodeGenreAlreadyExists  ErrorCode = "GENRE_ALREADY_EXISTS"
+	CodePersonAlreadyExists ErrorCode = "PERSON_ALREADY_EXISTS"
+	CodeResourceInUse       ErrorCode = "RESOURCE_IN_USE"
 )
 
 type ErrorKind string
@@ -202,6 +206,24 @@ var ErrInternal = &AppError{
 	Code:    CodeInternal,
 	Kind:    KindInternal,
 	Message: "internal server error",
+}
+
+var ErrGenreAlreadyExists = &AppError{
+	Code:    CodeGenreAlreadyExists,
+	Kind:    KindConflict,
+	Message: "genre already exists",
+}
+
+var ErrPersonAlreadyExists = &AppError{
+	Code:    CodePersonAlreadyExists,
+	Kind:    KindConflict,
+	Message: "person already exists",
+}
+
+var ErrResourceInUse = &AppError{
+	Code:    CodeResourceInUse,
+	Kind:    KindConflict,
+	Message: "resource is in use and cannot be modified or deleted",
 }
 
 var ErrInvalidInput = &AppError{
