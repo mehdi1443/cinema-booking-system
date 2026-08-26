@@ -16,10 +16,6 @@ import (
 	"gorm.io/gorm"
 )
 
-func strPtr(s string) *string {
-	return &s
-}
-
 type RoleSeeder struct {
 	superAdmin bootstrap.SuperUser
 	userRepo   repository_contract.UserInterface
@@ -69,7 +65,7 @@ func (s *RoleSeeder) seedPermissions(ctx context.Context) (map[enum.PermissionTy
 		permName := permType.String()
 		perm, err := s.rbacRepo.FindPermissionByName(ctx, permName)
 		if err != nil && !errors.Is(err, exception.ErrPermissionNotFound) {
-			return nil, err
+			return nil, fmt.Errorf("find permission %s: %w", permName, err)
 		}
 
 		if errors.Is(err, exception.ErrPermissionNotFound) {
@@ -80,7 +76,7 @@ func (s *RoleSeeder) seedPermissions(ctx context.Context) (map[enum.PermissionTy
 				Description: permType.Description(),
 			}
 			if err := s.rbacRepo.CreatePermission(ctx, perm); err != nil {
-				return nil, err
+				return nil, fmt.Errorf("create permission %s: %w", permName, err)
 			}
 		}
 		permMap[permType] = perm
@@ -98,7 +94,7 @@ func (s *RoleSeeder) seedRolesWithPermissions(
 	for _, roleEnum := range enum.GetAllRoles() {
 		role, err := s.rbacRepo.FindRoleByName(ctx, roleEnum.String())
 		if err != nil && !errors.Is(err, exception.ErrRoleNotFound) {
-			return nil, err
+			return nil, fmt.Errorf("find role %s: %w", roleEnum.String(), err)
 		}
 
 		if errors.Is(err, exception.ErrRoleNotFound) {
@@ -107,7 +103,7 @@ func (s *RoleSeeder) seedRolesWithPermissions(
 				Title: roleEnum.Title(),
 			}
 			if err := s.rbacRepo.CreateRole(ctx, role); err != nil {
-				return nil, err
+				return nil, fmt.Errorf("create role %s: %w", roleEnum.String(), err)
 			}
 		}
 		roleMap[roleEnum] = role
@@ -116,12 +112,12 @@ func (s *RoleSeeder) seedRolesWithPermissions(
 			if permType == enum.PermissionAll {
 				for _, perm := range permMap {
 					if err := s.appendPermissionIfNotExist(ctx, role.ID, perm.ID); err != nil {
-						return nil, err
+						return nil, fmt.Errorf("append perm to role: %w", err)
 					}
 				}
 			} else if perm, exists := permMap[permType]; exists {
 				if err := s.appendPermissionIfNotExist(ctx, role.ID, perm.ID); err != nil {
-					return nil, err
+					return nil, fmt.Errorf("append perm to role: %w", err)
 				}
 			}
 		}
@@ -150,7 +146,7 @@ func (s *RoleSeeder) seedSuperAdmin(ctx context.Context, adminRole *entity.Role)
 	if errors.Is(err, exception.ErrUserNotFound) {
 		hashedPassword, err := s.hasher.Hash(s.superAdmin.Password)
 		if err != nil {
-			return fmt.Errorf("failed to hash password: %w", err)
+			return fmt.Errorf("hash password: %w", err)
 		}
 
 		user = &entity.User{

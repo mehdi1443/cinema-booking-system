@@ -11,6 +11,7 @@ type RandomGeneratorEngine struct{}
 func NewRandomGeneratorEngine() *RandomGeneratorEngine {
 	return &RandomGeneratorEngine{}
 }
+
 func (rge *RandomGeneratorEngine) GenerateRandomNumber(digits int) int {
 	if digits <= 0 {
 		return 0

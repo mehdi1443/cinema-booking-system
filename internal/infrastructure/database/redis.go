@@ -37,7 +37,7 @@ func NewRedisDatabase(redisConfig *bootstrap.Redis, redisConst *bootstrap.RedisC
 		})
 		_, err := rdb.Ping(context.Background()).Result()
 		if err != nil {
-			log.Fatal("Error connecting to Redis:", err)
+			log.Fatalf("Critical error: failed connecting to Redis at %s: %v", address, err)
 		}
 		rdbInstance = &RedisDatabase{rdb: rdb, rdb_const: redisConst}
 	})

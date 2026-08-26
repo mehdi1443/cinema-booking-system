@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	"log"
 	"sync"
 
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
@@ -37,12 +38,12 @@ func NewPostgresDatabase(dbConfig *bootstrap.DataBase, dbConst *bootstrap.DBCons
 
 		db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 		if err != nil {
-			panic(fmt.Errorf("failed to connect database: %w", err))
+			log.Fatalf("Critical error: failed to connect to Postgres DB '%s': %v", dbConfig.Name, err)
 		}
 
 		sqlDB, err := db.DB()
 		if err != nil {
-			panic(fmt.Errorf("failed to get sql.DB from gorm: %w", err))
+			log.Fatalf("Critical error: failed to get sql.DB from gorm: %v", err)
 		}
 
 		sqlDB.SetMaxOpenConns(int(dbConst.MaxOpenDbConn))
