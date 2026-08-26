@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
@@ -21,13 +23,49 @@ func NewCommentRepository(db database.Database) DB.CommentInterface {
 	return &commentRepository{db: db}
 }
 
+func handleCommentDBError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return fmt.Errorf("duplicate comment key: %w", exception.ErrCommentAlreadyExists)
+	}
+
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch pgErr.Code {
+		case "23505": // unique_violation
+			return fmt.Errorf("postgres unique violation: %w", exception.ErrCommentAlreadyExists)
+		case "23503": // foreign_key_violation
+			constraint := strings.ToLower(pgErr.ConstraintName)
+			detail := strings.ToLower(pgErr.Detail)
+
+			if strings.Contains(constraint, "user") || strings.Contains(detail, "user_id") {
+				return fmt.Errorf("user foreign key violation: %w", exception.ErrUserNotFound)
+			}
+			if strings.Contains(constraint, "movie") || strings.Contains(detail, "movie_id") {
+				return fmt.Errorf("movie foreign key violation: %w", exception.ErrMovieNotFound)
+			}
+			if strings.Contains(constraint, "cinema") || strings.Contains(detail, "cinema_id") {
+				return fmt.Errorf("cinema foreign key violation: %w", exception.ErrCinemaNotFound)
+			}
+			if strings.Contains(constraint, "parent") || strings.Contains(detail, "parent_id") {
+				return fmt.Errorf("parent comment foreign key violation: %w", exception.ErrCommentNotFound)
+			}
+			return fmt.Errorf("unknown foreign key violation: %w", exception.ErrDatabase)
+		case "23502", "23514", "40001", "40P01":
+			return fmt.Errorf("database constraint/transaction error: %w", exception.ErrDatabase)
+		}
+	}
+
+	return fmt.Errorf("comment database operation failed: %w", exception.ErrDatabase)
+}
+
 func (r *commentRepository) Create(ctx context.Context, comment *entity.Comment) (*entity.Comment, error) {
 	err := r.db.GetDB().WithContext(ctx).Omit("ID", "User", "Movie", "Cinema", "Parent", "Replies").Create(comment).Error
 	if err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return nil, exception.ErrDuplicateKey
-		}
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, handleCommentDBError(err)
 	}
 
 	return r.GetByID(ctx, comment.ID)
@@ -44,7 +82,7 @@ func (r *commentRepository) GetByID(ctx context.Context, id int64) (*entity.Comm
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, exception.ErrCommentNotFound
 		}
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, handleCommentDBError(err)
 	}
 
 	return &comment, nil
@@ -65,7 +103,7 @@ func (r *commentRepository) GetByMovieID(ctx context.Context, movieID int64, lim
 
 	err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&comments).Error
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, handleCommentDBError(err)
 	}
 
 	return comments, nil
@@ -86,7 +124,7 @@ func (r *commentRepository) GetByCinemaID(ctx context.Context, cinemaID int64, l
 
 	err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&comments).Error
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, handleCommentDBError(err)
 	}
 
 	return comments, nil
@@ -104,7 +142,7 @@ func (r *commentRepository) GetRepliesByParentID(ctx context.Context, parentID i
 
 	err := query.Order("created_at ASC").Limit(limit).Offset(offset).Find(&replies).Error
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, handleCommentDBError(err)
 	}
 
 	return replies, nil
@@ -123,7 +161,7 @@ func (r *commentRepository) Update(ctx context.Context, comment *entity.Comment)
 		Updates(updateData)
 
 	if res.Error != nil {
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, res.Error)
+		return nil, handleCommentDBError(res.Error)
 	}
 
 	if res.RowsAffected == 0 {
@@ -140,7 +178,7 @@ func (r *commentRepository) UpdateStatus(ctx context.Context, id int64, status e
 		Update("status", status)
 
 	if res.Error != nil {
-		return fmt.Errorf("%w: %v", exception.ErrDatabase, res.Error)
+		return handleCommentDBError(res.Error)
 	}
 
 	if res.RowsAffected == 0 {
@@ -153,7 +191,7 @@ func (r *commentRepository) UpdateStatus(ctx context.Context, id int64, status e
 func (r *commentRepository) Delete(ctx context.Context, id int64) error {
 	res := r.db.GetDB().WithContext(ctx).Delete(&entity.Comment{}, id)
 	if res.Error != nil {
-		return fmt.Errorf("%w: %v", exception.ErrDatabase, res.Error)
+		return handleCommentDBError(res.Error)
 	}
 
 	if res.RowsAffected == 0 {
@@ -176,7 +214,7 @@ func (r *commentRepository) AddVote(ctx context.Context, vote *entity.CommentVot
 			}
 
 			if err := tx.Model(&existing).Where("user_id = ? AND comment_id = ?", vote.UserID, vote.CommentID).Update("vote", vote.Vote).Error; err != nil {
-				return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+				return handleCommentDBError(err)
 			}
 
 			var likesDiff, dislikesDiff int
@@ -191,18 +229,18 @@ func (r *commentRepository) AddVote(ctx context.Context, vote *entity.CommentVot
 				"dislikes_count": gorm.Expr("dislikes_count + ?", dislikesDiff),
 			}).Error
 			if err != nil {
-				return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+				return handleCommentDBError(err)
 			}
 
 			return nil
 		}
 
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+			return handleCommentDBError(err)
 		}
 
 		if err := tx.Create(vote).Error; err != nil {
-			return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+			return handleCommentDBError(err)
 		}
 
 		column := "likes_count"
@@ -213,7 +251,7 @@ func (r *commentRepository) AddVote(ctx context.Context, vote *entity.CommentVot
 		err = tx.Model(&entity.Comment{}).Where("id = ?", vote.CommentID).
 			UpdateColumn(column, gorm.Expr(column+" + ?", 1)).Error
 		if err != nil {
-			return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+			return handleCommentDBError(err)
 		}
 
 		return nil
@@ -230,11 +268,11 @@ func (r *commentRepository) RemoveVote(ctx context.Context, userID int64, commen
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil
 			}
-			return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+			return handleCommentDBError(err)
 		}
 
 		if err := tx.Where("user_id = ? AND comment_id = ?", userID, commentID).Delete(&entity.CommentVote{}).Error; err != nil {
-			return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+			return handleCommentDBError(err)
 		}
 
 		column := "likes_count"
@@ -245,7 +283,7 @@ func (r *commentRepository) RemoveVote(ctx context.Context, userID int64, commen
 		err = tx.Model(&entity.Comment{}).Where("id = ?", commentID).
 			UpdateColumn(column, gorm.Expr("GREATEST("+column+" - 1, 0)")).Error
 		if err != nil {
-			return fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+			return handleCommentDBError(err)
 		}
 
 		return nil
@@ -262,7 +300,7 @@ func (r *commentRepository) GetUserVote(ctx context.Context, userID int64, comme
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, handleCommentDBError(err)
 	}
 
 	return &vote, nil
@@ -281,7 +319,7 @@ func (r *commentRepository) GetListAdmin(ctx context.Context, status *enum.Comme
 
 	err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&comments).Error
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, handleCommentDBError(err)
 	}
 
 	return comments, nil

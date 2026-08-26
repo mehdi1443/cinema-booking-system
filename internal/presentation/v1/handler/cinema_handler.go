@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
@@ -21,19 +20,6 @@ func NewCinemaHandler(cinemaService service_contract.CinemaServiceInterface) *Ci
 	return &CinemaHandler{
 		cinemaService: cinemaService,
 	}
-}
-
-// -----------------------------------------------------------------------------
-// Helpers
-// -----------------------------------------------------------------------------
-
-func parseCinemaID(c *gin.Context) (int64, bool) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil || id <= 0 {
-		HandleBadRequest(c, "Invalid cinema ID")
-		return 0, false
-	}
-	return id, true
 }
 
 // -----------------------------------------------------------------------------
@@ -61,7 +47,7 @@ func (h *CinemaHandler) CreateCinema(c *gin.Context) {
 // -----------------------------------------------------------------------------
 
 func (h *CinemaHandler) GetCinemaByID(c *gin.Context) {
-	id, ok := parseCinemaID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
@@ -108,7 +94,7 @@ func (h *CinemaHandler) GetCinemas(c *gin.Context) {
 // -----------------------------------------------------------------------------
 
 func (h *CinemaHandler) UpdateCinema(c *gin.Context) {
-	id, ok := parseCinemaID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
@@ -133,7 +119,7 @@ func (h *CinemaHandler) UpdateCinema(c *gin.Context) {
 // -----------------------------------------------------------------------------
 
 func (h *CinemaHandler) DeleteCinema(c *gin.Context) {
-	id, ok := parseCinemaID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
@@ -151,7 +137,7 @@ func (h *CinemaHandler) DeleteCinema(c *gin.Context) {
 // -----------------------------------------------------------------------------
 
 func (h *CinemaHandler) UploadImage(c *gin.Context) {
-	id, ok := parseCinemaID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
@@ -188,7 +174,7 @@ func (h *CinemaHandler) UploadImage(c *gin.Context) {
 // -----------------------------------------------------------------------------
 
 func (h *CinemaHandler) DeleteImage(c *gin.Context) {
-	id, ok := parseCinemaID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}

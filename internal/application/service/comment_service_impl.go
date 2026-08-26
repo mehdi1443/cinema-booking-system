@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
@@ -22,7 +24,16 @@ func NewCommentService(commentRepo repository_contract.CommentInterface) service
 }
 
 func (s *commentService) Create(ctx context.Context, userID int64, req *dto.CreateCommentRequest) (*dto.CommentResponse, error) {
+	if req == nil || userID <= 0 {
+		return nil, exception.ErrInvalidInput
+	}
+
 	if req.MovieID == nil && req.CinemaID == nil && req.ParentID == nil {
+		return nil, exception.ErrInvalidInput
+	}
+
+	trimmedBody := strings.TrimSpace(req.Body)
+	if trimmedBody == "" {
 		return nil, exception.ErrInvalidInput
 	}
 
@@ -31,137 +42,190 @@ func (s *commentService) Create(ctx context.Context, userID int64, req *dto.Crea
 		MovieID:  req.MovieID,
 		CinemaID: req.CinemaID,
 		ParentID: req.ParentID,
-		Body:     req.Body,
+		Body:     trimmedBody,
 		Status:   enum.CommentStatusPending,
 	}
 
 	createdComment, err := s.commentRepo.Create(ctx, comment)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create comment: %w", err)
 	}
 
 	return dto.ToCommentResponse(createdComment, nil), nil
 }
 
 func (s *commentService) GetByID(ctx context.Context, id int64) (*dto.CommentResponse, error) {
+	if id <= 0 {
+		return nil, exception.ErrInvalidInput
+	}
+
 	comment, err := s.commentRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get comment by id %d: %w", id, err)
 	}
 
 	return dto.ToCommentResponse(comment, nil), nil
 }
 
 func (s *commentService) GetByMovieID(ctx context.Context, movieID int64, currentUserID *int64, page, limit int) ([]*dto.CommentResponse, error) {
+	if movieID <= 0 {
+		return nil, exception.ErrInvalidInput
+	}
+
 	page, limit, offset := normalizePagination(page, limit)
 
-	// ارسال هم‌زمان وضعیت‌های Published و Spoiler
 	comments, err := s.commentRepo.GetByMovieID(ctx, movieID, limit, offset, enum.CommentStatusPublished, enum.CommentStatusSpoiler)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get comments by movie %d: %w", movieID, err)
 	}
 
 	return s.enrichCommentsWithVotes(ctx, comments, currentUserID)
 }
 
 func (s *commentService) GetByMovieIDAdmin(ctx context.Context, movieID int64, page, limit int) ([]*dto.CommentResponse, error) {
+	if movieID <= 0 {
+		return nil, exception.ErrInvalidInput
+	}
+
 	page, limit, offset := normalizePagination(page, limit)
 
 	comments, err := s.commentRepo.GetByMovieID(ctx, movieID, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("admin get comments by movie %d: %w", movieID, err)
 	}
 
 	return s.enrichCommentsWithVotes(ctx, comments, nil)
 }
 
 func (s *commentService) GetByCinemaID(ctx context.Context, cinemaID int64, currentUserID *int64, page, limit int) ([]*dto.CommentResponse, error) {
+	if cinemaID <= 0 {
+		return nil, exception.ErrInvalidInput
+	}
+
 	page, limit, offset := normalizePagination(page, limit)
 
-	// ارسال هم‌زمان وضعیت‌های Published و Spoiler
 	comments, err := s.commentRepo.GetByCinemaID(ctx, cinemaID, limit, offset, enum.CommentStatusPublished, enum.CommentStatusSpoiler)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get comments by cinema %d: %w", cinemaID, err)
 	}
 
 	return s.enrichCommentsWithVotes(ctx, comments, currentUserID)
 }
 
 func (s *commentService) GetByCinemaIDAdmin(ctx context.Context, cinemaID int64, page, limit int) ([]*dto.CommentResponse, error) {
+	if cinemaID <= 0 {
+		return nil, exception.ErrInvalidInput
+	}
+
 	page, limit, offset := normalizePagination(page, limit)
 
 	comments, err := s.commentRepo.GetByCinemaID(ctx, cinemaID, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("admin get comments by cinema %d: %w", cinemaID, err)
 	}
 
 	return s.enrichCommentsWithVotes(ctx, comments, nil)
 }
 
 func (s *commentService) GetReplies(ctx context.Context, parentID int64, page, limit int) ([]*dto.CommentResponse, error) {
+	if parentID <= 0 {
+		return nil, exception.ErrInvalidInput
+	}
+
 	page, limit, offset := normalizePagination(page, limit)
 
-	// ارسال هم‌زمان وضعیت‌های Published و Spoiler
 	replies, err := s.commentRepo.GetRepliesByParentID(ctx, parentID, limit, offset, enum.CommentStatusPublished, enum.CommentStatusSpoiler)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get comment replies %d: %w", parentID, err)
 	}
 
 	return dto.ToCommentResponseSlice(replies), nil
 }
 
 func (s *commentService) GetRepliesAdmin(ctx context.Context, parentID int64, page, limit int) ([]*dto.CommentResponse, error) {
+	if parentID <= 0 {
+		return nil, exception.ErrInvalidInput
+	}
+
 	page, limit, offset := normalizePagination(page, limit)
 
 	replies, err := s.commentRepo.GetRepliesByParentID(ctx, parentID, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("admin get comment replies %d: %w", parentID, err)
 	}
 
 	return dto.ToCommentResponseSlice(replies), nil
 }
 
 func (s *commentService) Update(ctx context.Context, userID int64, commentID int64, req *dto.UpdateCommentRequest) (*dto.CommentResponse, error) {
+	if req == nil || userID <= 0 || commentID <= 0 {
+		return nil, exception.ErrInvalidInput
+	}
+
+	trimmedBody := strings.TrimSpace(req.Body)
+	if trimmedBody == "" {
+		return nil, exception.ErrInvalidInput
+	}
+
 	comment, err := s.commentRepo.GetByID(ctx, commentID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get comment before update %d: %w", commentID, err)
 	}
 
 	if comment.UserID != userID {
-		return nil, exception.ErrUnauthorized
+		return nil, exception.ErrNoteAccessible
 	}
 
-	comment.Body = req.Body
+	comment.Body = trimmedBody
 
 	updatedComment, err := s.commentRepo.Update(ctx, comment)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("update comment %d: %w", commentID, err)
 	}
 
 	return dto.ToCommentResponse(updatedComment, nil), nil
 }
 
 func (s *commentService) UpdateStatus(ctx context.Context, commentID int64, status enum.CommentStatus) error {
-	return s.commentRepo.UpdateStatus(ctx, commentID, status)
+	if commentID <= 0 || !status.IsValid() {
+		return exception.ErrInvalidInput
+	}
+
+	if err := s.commentRepo.UpdateStatus(ctx, commentID, status); err != nil {
+		return fmt.Errorf("update comment status %d: %w", commentID, err)
+	}
+	return nil
 }
 
 func (s *commentService) Delete(ctx context.Context, userID int64, commentID int64) error {
+	if userID <= 0 || commentID <= 0 {
+		return exception.ErrInvalidInput
+	}
+
 	comment, err := s.commentRepo.GetByID(ctx, commentID)
 	if err != nil {
-		return err
+		return fmt.Errorf("get comment before delete %d: %w", commentID, err)
 	}
 
 	if comment.UserID != userID {
-		return exception.ErrUnauthorized
+		return exception.ErrNoteAccessible
 	}
 
-	return s.commentRepo.Delete(ctx, commentID)
+	if err := s.commentRepo.Delete(ctx, commentID); err != nil {
+		return fmt.Errorf("delete comment %d: %w", commentID, err)
+	}
+
+	return nil
 }
 
 func (s *commentService) Vote(ctx context.Context, userID int64, commentID int64, vote enum.VoteType) error {
+	if userID <= 0 || commentID <= 0 {
+		return exception.ErrInvalidInput
+	}
+
 	_, err := s.commentRepo.GetByID(ctx, commentID)
 	if err != nil {
-		return err
+		return fmt.Errorf("get comment before vote %d: %w", commentID, err)
 	}
 
 	commentVote := &entity.CommentVote{
@@ -170,11 +234,22 @@ func (s *commentService) Vote(ctx context.Context, userID int64, commentID int64
 		Vote:      vote,
 	}
 
-	return s.commentRepo.AddVote(ctx, commentVote)
+	if err := s.commentRepo.AddVote(ctx, commentVote); err != nil {
+		return fmt.Errorf("add vote to comment %d: %w", commentID, err)
+	}
+
+	return nil
 }
 
 func (s *commentService) RemoveVote(ctx context.Context, userID int64, commentID int64) error {
-	return s.commentRepo.RemoveVote(ctx, userID, commentID)
+	if userID <= 0 || commentID <= 0 {
+		return exception.ErrInvalidInput
+	}
+
+	if err := s.commentRepo.RemoveVote(ctx, userID, commentID); err != nil {
+		return fmt.Errorf("remove vote from comment %d: %w", commentID, err)
+	}
+	return nil
 }
 
 func normalizePagination(page, limit int) (int, int, int) {
@@ -192,7 +267,7 @@ func (s *commentService) enrichCommentsWithVotes(ctx context.Context, comments [
 	responses := make([]*dto.CommentResponse, 0, len(comments))
 	for i := range comments {
 		var userVote *enum.VoteType
-		if currentUserID != nil {
+		if currentUserID != nil && *currentUserID > 0 {
 			vote, err := s.commentRepo.GetUserVote(ctx, *currentUserID, comments[i].ID)
 			if err == nil && vote != nil {
 				userVote = &vote.Vote
@@ -208,7 +283,7 @@ func (s *commentService) GetListAdmin(ctx context.Context, status *enum.CommentS
 
 	comments, err := s.commentRepo.GetListAdmin(ctx, status, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("admin get comment list: %w", err)
 	}
 
 	return s.enrichCommentsWithVotes(ctx, comments, nil)

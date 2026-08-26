@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
@@ -21,19 +20,6 @@ func NewPersonHandler(personService service_contract.PersonServiceInterface) *Pe
 	return &PersonHandler{
 		personService: personService,
 	}
-}
-
-// -----------------------------------------------------------------------------
-// Helpers
-// -----------------------------------------------------------------------------
-
-func parsePersonID(c *gin.Context) (int64, bool) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil || id <= 0 {
-		HandleBadRequest(c, "Invalid person ID")
-		return 0, false
-	}
-	return id, true
 }
 
 // -----------------------------------------------------------------------------
@@ -61,7 +47,7 @@ func (h *PersonHandler) CreatePerson(c *gin.Context) {
 // -----------------------------------------------------------------------------
 
 func (h *PersonHandler) GetPersonByID(c *gin.Context) {
-	id, ok := parsePersonID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
@@ -108,7 +94,7 @@ func (h *PersonHandler) GetPersons(c *gin.Context) {
 // -----------------------------------------------------------------------------
 
 func (h *PersonHandler) UpdatePerson(c *gin.Context) {
-	id, ok := parsePersonID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
@@ -133,7 +119,7 @@ func (h *PersonHandler) UpdatePerson(c *gin.Context) {
 // -----------------------------------------------------------------------------
 
 func (h *PersonHandler) DeletePerson(c *gin.Context) {
-	id, ok := parsePersonID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
@@ -151,7 +137,7 @@ func (h *PersonHandler) DeletePerson(c *gin.Context) {
 // -----------------------------------------------------------------------------
 
 func (h *PersonHandler) UploadImage(c *gin.Context) {
-	id, ok := parsePersonID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
@@ -188,7 +174,7 @@ func (h *PersonHandler) UploadImage(c *gin.Context) {
 // -----------------------------------------------------------------------------
 
 func (h *PersonHandler) DeleteImage(c *gin.Context) {
-	id, ok := parsePersonID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}

@@ -20,28 +20,6 @@ func NewAddressHandler(addressService service_contract.AddressServiceInterface) 
 	}
 }
 
-// -----------------------------------------------------------------------------
-// Helpers
-// -----------------------------------------------------------------------------
-
-func parseProvinceID(c *gin.Context) (int64, bool) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil || id <= 0 {
-		HandleBadRequest(c, "Invalid province ID")
-		return 0, false
-	}
-	return id, true
-}
-
-func parseCityID(c *gin.Context) (int64, bool) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil || id <= 0 {
-		HandleBadRequest(c, "Invalid city ID")
-		return 0, false
-	}
-	return id, true
-}
-
 // ==================== Province Endpoints ====================
 
 func (h *AddressHandler) CreateProvince(c *gin.Context) {
@@ -61,7 +39,7 @@ func (h *AddressHandler) CreateProvince(c *gin.Context) {
 }
 
 func (h *AddressHandler) GetProvinceByID(c *gin.Context) {
-	id, ok := parseProvinceID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
@@ -86,7 +64,7 @@ func (h *AddressHandler) GetAllProvinces(c *gin.Context) {
 }
 
 func (h *AddressHandler) UpdateProvince(c *gin.Context) {
-	id, ok := parseProvinceID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
@@ -107,7 +85,7 @@ func (h *AddressHandler) UpdateProvince(c *gin.Context) {
 }
 
 func (h *AddressHandler) DeleteProvince(c *gin.Context) {
-	id, ok := parseProvinceID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
@@ -139,7 +117,7 @@ func (h *AddressHandler) CreateCity(c *gin.Context) {
 }
 
 func (h *AddressHandler) GetCityByID(c *gin.Context) {
-	id, ok := parseCityID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
@@ -183,7 +161,7 @@ func (h *AddressHandler) GetCities(c *gin.Context) {
 }
 
 func (h *AddressHandler) UpdateCity(c *gin.Context) {
-	id, ok := parseCityID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
@@ -204,7 +182,7 @@ func (h *AddressHandler) UpdateCity(c *gin.Context) {
 }
 
 func (h *AddressHandler) DeleteCity(c *gin.Context) {
-	id, ok := parseCityID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}

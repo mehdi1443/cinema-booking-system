@@ -6,6 +6,7 @@ import (
 
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 )
 
@@ -22,38 +23,58 @@ func NewFavoriteService(
 }
 
 func (s *favoriteService) AddMovieToFavorites(ctx context.Context, userID int64, req *dto.AddFavoriteMovieRequest) (*dto.FavoriteResponse, error) {
+	if req == nil || userID <= 0 || req.MovieID <= 0 {
+		return nil, exception.ErrInvalidInput
+	}
+
 	favorite, err := s.favoriteRepo.AddMovieToFavorites(ctx, userID, req.MovieID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to add movie to favorites: %w", err)
+		return nil, fmt.Errorf("add movie to favorites: %w", err)
 	}
 
 	return dto.ToFavoriteResponse(favorite), nil
 }
 
 func (s *favoriteService) RemoveMovieFromFavorites(ctx context.Context, userID int64, movieID int64) error {
+	if userID <= 0 || movieID <= 0 {
+		return exception.ErrInvalidInput
+	}
+
 	if err := s.favoriteRepo.RemoveMovieFromFavorites(ctx, userID, movieID); err != nil {
-		return fmt.Errorf("failed to remove movie from favorites: %w", err)
+		return fmt.Errorf("remove movie from favorites %d: %w", movieID, err)
 	}
 	return nil
 }
 
 func (s *favoriteService) AddCinemaToFavorites(ctx context.Context, userID int64, req *dto.AddFavoriteCinemaRequest) (*dto.FavoriteResponse, error) {
+	if req == nil || userID <= 0 || req.CinemaID <= 0 {
+		return nil, exception.ErrInvalidInput
+	}
+
 	favorite, err := s.favoriteRepo.AddCinemaToFavorites(ctx, userID, req.CinemaID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to add cinema to favorites: %w", err)
+		return nil, fmt.Errorf("add cinema to favorites: %w", err)
 	}
 
 	return dto.ToFavoriteResponse(favorite), nil
 }
 
 func (s *favoriteService) RemoveCinemaFromFavorites(ctx context.Context, userID int64, cinemaID int64) error {
+	if userID <= 0 || cinemaID <= 0 {
+		return exception.ErrInvalidInput
+	}
+
 	if err := s.favoriteRepo.RemoveCinemaFromFavorites(ctx, userID, cinemaID); err != nil {
-		return fmt.Errorf("failed to remove cinema from favorites: %w", err)
+		return fmt.Errorf("remove cinema from favorites %d: %w", cinemaID, err)
 	}
 	return nil
 }
 
 func (s *favoriteService) GetUserFavorites(ctx context.Context, userID int64, req *dto.FavoriteFilterRequest) (*dto.FavoriteListWithCountResponse, error) {
+	if req == nil || userID <= 0 {
+		return nil, exception.ErrInvalidInput
+	}
+
 	filter := repository_contract.FavoriteFilter{
 		UserID: userID,
 		Target: req.Target,
@@ -63,12 +84,12 @@ func (s *favoriteService) GetUserFavorites(ctx context.Context, userID int64, re
 
 	favorites, err := s.favoriteRepo.GetUserFavorites(ctx, filter)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch user favorites: %w", err)
+		return nil, fmt.Errorf("get user favorites: %w", err)
 	}
 
 	total, err := s.favoriteRepo.CountUserFavorites(ctx, filter)
 	if err != nil {
-		return nil, fmt.Errorf("failed to count user favorites: %w", err)
+		return nil, fmt.Errorf("count user favorites: %w", err)
 	}
 
 	return &dto.FavoriteListWithCountResponse{

@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -30,29 +29,6 @@ func NewMovieHandler(
 }
 
 // -----------------------------------------------------------------------------
-// Helpers
-// -----------------------------------------------------------------------------
-
-func parseMovieID(c *gin.Context) (int64, bool) {
-	id, err := strconv.ParseInt(
-		c.Param("id"),
-		10,
-		64,
-	)
-
-	if err != nil || id <= 0 {
-		HandleBadRequest(
-			c,
-			"Invalid movie ID",
-		)
-
-		return 0, false
-	}
-
-	return id, true
-}
-
-// -----------------------------------------------------------------------------
 // POST /movies
 // -----------------------------------------------------------------------------
 
@@ -61,29 +37,18 @@ func (h *MovieHandler) CreateMovie(c *gin.Context) {
 	var req dto.CreateMovieRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		HandleBadRequest(
-			c,
-			"Invalid request payload",
-		)
+		HandleBadRequest(c, "Invalid request payload")
 		return
 	}
 
-	movie, err := h.movieService.Create(
-		c.Request.Context(),
-		&req,
-	)
+	movie, err := h.movieService.Create(c.Request.Context(), &req)
 
 	if err != nil {
 		Handle(c, err)
 		return
 	}
 
-	response.Success(
-		c,
-		http.StatusCreated,
-		"Movie created successfully",
-		movie,
-	)
+	response.Success(c, http.StatusCreated, "Movie created successfully", movie)
 }
 
 // -----------------------------------------------------------------------------
@@ -92,27 +57,19 @@ func (h *MovieHandler) CreateMovie(c *gin.Context) {
 
 func (h *MovieHandler) GetMovieByID(c *gin.Context) {
 
-	id, ok := parseMovieID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
 
-	movie, err := h.movieService.GetByID(
-		c.Request.Context(),
-		id,
-	)
+	movie, err := h.movieService.GetByID(c.Request.Context(), id)
 
 	if err != nil {
 		Handle(c, err)
 		return
 	}
 
-	response.Success(
-		c,
-		http.StatusOK,
-		"Movie retrieved successfully",
-		movie,
-	)
+	response.Success(c, http.StatusOK, "Movie retrieved successfully", movie)
 }
 
 // -----------------------------------------------------------------------------
@@ -124,19 +81,13 @@ func (h *MovieHandler) GetMovies(c *gin.Context) {
 	var req dto.MovieFilterRequest
 
 	if err := c.ShouldBindQuery(&req); err != nil {
-		HandleBadRequest(
-			c,
-			"Invalid filter parameters",
-		)
+		HandleBadRequest(c, "Invalid filter parameters")
 		return
 	}
 
 	req.Normalize()
 
-	movies, total, err := h.movieService.GetMovies(
-		c.Request.Context(),
-		req,
-	)
+	movies, total, err := h.movieService.GetMovies(c.Request.Context(), req)
 
 	if err != nil {
 		Handle(c, err)
@@ -149,13 +100,7 @@ func (h *MovieHandler) GetMovies(c *gin.Context) {
 		Total: int(total),
 	}
 
-	response.SuccessWithMeta(
-		c,
-		http.StatusOK,
-		"Movies retrieved successfully",
-		movies,
-		meta,
-	)
+	response.SuccessWithMeta(c, http.StatusOK, "Movies retrieved successfully", movies, meta)
 }
 
 // -----------------------------------------------------------------------------
@@ -164,7 +109,7 @@ func (h *MovieHandler) GetMovies(c *gin.Context) {
 
 func (h *MovieHandler) UpdateMovie(c *gin.Context) {
 
-	id, ok := parseMovieID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
@@ -172,30 +117,18 @@ func (h *MovieHandler) UpdateMovie(c *gin.Context) {
 	var req dto.UpdateMovieRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		HandleBadRequest(
-			c,
-			"Invalid request payload",
-		)
+		HandleBadRequest(c, "Invalid request payload")
 		return
 	}
 
-	updatedMovie, err := h.movieService.Update(
-		c.Request.Context(),
-		id,
-		&req,
-	)
+	updatedMovie, err := h.movieService.Update(c.Request.Context(), id, &req)
 
 	if err != nil {
 		Handle(c, err)
 		return
 	}
 
-	response.Success(
-		c,
-		http.StatusOK,
-		"Movie updated successfully",
-		updatedMovie,
-	)
+	response.Success(c, http.StatusOK, "Movie updated successfully", updatedMovie)
 }
 
 // -----------------------------------------------------------------------------
@@ -204,26 +137,18 @@ func (h *MovieHandler) UpdateMovie(c *gin.Context) {
 
 func (h *MovieHandler) DeleteMovie(c *gin.Context) {
 
-	id, ok := parseMovieID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
 
-	if err := h.movieService.Delete(
-		c.Request.Context(),
-		id,
-	); err != nil {
+	if err := h.movieService.Delete(c.Request.Context(), id); err != nil {
 
 		Handle(c, err)
 		return
 	}
 
-	response.Success(
-		c,
-		http.StatusOK,
-		"Movie deleted successfully",
-		nil,
-	)
+	response.Success(c, http.StatusOK, "Movie deleted successfully", nil)
 }
 
 // -----------------------------------------------------------------------------
@@ -232,7 +157,7 @@ func (h *MovieHandler) DeleteMovie(c *gin.Context) {
 
 func (h *MovieHandler) UploadPoster(c *gin.Context) {
 
-	id, ok := parseMovieID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
@@ -240,50 +165,32 @@ func (h *MovieHandler) UploadPoster(c *gin.Context) {
 	fileHeader, err := c.FormFile("poster")
 
 	if err != nil {
-		HandleBadRequest(
-			c,
-			"Poster image file is required",
-		)
+		HandleBadRequest(c, "Poster image file is required")
 		return
 	}
 
 	if fileHeader.Size > maxPosterSize {
-		Handle(
-			c,
-			exception.ErrFileSizeTooLarge,
-		)
+		Handle(c, exception.ErrFileSizeTooLarge)
 		return
 	}
 
 	file, err := fileHeader.Open()
 
 	if err != nil {
-		Handle(
-			c,
-			exception.ErrInternal,
-		)
+		Handle(c, exception.ErrInternal)
 		return
 	}
 
 	defer file.Close()
 
-	movie, err := h.movieService.UploadPoster(
-		c.Request.Context(),
-		id,
-		file,
-	)
+	movie, err := h.movieService.UploadPoster(c.Request.Context(), id, file)
 
 	if err != nil {
 		Handle(c, err)
 		return
 	}
 
-	response.Success(
-		c,
-		http.StatusOK,
-		"Movie poster uploaded successfully",
-		movie,
-	)
+	response.Success(c, http.StatusOK, "Movie poster uploaded successfully", movie)
 }
 
 // -----------------------------------------------------------------------------
@@ -292,26 +199,18 @@ func (h *MovieHandler) UploadPoster(c *gin.Context) {
 
 func (h *MovieHandler) DeletePoster(c *gin.Context) {
 
-	id, ok := parseMovieID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
 
-	if err := h.movieService.DeletePoster(
-		c.Request.Context(),
-		id,
-	); err != nil {
+	if err := h.movieService.DeletePoster(c.Request.Context(), id); err != nil {
 
 		Handle(c, err)
 		return
 	}
 
-	response.Success(
-		c,
-		http.StatusOK,
-		"Movie poster deleted successfully",
-		nil,
-	)
+	response.Success(c, http.StatusOK, "Movie poster deleted successfully", nil)
 }
 
 // -----------------------------------------------------------------------------
@@ -320,7 +219,7 @@ func (h *MovieHandler) DeletePoster(c *gin.Context) {
 
 func (h *MovieHandler) UploadTrailer(c *gin.Context) {
 
-	id, ok := parseMovieID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
@@ -328,50 +227,32 @@ func (h *MovieHandler) UploadTrailer(c *gin.Context) {
 	fileHeader, err := c.FormFile("trailer")
 
 	if err != nil {
-		HandleBadRequest(
-			c,
-			"Trailer video file is required",
-		)
+		HandleBadRequest(c, "Trailer video file is required")
 		return
 	}
 
 	if fileHeader.Size > maxTrailerSize {
-		Handle(
-			c,
-			exception.ErrFileSizeTooLarge,
-		)
+		Handle(c, exception.ErrFileSizeTooLarge)
 		return
 	}
 
 	file, err := fileHeader.Open()
 
 	if err != nil {
-		Handle(
-			c,
-			exception.ErrInternal,
-		)
+		Handle(c, exception.ErrInternal)
 		return
 	}
 
 	defer file.Close()
 
-	movie, err := h.movieService.UploadTrailer(
-		c.Request.Context(),
-		id,
-		file,
-	)
+	movie, err := h.movieService.UploadTrailer(c.Request.Context(), id, file)
 
 	if err != nil {
 		Handle(c, err)
 		return
 	}
 
-	response.Success(
-		c,
-		http.StatusOK,
-		"Movie trailer uploaded successfully",
-		movie,
-	)
+	response.Success(c, http.StatusOK, "Movie trailer uploaded successfully", movie)
 }
 
 // -----------------------------------------------------------------------------
@@ -380,24 +261,16 @@ func (h *MovieHandler) UploadTrailer(c *gin.Context) {
 
 func (h *MovieHandler) DeleteTrailer(c *gin.Context) {
 
-	id, ok := parseMovieID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
 
-	if err := h.movieService.DeleteTrailer(
-		c.Request.Context(),
-		id,
-	); err != nil {
+	if err := h.movieService.DeleteTrailer(c.Request.Context(), id); err != nil {
 
 		Handle(c, err)
 		return
 	}
 
-	response.Success(
-		c,
-		http.StatusOK,
-		"Movie trailer deleted successfully",
-		nil,
-	)
+	response.Success(c, http.StatusOK, "Movie trailer deleted successfully", nil)
 }

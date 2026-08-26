@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
@@ -18,19 +17,6 @@ func NewGenreHandler(genreService service_contract.GenreServiceInterface) *Genre
 	return &GenreHandler{
 		genreService: genreService,
 	}
-}
-
-// -----------------------------------------------------------------------------
-// Helpers
-// -----------------------------------------------------------------------------
-
-func parseGenreID(c *gin.Context) (int64, bool) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil || id <= 0 {
-		HandleBadRequest(c, "Invalid genre ID")
-		return 0, false
-	}
-	return id, true
 }
 
 // -----------------------------------------------------------------------------
@@ -58,7 +44,7 @@ func (h *GenreHandler) CreateGenre(c *gin.Context) {
 // -----------------------------------------------------------------------------
 
 func (h *GenreHandler) GetGenreByID(c *gin.Context) {
-	id, ok := parseGenreID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
@@ -105,7 +91,7 @@ func (h *GenreHandler) GetGenres(c *gin.Context) {
 // -----------------------------------------------------------------------------
 
 func (h *GenreHandler) UpdateGenre(c *gin.Context) {
-	id, ok := parseGenreID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
@@ -130,7 +116,7 @@ func (h *GenreHandler) UpdateGenre(c *gin.Context) {
 // -----------------------------------------------------------------------------
 
 func (h *GenreHandler) DeleteGenre(c *gin.Context) {
-	id, ok := parseGenreID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}

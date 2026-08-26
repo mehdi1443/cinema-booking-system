@@ -23,6 +23,9 @@ const (
 	CodeFacilityNotFound ErrorCode = "FACILITY_NOT_FOUND"
 	CodeCityNotFound     ErrorCode = "CITY_NOT_FOUND"
 	CodeProvinceNotFound ErrorCode = "PROVINCE_NOT_FOUND"
+	CodeCommentNotFound  ErrorCode = "COMMENT_NOT_FOUND"
+	CodeFavoriteNotFound ErrorCode = "FAVORITE_NOT_FOUND"
+	CodeRatingNotFound   ErrorCode = "RATING_NOT_FOUND"
 
 	CodeConflict              ErrorCode = "CONFLICT"
 	CodeDuplicateKey          ErrorCode = "DUPLICATE_KEY"
@@ -34,6 +37,9 @@ const (
 	CodeFacilityAlreadyExists ErrorCode = "FACILITY_ALREADY_EXISTS"
 	CodeCityAlreadyExists     ErrorCode = "CITY_ALREADY_EXISTS"
 	CodeProvinceAlreadyExists ErrorCode = "PROVINCE_ALREADY_EXISTS"
+	CodeCommentAlreadyExists  ErrorCode = "COMMENT_ALREADY_EXISTS"
+	CodeFavoriteAlreadyExists ErrorCode = "FAVORITE_ALREADY_EXISTS"
+	CodeRatingAlreadyExists   ErrorCode = "RATING_ALREADY_EXISTS"
 	CodeResourceInUse         ErrorCode = "RESOURCE_IN_USE"
 
 	CodeInvalidPassword  ErrorCode = "INVALID_PASSWORD"
@@ -252,6 +258,46 @@ var ErrProvinceAlreadyExists = &AppError{
 	Code:    CodeProvinceAlreadyExists,
 	Kind:    KindConflict,
 	Message: "province already exists",
+}
+
+// -----------------------------------------------------------------------------
+// Comments, Favorites & Ratings
+// -----------------------------------------------------------------------------
+
+var ErrCommentNotFound = &AppError{
+	Code:    CodeCommentNotFound,
+	Kind:    KindNotFound,
+	Message: "comment not found",
+}
+
+var ErrCommentAlreadyExists = &AppError{
+	Code:    CodeCommentAlreadyExists,
+	Kind:    KindConflict,
+	Message: "comment already exists",
+}
+
+var ErrFavoriteNotFound = &AppError{
+	Code:    CodeFavoriteNotFound,
+	Kind:    KindNotFound,
+	Message: "favorite not found",
+}
+
+var ErrFavoriteAlreadyExists = &AppError{
+	Code:    CodeFavoriteAlreadyExists,
+	Kind:    KindConflict,
+	Message: "favorite already exists",
+}
+
+var ErrRatingNotFound = &AppError{
+	Code:    CodeRatingNotFound,
+	Kind:    KindNotFound,
+	Message: "rating not found",
+}
+
+var ErrRatingAlreadyExists = &AppError{
+	Code:    CodeRatingAlreadyExists,
+	Kind:    KindConflict,
+	Message: "rating already exists",
 }
 
 // -----------------------------------------------------------------------------

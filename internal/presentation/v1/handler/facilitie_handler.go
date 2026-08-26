@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
@@ -18,19 +17,6 @@ func NewFacilityHandler(facilityService service_contract.FacilityServiceInterfac
 	return &FacilityHandler{
 		facilityService: facilityService,
 	}
-}
-
-// -----------------------------------------------------------------------------
-// Helpers
-// -----------------------------------------------------------------------------
-
-func parseFacilityID(c *gin.Context) (int64, bool) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil || id <= 0 {
-		HandleBadRequest(c, "Invalid facility ID")
-		return 0, false
-	}
-	return id, true
 }
 
 // -----------------------------------------------------------------------------
@@ -54,7 +40,7 @@ func (h *FacilityHandler) CreateFacility(c *gin.Context) {
 }
 
 func (h *FacilityHandler) GetFacilityByID(c *gin.Context) {
-	id, ok := parseFacilityID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
@@ -79,7 +65,7 @@ func (h *FacilityHandler) GetAllFacilities(c *gin.Context) {
 }
 
 func (h *FacilityHandler) UpdateFacility(c *gin.Context) {
-	id, ok := parseFacilityID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
@@ -100,7 +86,7 @@ func (h *FacilityHandler) UpdateFacility(c *gin.Context) {
 }
 
 func (h *FacilityHandler) DeleteFacility(c *gin.Context) {
-	id, ok := parseFacilityID(c)
+	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}

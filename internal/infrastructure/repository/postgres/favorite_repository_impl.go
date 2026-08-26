@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
@@ -20,6 +22,42 @@ func NewFavoriteRepository(db database.Database) DB.FavoriteRepository {
 	return &favoriteRepository{db: db}
 }
 
+func handleFavoriteDBError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return fmt.Errorf("duplicate favorite key: %w", exception.ErrFavoriteAlreadyExists)
+	}
+
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch pgErr.Code {
+		case "23505": // unique_violation
+			return fmt.Errorf("postgres unique violation: %w", exception.ErrFavoriteAlreadyExists)
+		case "23503": // foreign_key_violation
+			constraint := strings.ToLower(pgErr.ConstraintName)
+			detail := strings.ToLower(pgErr.Detail)
+
+			if strings.Contains(constraint, "user") || strings.Contains(detail, "user_id") {
+				return fmt.Errorf("user foreign key violation: %w", exception.ErrUserNotFound)
+			}
+			if strings.Contains(constraint, "movie") || strings.Contains(detail, "movie_id") {
+				return fmt.Errorf("movie foreign key violation: %w", exception.ErrMovieNotFound)
+			}
+			if strings.Contains(constraint, "cinema") || strings.Contains(detail, "cinema_id") {
+				return fmt.Errorf("cinema foreign key violation: %w", exception.ErrCinemaNotFound)
+			}
+			return fmt.Errorf("unknown foreign key violation: %w", exception.ErrDatabase)
+		case "23502", "23514", "40001", "40P01":
+			return fmt.Errorf("database constraint/transaction error: %w", exception.ErrDatabase)
+		}
+	}
+
+	return fmt.Errorf("favorite database operation failed: %w", exception.ErrDatabase)
+}
+
 func (r *favoriteRepository) AddMovieToFavorites(ctx context.Context, userID int64, movieID int64) (*entity.Favorite, error) {
 	favorite := &entity.Favorite{
 		UserID:  userID,
@@ -28,13 +66,7 @@ func (r *favoriteRepository) AddMovieToFavorites(ctx context.Context, userID int
 
 	err := r.db.GetDB().WithContext(ctx).Create(favorite).Error
 	if err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return nil, exception.ErrDuplicateKey
-		}
-		if errors.Is(err, gorm.ErrForeignKeyViolated) {
-			return nil, exception.ErrMovieNotFound
-		}
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, handleFavoriteDBError(err)
 	}
 
 	return r.getByID(ctx, favorite.ID)
@@ -46,11 +78,11 @@ func (r *favoriteRepository) RemoveMovieFromFavorites(ctx context.Context, userI
 		Delete(&entity.Favorite{})
 
 	if res.Error != nil {
-		return fmt.Errorf("%w: %v", exception.ErrDatabase, res.Error)
+		return handleFavoriteDBError(res.Error)
 	}
 
 	if res.RowsAffected == 0 {
-		return exception.ErrRecordNotFound
+		return exception.ErrFavoriteNotFound
 	}
 
 	return nil
@@ -64,7 +96,7 @@ func (r *favoriteRepository) IsMovieFavorite(ctx context.Context, userID int64, 
 		Count(&count).Error
 
 	if err != nil {
-		return false, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return false, handleFavoriteDBError(err)
 	}
 
 	return count > 0, nil
@@ -78,13 +110,7 @@ func (r *favoriteRepository) AddCinemaToFavorites(ctx context.Context, userID in
 
 	err := r.db.GetDB().WithContext(ctx).Create(favorite).Error
 	if err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return nil, exception.ErrDuplicateKey
-		}
-		if errors.Is(err, gorm.ErrForeignKeyViolated) {
-			return nil, exception.ErrCinemaNotFound
-		}
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, handleFavoriteDBError(err)
 	}
 
 	return r.getByID(ctx, favorite.ID)
@@ -96,11 +122,11 @@ func (r *favoriteRepository) RemoveCinemaFromFavorites(ctx context.Context, user
 		Delete(&entity.Favorite{})
 
 	if res.Error != nil {
-		return fmt.Errorf("%w: %v", exception.ErrDatabase, res.Error)
+		return handleFavoriteDBError(res.Error)
 	}
 
 	if res.RowsAffected == 0 {
-		return exception.ErrRecordNotFound
+		return exception.ErrFavoriteNotFound
 	}
 
 	return nil
@@ -114,7 +140,7 @@ func (r *favoriteRepository) IsCinemaFavorite(ctx context.Context, userID int64,
 		Count(&count).Error
 
 	if err != nil {
-		return false, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return false, handleFavoriteDBError(err)
 	}
 
 	return count > 0, nil
@@ -134,7 +160,7 @@ func (r *favoriteRepository) GetUserFavorites(ctx context.Context, filter DB.Fav
 		Find(&favorites).Error
 
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, handleFavoriteDBError(err)
 	}
 
 	return favorites, nil
@@ -148,7 +174,7 @@ func (r *favoriteRepository) CountUserFavorites(ctx context.Context, filter DB.F
 
 	err := query.Count(&count).Error
 	if err != nil {
-		return 0, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return 0, handleFavoriteDBError(err)
 	}
 
 	return count, nil
@@ -163,9 +189,9 @@ func (r *favoriteRepository) getByID(ctx context.Context, id int64) (*entity.Fav
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, exception.ErrRecordNotFound
+			return nil, exception.ErrFavoriteNotFound
 		}
-		return nil, fmt.Errorf("%w: %v", exception.ErrDatabase, err)
+		return nil, handleFavoriteDBError(err)
 	}
 	return &favorite, nil
 }
