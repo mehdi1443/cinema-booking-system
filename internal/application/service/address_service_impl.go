@@ -9,25 +9,27 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 )
 
 type addressService struct {
 	provinceRepo repository_contract.ProvinceRepository
 	cityRepo     repository_contract.CityRepository
+	log          domainlogger.Logger
 }
 
 func NewAddressService(
 	provinceRepo repository_contract.ProvinceRepository,
 	cityRepo repository_contract.CityRepository,
+	log domainlogger.Logger,
 ) service_contract.AddressServiceInterface {
 	return &addressService{
 		provinceRepo: provinceRepo,
 		cityRepo:     cityRepo,
+		log:          log,
 	}
 }
-
-// ==================== Province Methods ====================
 
 func (s *addressService) CreateProvince(ctx context.Context, req *dto.CreateProvinceRequest) (*dto.ProvinceResponse, error) {
 	if req == nil {
@@ -46,6 +48,8 @@ func (s *addressService) CreateProvince(ctx context.Context, req *dto.CreateProv
 	if err := s.provinceRepo.Create(ctx, province); err != nil {
 		return nil, fmt.Errorf("create province: %w", err)
 	}
+
+	s.log.Info(ctx, "Province created successfully", domainlogger.Int64("province_id", province.ID))
 
 	return dto.ToProvinceResponse(province), nil
 }
@@ -94,6 +98,8 @@ func (s *addressService) UpdateProvince(ctx context.Context, id int64, req *dto.
 		return nil, fmt.Errorf("update province %d: %w", id, err)
 	}
 
+	s.log.Info(ctx, "Province updated successfully", domainlogger.Int64("province_id", updatedProvince.ID))
+
 	return dto.ToProvinceResponse(updatedProvince), nil
 }
 
@@ -110,10 +116,10 @@ func (s *addressService) DeleteProvince(ctx context.Context, id int64) error {
 		return fmt.Errorf("delete province %d: %w", id, err)
 	}
 
+	s.log.Info(ctx, "Province deleted successfully", domainlogger.Int64("province_id", id))
+
 	return nil
 }
-
-// ==================== City Methods ====================
 
 func (s *addressService) CreateCity(ctx context.Context, req *dto.CreateCityRequest) (*dto.CityResponse, error) {
 	if req == nil || req.ProvinceID <= 0 {
@@ -133,6 +139,8 @@ func (s *addressService) CreateCity(ctx context.Context, req *dto.CreateCityRequ
 	if err := s.cityRepo.Create(ctx, city); err != nil {
 		return nil, fmt.Errorf("create city: %w", err)
 	}
+
+	s.log.Info(ctx, "City created successfully", domainlogger.Int64("city_id", city.ID))
 
 	return dto.ToCityResponse(city), nil
 }
@@ -202,6 +210,8 @@ func (s *addressService) UpdateCity(ctx context.Context, id int64, req *dto.Upda
 		return nil, fmt.Errorf("update city %d: %w", id, err)
 	}
 
+	s.log.Info(ctx, "City updated successfully", domainlogger.Int64("city_id", updatedCity.ID))
+
 	return dto.ToCityResponse(updatedCity), nil
 }
 
@@ -217,6 +227,8 @@ func (s *addressService) DeleteCity(ctx context.Context, id int64) error {
 	if err := s.cityRepo.Delete(ctx, id); err != nil {
 		return fmt.Errorf("delete city %d: %w", id, err)
 	}
+
+	s.log.Info(ctx, "City deleted successfully", domainlogger.Int64("city_id", id))
 
 	return nil
 }

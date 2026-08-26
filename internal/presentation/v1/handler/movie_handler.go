@@ -19,12 +19,12 @@ const (
 
 type MovieHandler struct {
 	movieService service_contract.MovieServiceInterface
-	log          domainlogger.Logger // <--- لاگر به هندلر اضافه شد
+	log          domainlogger.Logger
 }
 
 func NewMovieHandler(
 	movieService service_contract.MovieServiceInterface,
-	log domainlogger.Logger, // <--- دریافت لاگر در کانستراکتور
+	log domainlogger.Logger,
 ) *MovieHandler {
 	return &MovieHandler{
 		movieService: movieService,

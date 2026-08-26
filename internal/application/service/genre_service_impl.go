@@ -9,16 +9,19 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 )
 
 type genreService struct {
 	genreRepo repository_contract.GenreInterface
+	log       domainlogger.Logger
 }
 
-func NewGenreService(genreRepo repository_contract.GenreInterface) service_contract.GenreServiceInterface {
+func NewGenreService(genreRepo repository_contract.GenreInterface, log domainlogger.Logger) service_contract.GenreServiceInterface {
 	return &genreService{
 		genreRepo: genreRepo,
+		log:       log,
 	}
 }
 
@@ -40,6 +43,8 @@ func (s *genreService) CreateGenre(ctx context.Context, req *dto.CreateGenreRequ
 	if err != nil {
 		return nil, fmt.Errorf("create genre: %w", err)
 	}
+
+	s.log.Info(ctx, "Genre created successfully", domainlogger.Int64("genre_id", createdGenre.ID))
 
 	return dto.ToGenreResponse(createdGenre), nil
 }
@@ -112,6 +117,8 @@ func (s *genreService) UpdateGenre(ctx context.Context, id int64, req *dto.Updat
 		return nil, fmt.Errorf("update genre %d: %w", id, err)
 	}
 
+	s.log.Info(ctx, "Genre updated successfully", domainlogger.Int64("genre_id", updatedGenre.ID))
+
 	return dto.ToGenreResponse(updatedGenre), nil
 }
 
@@ -128,6 +135,8 @@ func (s *genreService) DeleteGenre(ctx context.Context, id int64) error {
 	if err := s.genreRepo.Delete(ctx, id); err != nil {
 		return fmt.Errorf("delete genre %d: %w", id, err)
 	}
+
+	s.log.Info(ctx, "Genre deleted successfully", domainlogger.Int64("genre_id", id))
 
 	return nil
 }

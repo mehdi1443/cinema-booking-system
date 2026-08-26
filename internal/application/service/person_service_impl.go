@@ -11,25 +11,29 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/storage"
 	"github.com/mehdi1443/cinema-booking-system/pkg/image"
 )
 
-const maxPersonImageSize = 5 * 1024 * 1024 // 5 MB
+const maxPersonImageSize = 5 * 1024 * 1024
 
 type personService struct {
 	personRepo repository_contract.PersonInterface
 	storage    storage.StorageInterFace
+	log        domainlogger.Logger
 }
 
 func NewPersonService(
 	personRepo repository_contract.PersonInterface,
 	storage storage.StorageInterFace,
+	log domainlogger.Logger,
 ) service_contract.PersonServiceInterface {
 	return &personService{
 		personRepo: personRepo,
 		storage:    storage,
+		log:        log,
 	}
 }
 
@@ -52,6 +56,8 @@ func (s *personService) Create(ctx context.Context, req *dto.CreatePersonRequest
 	if err != nil {
 		return nil, fmt.Errorf("create person: %w", err)
 	}
+
+	s.log.Info(ctx, "Person created successfully", domainlogger.Int64("person_id", createdPerson.ID))
 
 	return dto.ToPersonDetailResponse(createdPerson), nil
 }
@@ -115,6 +121,8 @@ func (s *personService) Update(ctx context.Context, id int64, req *dto.UpdatePer
 		return nil, fmt.Errorf("update person %d: %w", id, err)
 	}
 
+	s.log.Info(ctx, "Person updated successfully", domainlogger.Int64("person_id", updatedPerson.ID))
+
 	return dto.ToPersonDetailResponse(updatedPerson), nil
 }
 
@@ -135,6 +143,8 @@ func (s *personService) Delete(ctx context.Context, id int64) error {
 	if err := s.personRepo.Delete(ctx, id); err != nil {
 		return fmt.Errorf("delete person %d: %w", id, err)
 	}
+
+	s.log.Info(ctx, "Person deleted successfully", domainlogger.Int64("person_id", id))
 
 	return nil
 }
@@ -195,6 +205,8 @@ func (s *personService) UploadImage(ctx context.Context, id int64, file io.Reade
 		return nil, fmt.Errorf("save image URLs for person %d: %w", id, err)
 	}
 
+	s.log.Info(ctx, "Person image uploaded successfully", domainlogger.Int64("person_id", id))
+
 	return dto.ToPersonDetailResponse(updatedPerson), nil
 }
 
@@ -211,10 +223,13 @@ func (s *personService) DeleteImage(ctx context.Context, id int64) error {
 	lowKey := fmt.Sprintf("persons/person_%d_low.webp", id)
 	highKey := fmt.Sprintf("persons/person_%d_high.jpg", id)
 
-	// Keep existing behavior:
-	// storage deletion errors are intentionally ignored.
-	_ = s.storage.DeleteObject(ctx, enum.ActorPhoto, lowKey)
-	_ = s.storage.DeleteObject(ctx, enum.ActorPhoto, highKey)
+	if err := s.storage.DeleteObject(ctx, enum.ActorPhoto, lowKey); err != nil {
+		s.log.Warn(ctx, "Failed to delete low-res person image from storage", domainlogger.Int64("person_id", id), domainlogger.Error(err))
+	}
+
+	if err := s.storage.DeleteObject(ctx, enum.ActorPhoto, highKey); err != nil {
+		s.log.Warn(ctx, "Failed to delete high-res person image from storage", domainlogger.Int64("person_id", id), domainlogger.Error(err))
+	}
 
 	person.ImageURLLow = ""
 	person.ImageURLHigh = ""
@@ -223,6 +238,8 @@ func (s *personService) DeleteImage(ctx context.Context, id int64) error {
 	if err != nil {
 		return fmt.Errorf("remove image URLs for person %d: %w", id, err)
 	}
+
+	s.log.Info(ctx, "Person image deleted successfully", domainlogger.Int64("person_id", id))
 
 	return nil
 }

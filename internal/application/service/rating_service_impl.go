@@ -8,6 +8,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 )
 
@@ -15,17 +16,20 @@ type ratingService struct {
 	ratingRepo repository_contract.RatingInterface
 	movieRepo  repository_contract.MovieInterFace
 	cinemaRepo repository_contract.CinemaInterface
+	log        domainlogger.Logger
 }
 
 func NewRatingService(
 	ratingRepo repository_contract.RatingInterface,
 	movieRepo repository_contract.MovieInterFace,
 	cinemaRepo repository_contract.CinemaInterface,
+	log domainlogger.Logger,
 ) service_contract.RatingServiceInterface {
 	return &ratingService{
 		ratingRepo: ratingRepo,
 		movieRepo:  movieRepo,
 		cinemaRepo: cinemaRepo,
+		log:        log,
 	}
 }
 
@@ -54,10 +58,12 @@ func (s *ratingService) SubmitRating(ctx context.Context, userID int64, req *dto
 		if err := s.movieRepo.UpdateRatingAggregate(ctx, *req.MovieID); err != nil {
 			return nil, fmt.Errorf("update movie rating aggregate: %w", err)
 		}
+		s.log.Info(ctx, "Movie rating submitted", domainlogger.Int64("user_id", userID), domainlogger.Int64("movie_id", *req.MovieID), domainlogger.Int("score", int(req.Score)))
 	} else if req.CinemaID != nil {
 		if err := s.cinemaRepo.UpdateRatingAggregate(ctx, *req.CinemaID); err != nil {
 			return nil, fmt.Errorf("update cinema rating aggregate: %w", err)
 		}
+		s.log.Info(ctx, "Cinema rating submitted", domainlogger.Int64("user_id", userID), domainlogger.Int64("cinema_id", *req.CinemaID), domainlogger.Int("score", int(req.Score)))
 	}
 
 	return dto.ToRatingResponse(submittedRating), nil
@@ -138,8 +144,10 @@ func (s *ratingService) Delete(ctx context.Context, userID int64, ratingID int64
 	}
 
 	if rating.MovieID != nil {
+		s.log.Info(ctx, "Movie rating deleted", domainlogger.Int64("user_id", userID), domainlogger.Int64("rating_id", ratingID))
 		return s.movieRepo.UpdateRatingAggregate(ctx, *rating.MovieID)
 	} else if rating.CinemaID != nil {
+		s.log.Info(ctx, "Cinema rating deleted", domainlogger.Int64("user_id", userID), domainlogger.Int64("rating_id", ratingID))
 		return s.cinemaRepo.UpdateRatingAggregate(ctx, *rating.CinemaID)
 	}
 

@@ -12,25 +12,29 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum/sort"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/storage"
 	"github.com/mehdi1443/cinema-booking-system/pkg/image"
 )
 
-const maxCinemaImageSize = 5 * 1024 * 1024 // 5 MB
+const maxCinemaImageSize = 5 * 1024 * 1024
 
 type cinemaService struct {
 	cinemaRepo repository_contract.CinemaInterface
 	storage    storage.StorageInterFace
+	log        domainlogger.Logger
 }
 
 func NewCinemaService(
 	cinemaRepo repository_contract.CinemaInterface,
 	storage storage.StorageInterFace,
+	log domainlogger.Logger,
 ) service_contract.CinemaServiceInterface {
 	return &cinemaService{
 		cinemaRepo: cinemaRepo,
 		storage:    storage,
+		log:        log,
 	}
 }
 
@@ -72,6 +76,8 @@ func (s *cinemaService) Create(ctx context.Context, req *dto.CreateCinemaRequest
 	if err != nil {
 		return nil, fmt.Errorf("create cinema: %w", err)
 	}
+
+	s.log.Info(ctx, "Cinema created successfully", domainlogger.Int64("cinema_id", createdCinema.ID))
 
 	return dto.ToCinemaDetailResponse(createdCinema), nil
 }
@@ -198,6 +204,8 @@ func (s *cinemaService) Update(ctx context.Context, id int64, req *dto.UpdateCin
 		return nil, fmt.Errorf("update cinema %d: %w", id, err)
 	}
 
+	s.log.Info(ctx, "Cinema updated successfully", domainlogger.Int64("cinema_id", updatedCinema.ID))
+
 	return dto.ToCinemaDetailResponse(updatedCinema), nil
 }
 
@@ -218,6 +226,8 @@ func (s *cinemaService) Delete(ctx context.Context, id int64) error {
 	if err := s.cinemaRepo.Delete(ctx, id); err != nil {
 		return fmt.Errorf("delete cinema %d: %w", id, err)
 	}
+
+	s.log.Info(ctx, "Cinema deleted successfully", domainlogger.Int64("cinema_id", id))
 
 	return nil
 }
@@ -283,6 +293,8 @@ func (s *cinemaService) UploadImage(ctx context.Context, id int64, file io.Reade
 		return nil, fmt.Errorf("save image URLs for cinema %d: %w", id, err)
 	}
 
+	s.log.Info(ctx, "Cinema image uploaded successfully", domainlogger.Int64("cinema_id", id))
+
 	return dto.ToCinemaDetailResponse(updatedCinema), nil
 }
 
@@ -299,8 +311,12 @@ func (s *cinemaService) DeleteImage(ctx context.Context, id int64) error {
 	lowKey := fmt.Sprintf("cinemas/cinema_%d_image_low.webp", id)
 	highKey := fmt.Sprintf("cinemas/cinema_%d_image_high.jpg", id)
 
-	_ = s.storage.DeleteObject(ctx, enum.CinemaPhoto, lowKey)
-	_ = s.storage.DeleteObject(ctx, enum.CinemaPhoto, highKey)
+	if err := s.storage.DeleteObject(ctx, enum.CinemaPhoto, lowKey); err != nil {
+		s.log.Warn(ctx, "Failed to delete low-res cinema image from storage", domainlogger.Int64("cinema_id", id), domainlogger.Error(err))
+	}
+	if err := s.storage.DeleteObject(ctx, enum.CinemaPhoto, highKey); err != nil {
+		s.log.Warn(ctx, "Failed to delete high-res cinema image from storage", domainlogger.Int64("cinema_id", id), domainlogger.Error(err))
+	}
 
 	cinema.ImageURLLow = nil
 	cinema.ImageURLHigh = nil
@@ -314,6 +330,8 @@ func (s *cinemaService) DeleteImage(ctx context.Context, id int64) error {
 	if err != nil {
 		return fmt.Errorf("remove image URLs for cinema %d: %w", id, err)
 	}
+
+	s.log.Info(ctx, "Cinema image deleted successfully", domainlogger.Int64("cinema_id", id))
 
 	return nil
 }

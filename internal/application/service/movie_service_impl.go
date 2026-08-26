@@ -13,6 +13,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum/sort"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/storage"
 	"github.com/mehdi1443/cinema-booking-system/pkg/image"
@@ -26,20 +27,21 @@ const (
 type movieService struct {
 	movieRepo repository_contract.MovieInterFace
 	storage   storage.StorageInterFace
+	log       domainlogger.Logger
 }
 
 func NewMovieService(
 	movieRepo repository_contract.MovieInterFace,
 	storage storage.StorageInterFace,
+	log domainlogger.Logger,
 ) service_contract.MovieServiceInterface {
 	return &movieService{
 		movieRepo: movieRepo,
 		storage:   storage,
+		log:       log,
 	}
 }
 
-// checkFileSize validates maximum file size without changing
-// the business logic of the service.
 func checkFileSize(r io.Reader, maxSize int64) (io.Reader, error) {
 	lr := io.LimitReader(r, maxSize+1)
 
@@ -58,7 +60,6 @@ func checkFileSize(r io.Reader, maxSize int64) (io.Reader, error) {
 	return bytes.NewReader(buf), nil
 }
 
-// Create creates a movie and returns its detail response.
 func (s *movieService) Create(
 	ctx context.Context,
 	req *dto.CreateMovieRequest,
@@ -87,11 +88,9 @@ func (s *movieService) Create(
 	)
 
 	for _, p := range req.People {
-
 		if !p.Role.IsValid() {
 			return nil, exception.ErrInvalidInput
 		}
-
 		peopleMap[p.PersonID] = p.Role
 	}
 
@@ -109,10 +108,11 @@ func (s *movieService) Create(
 		)
 	}
 
+	s.log.Info(ctx, "Movie created successfully", domainlogger.Int64("movie_id", createdMovie.ID), domainlogger.String("title", createdMovie.Title))
+
 	return dto.ToMovieDetailResponse(createdMovie), nil
 }
 
-// GetByID retrieves a movie by ID.
 func (s *movieService) GetByID(
 	ctx context.Context,
 	id int64,
@@ -134,7 +134,6 @@ func (s *movieService) GetByID(
 	return dto.ToMovieDetailResponse(movie), nil
 }
 
-// GetMovies retrieves movies based on filters.
 func (s *movieService) GetMovies(
 	ctx context.Context,
 	req dto.MovieFilterRequest,
@@ -170,19 +169,14 @@ func (s *movieService) GetMovies(
 	opts := repository_contract.NewQueryOptions()
 
 	if req.SortBy != "" {
-
 		if sortBy, ok := sort.ParseMovieSortBy(req.SortBy); ok {
-
 			asc := false
-
 			if req.SortDir != "" {
-
 				if dir, dirOK := sort.ParseSortDirection(req.SortDir); dirOK &&
 					dir == sort.SortAscending {
 					asc = true
 				}
 			}
-
 			opts.WithSorting(
 				sortBy.DBColumn(),
 				asc,
@@ -213,7 +207,6 @@ func (s *movieService) GetMovies(
 	return dto.ToMovieListResponseSlice(movies), total, nil
 }
 
-// Update updates a movie.
 func (s *movieService) Update(
 	ctx context.Context,
 	id int64,
@@ -258,49 +251,29 @@ func (s *movieService) Update(
 	}
 
 	if req.Status != nil {
-
 		if !req.Status.IsValid() {
 			return nil, exception.ErrInvalidInput
 		}
-
 		movie.Status = *req.Status
 	}
 
 	var genreIDs []int64
-
 	if req.GenreIDs != nil {
 		genreIDs = *req.GenreIDs
 	} else {
-
-		genreIDs = make(
-			[]int64,
-			0,
-			len(movie.Genres),
-		)
-
+		genreIDs = make([]int64, 0, len(movie.Genres))
 		for _, g := range movie.Genres {
-			genreIDs = append(
-				genreIDs,
-				g.ID,
-			)
+			genreIDs = append(genreIDs, g.ID)
 		}
 	}
 
 	var peopleMap map[int64]enum.MoviePersonRole
-
 	if req.People != nil {
-
-		peopleMap = make(
-			map[int64]enum.MoviePersonRole,
-			len(*req.People),
-		)
-
+		peopleMap = make(map[int64]enum.MoviePersonRole, len(*req.People))
 		for _, p := range *req.People {
-
 			if !p.Role.IsValid() {
 				return nil, exception.ErrInvalidInput
 			}
-
 			peopleMap[p.PersonID] = p.Role
 		}
 	}
@@ -320,10 +293,11 @@ func (s *movieService) Update(
 		)
 	}
 
+	s.log.Info(ctx, "Movie updated successfully", domainlogger.Int64("movie_id", updatedMovie.ID))
+
 	return dto.ToMovieDetailResponse(updatedMovie), nil
 }
 
-// Delete deletes a movie.
 func (s *movieService) Delete(
 	ctx context.Context,
 	id int64,
@@ -346,8 +320,7 @@ func (s *movieService) Delete(
 		)
 	}
 
-	if movie.PosterURLLow != "" ||
-		movie.PosterURLHigh != "" {
+	if movie.PosterURLLow != "" || movie.PosterURLHigh != "" {
 		_ = s.DeletePoster(ctx, id)
 	}
 
@@ -363,10 +336,11 @@ func (s *movieService) Delete(
 		)
 	}
 
+	s.log.Info(ctx, "Movie deleted successfully", domainlogger.Int64("movie_id", id))
+
 	return nil
 }
 
-// UploadPoster uploads and stores a movie poster.
 func (s *movieService) UploadPoster(
 	ctx context.Context,
 	id int64,
@@ -521,6 +495,8 @@ func (s *movieService) UploadPoster(
 		)
 	}
 
+	s.log.Info(ctx, "Movie poster uploaded successfully", domainlogger.Int64("movie_id", id))
+
 	return dto.ToMovieDetailResponse(updatedMovie), nil
 }
 
@@ -557,19 +533,13 @@ func (s *movieService) DeletePoster(
 		id,
 	)
 
-	// Keep existing behavior:
-	// storage deletion errors are intentionally ignored.
-	_ = s.storage.DeleteObject(
-		ctx,
-		enum.MoviePoster,
-		lowKey,
-	)
+	if err := s.storage.DeleteObject(ctx, enum.MoviePoster, lowKey); err != nil {
+		s.log.Warn(ctx, "Failed to delete low-res poster from storage", domainlogger.Int64("movie_id", id), domainlogger.Error(err))
+	}
 
-	_ = s.storage.DeleteObject(
-		ctx,
-		enum.MoviePoster,
-		highKey,
-	)
+	if err := s.storage.DeleteObject(ctx, enum.MoviePoster, highKey); err != nil {
+		s.log.Warn(ctx, "Failed to delete high-res poster from storage", domainlogger.Int64("movie_id", id), domainlogger.Error(err))
+	}
 
 	movie.PosterURLLow = ""
 	movie.PosterURLHigh = ""
@@ -602,10 +572,11 @@ func (s *movieService) DeletePoster(
 		)
 	}
 
+	s.log.Info(ctx, "Movie poster deleted successfully", domainlogger.Int64("movie_id", id))
+
 	return nil
 }
 
-// UploadTrailer uploads a movie trailer.
 func (s *movieService) UploadTrailer(
 	ctx context.Context,
 	id int64,
@@ -722,10 +693,11 @@ func (s *movieService) UploadTrailer(
 		)
 	}
 
+	s.log.Info(ctx, "Movie trailer uploaded successfully", domainlogger.Int64("movie_id", id))
+
 	return dto.ToMovieDetailResponse(updatedMovie), nil
 }
 
-// DeleteTrailer removes movie trailer.
 func (s *movieService) DeleteTrailer(
 	ctx context.Context,
 	id int64,
@@ -753,13 +725,9 @@ func (s *movieService) DeleteTrailer(
 		id,
 	)
 
-	// Keep existing behavior:
-	// storage deletion errors are intentionally ignored.
-	_ = s.storage.DeleteObject(
-		ctx,
-		enum.MovieTrailer,
-		trailerKey,
-	)
+	if err := s.storage.DeleteObject(ctx, enum.MovieTrailer, trailerKey); err != nil {
+		s.log.Warn(ctx, "Failed to delete trailer from storage", domainlogger.Int64("movie_id", id), domainlogger.Error(err))
+	}
 
 	movie.TrailerURL = ""
 
@@ -790,6 +758,8 @@ func (s *movieService) DeleteTrailer(
 			err,
 		)
 	}
+
+	s.log.Info(ctx, "Movie trailer deleted successfully", domainlogger.Int64("movie_id", id))
 
 	return nil
 }

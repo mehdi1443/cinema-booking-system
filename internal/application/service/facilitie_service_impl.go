@@ -9,16 +9,19 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 )
 
 type facilityService struct {
 	facilityRepo repository_contract.FacilityRepository
+	log          domainlogger.Logger
 }
 
-func NewFacilityService(facilityRepo repository_contract.FacilityRepository) service_contract.FacilityServiceInterface {
+func NewFacilityService(facilityRepo repository_contract.FacilityRepository, log domainlogger.Logger) service_contract.FacilityServiceInterface {
 	return &facilityService{
 		facilityRepo: facilityRepo,
+		log:          log,
 	}
 }
 
@@ -40,6 +43,8 @@ func (s *facilityService) Create(ctx context.Context, req *dto.CreateFacilityReq
 	if err != nil {
 		return nil, fmt.Errorf("create facility: %w", err)
 	}
+
+	s.log.Info(ctx, "Facility created successfully", domainlogger.Int64("facility_id", createdFacility.ID))
 
 	return dto.ToFacilityResponse(createdFacility), nil
 }
@@ -88,6 +93,8 @@ func (s *facilityService) Update(ctx context.Context, id int64, req *dto.UpdateF
 		return nil, fmt.Errorf("update facility %d: %w", id, err)
 	}
 
+	s.log.Info(ctx, "Facility updated successfully", domainlogger.Int64("facility_id", updatedFacility.ID))
+
 	return dto.ToFacilityResponse(updatedFacility), nil
 }
 
@@ -103,6 +110,8 @@ func (s *facilityService) Delete(ctx context.Context, id int64) error {
 	if err := s.facilityRepo.Delete(ctx, id); err != nil {
 		return fmt.Errorf("delete facility %d: %w", id, err)
 	}
+
+	s.log.Info(ctx, "Facility deleted successfully", domainlogger.Int64("facility_id", id))
 
 	return nil
 }

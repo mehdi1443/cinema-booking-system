@@ -7,18 +7,22 @@ import (
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 )
 
 type favoriteService struct {
 	favoriteRepo repository_contract.FavoriteRepository
+	log          domainlogger.Logger
 }
 
 func NewFavoriteService(
 	favoriteRepo repository_contract.FavoriteRepository,
+	log domainlogger.Logger,
 ) service_contract.FavoriteServiceInterface {
 	return &favoriteService{
 		favoriteRepo: favoriteRepo,
+		log:          log,
 	}
 }
 
@@ -32,6 +36,8 @@ func (s *favoriteService) AddMovieToFavorites(ctx context.Context, userID int64,
 		return nil, fmt.Errorf("add movie to favorites: %w", err)
 	}
 
+	s.log.Info(ctx, "Movie added to favorites", domainlogger.Int64("user_id", userID), domainlogger.Int64("movie_id", req.MovieID))
+
 	return dto.ToFavoriteResponse(favorite), nil
 }
 
@@ -43,6 +49,9 @@ func (s *favoriteService) RemoveMovieFromFavorites(ctx context.Context, userID i
 	if err := s.favoriteRepo.RemoveMovieFromFavorites(ctx, userID, movieID); err != nil {
 		return fmt.Errorf("remove movie from favorites %d: %w", movieID, err)
 	}
+
+	s.log.Info(ctx, "Movie removed from favorites", domainlogger.Int64("user_id", userID), domainlogger.Int64("movie_id", movieID))
+
 	return nil
 }
 
@@ -56,6 +65,8 @@ func (s *favoriteService) AddCinemaToFavorites(ctx context.Context, userID int64
 		return nil, fmt.Errorf("add cinema to favorites: %w", err)
 	}
 
+	s.log.Info(ctx, "Cinema added to favorites", domainlogger.Int64("user_id", userID), domainlogger.Int64("cinema_id", req.CinemaID))
+
 	return dto.ToFavoriteResponse(favorite), nil
 }
 
@@ -67,6 +78,9 @@ func (s *favoriteService) RemoveCinemaFromFavorites(ctx context.Context, userID 
 	if err := s.favoriteRepo.RemoveCinemaFromFavorites(ctx, userID, cinemaID); err != nil {
 		return fmt.Errorf("remove cinema from favorites %d: %w", cinemaID, err)
 	}
+
+	s.log.Info(ctx, "Cinema removed from favorites", domainlogger.Int64("user_id", userID), domainlogger.Int64("cinema_id", cinemaID))
+
 	return nil
 }
 

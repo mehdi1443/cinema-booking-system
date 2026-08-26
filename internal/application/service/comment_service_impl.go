@@ -10,16 +10,19 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 )
 
 type commentService struct {
 	commentRepo repository_contract.CommentInterface
+	log         domainlogger.Logger
 }
 
-func NewCommentService(commentRepo repository_contract.CommentInterface) service_contract.CommentServiceInterface {
+func NewCommentService(commentRepo repository_contract.CommentInterface, log domainlogger.Logger) service_contract.CommentServiceInterface {
 	return &commentService{
 		commentRepo: commentRepo,
+		log:         log,
 	}
 }
 
@@ -50,6 +53,8 @@ func (s *commentService) Create(ctx context.Context, userID int64, req *dto.Crea
 	if err != nil {
 		return nil, fmt.Errorf("create comment: %w", err)
 	}
+
+	s.log.Info(ctx, "Comment created successfully", domainlogger.Int64("comment_id", createdComment.ID), domainlogger.Int64("user_id", userID))
 
 	return dto.ToCommentResponse(createdComment, nil), nil
 }
@@ -183,6 +188,8 @@ func (s *commentService) Update(ctx context.Context, userID int64, commentID int
 		return nil, fmt.Errorf("update comment %d: %w", commentID, err)
 	}
 
+	s.log.Info(ctx, "Comment updated successfully", domainlogger.Int64("comment_id", updatedComment.ID))
+
 	return dto.ToCommentResponse(updatedComment, nil), nil
 }
 
@@ -194,6 +201,9 @@ func (s *commentService) UpdateStatus(ctx context.Context, commentID int64, stat
 	if err := s.commentRepo.UpdateStatus(ctx, commentID, status); err != nil {
 		return fmt.Errorf("update comment status %d: %w", commentID, err)
 	}
+
+	s.log.Info(ctx, "Comment status updated", domainlogger.Int64("comment_id", commentID), domainlogger.String("status", string(status)))
+
 	return nil
 }
 
@@ -214,6 +224,8 @@ func (s *commentService) Delete(ctx context.Context, userID int64, commentID int
 	if err := s.commentRepo.Delete(ctx, commentID); err != nil {
 		return fmt.Errorf("delete comment %d: %w", commentID, err)
 	}
+
+	s.log.Info(ctx, "Comment deleted successfully", domainlogger.Int64("comment_id", commentID))
 
 	return nil
 }
@@ -238,6 +250,8 @@ func (s *commentService) Vote(ctx context.Context, userID int64, commentID int64
 		return fmt.Errorf("add vote to comment %d: %w", commentID, err)
 	}
 
+	s.log.Info(ctx, "Comment voted", domainlogger.Int64("comment_id", commentID), domainlogger.Int64("user_id", userID), domainlogger.String("vote_type", string(vote)))
+
 	return nil
 }
 
@@ -249,6 +263,9 @@ func (s *commentService) RemoveVote(ctx context.Context, userID int64, commentID
 	if err := s.commentRepo.RemoveVote(ctx, userID, commentID); err != nil {
 		return fmt.Errorf("remove vote from comment %d: %w", commentID, err)
 	}
+
+	s.log.Info(ctx, "Comment vote removed", domainlogger.Int64("comment_id", commentID), domainlogger.Int64("user_id", userID))
+
 	return nil
 }
 
