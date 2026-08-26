@@ -8,21 +8,21 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/pkg/hash"
-	"github.com/mehdi1443/cinema-booking-system/pkg/logger"
 )
 
 type userService struct {
 	userRepo repository_contract.UserInterface
 	hasher   *hash.BcryptHasher
-	logger   logger.Logger
+	logger   domainlogger.Logger
 }
 
 func NewUserService(
 	userRepo repository_contract.UserInterface,
 	hasher *hash.BcryptHasher,
-	log logger.Logger,
+	log domainlogger.Logger,
 ) service_contract.UserServiceInterface {
 	return &userService{
 		userRepo: userRepo,
@@ -79,6 +79,8 @@ func (s *userService) UpdateProfile(ctx context.Context, ctxToken *dto.TokenInCo
 		return nil, err
 	}
 
+	s.logger.Info(ctx, "User profile updated successfully", domainlogger.Int64("user_id", userID))
+
 	return dto.ToUserResponse(updatedUser, &dto.HideFieldUserOption{WalletBalance: false}), nil
 }
 
@@ -95,6 +97,8 @@ func (s *userService) ChangeStatus(ctx context.Context, ctxToken *dto.TokenInCon
 		return nil, err
 	}
 
+	s.logger.Info(ctx, "User status changed", domainlogger.Int64("user_id", userID), domainlogger.String("status", string(status)))
+
 	return dto.ToUserResponse(updatedUser, &dto.HideFieldUserOption{WalletBalance: false}), nil
 }
 
@@ -104,7 +108,11 @@ func (s *userService) DeleteUserByID(ctx context.Context, ctxToken *dto.TokenInC
 		return err
 	}
 
-	return s.userRepo.DeleteUserByID(ctx, id)
+	err = s.userRepo.DeleteUserByID(ctx, id)
+	if err == nil {
+		s.logger.Info(ctx, "User deleted successfully", domainlogger.Int64("user_id", id))
+	}
+	return err
 }
 
 func (s *userService) GetUsers(ctx context.Context, tokenData *dto.TokenInContext, query *dto.GetUsersQueryDTO) ([]*dto.UserResponse, error) {
@@ -136,9 +144,7 @@ func (s *userService) UpdatePassword(ctx context.Context, ctxToken *dto.TokenInC
 
 	hashedPassword, err := s.hasher.Hash(password.Password)
 	if err != nil {
-		s.logger.Error(logger.Internal, logger.HashPassword, "failed to hash new password during password update", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: err.Error(),
-		})
+		s.logger.Error(ctx, "failed to hash new password during password update", domainlogger.Error(err))
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
@@ -146,6 +152,8 @@ func (s *userService) UpdatePassword(ctx context.Context, ctxToken *dto.TokenInC
 	if err != nil {
 		return nil, err
 	}
+
+	s.logger.Info(ctx, "User password updated successfully", domainlogger.Int64("user_id", userId))
 
 	success := true
 	return &success, nil

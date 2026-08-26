@@ -2,10 +2,11 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
+
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/middleware"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/handler"
-	"github.com/mehdi1443/cinema-booking-system/pkg/logger"
 )
 
 func SetUpCaptchaRouter(
@@ -13,9 +14,8 @@ func SetUpCaptchaRouter(
 	captchaHandler *handler.CaptchaHandler,
 	limiter *middleware.RedisLimiter,
 	limiterConfig *bootstrap.Limiter,
-	appLogger logger.Logger,
+	appLogger domainlogger.Logger,
 ) {
-
 	captcha := router.Group("/captcha")
 	captcha.Use(limiter.PerMinute(limiterConfig.HighRate))
 	{
@@ -25,7 +25,5 @@ func SetUpCaptchaRouter(
 		captcha.POST("/verify",
 			captchaHandler.VerifyCaptcha,
 		)
-
 	}
-
 }

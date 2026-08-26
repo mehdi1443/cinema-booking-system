@@ -7,20 +7,20 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
-	"github.com/mehdi1443/cinema-booking-system/pkg/logger"
 )
 
 type walletService struct {
 	userRepo   repository_contract.UserInterface
 	walletRepo repository_contract.WalletInterface
-	logger     logger.Logger
+	logger     domainlogger.Logger
 }
 
 func NewWalletService(
 	userRepo repository_contract.UserInterface,
 	walletRepo repository_contract.WalletInterface,
-	log logger.Logger,
+	log domainlogger.Logger,
 ) service_contract.WalletServiceInterface {
 	return &walletService{
 		userRepo:   userRepo,
@@ -48,9 +48,7 @@ func (s *walletService) ChangeBalance(ctx context.Context, tokenData *dto.TokenI
 	}
 
 	if currentBalance+amount < 0 || currentBalance+amount > entity.MaxWalletBalance {
-		s.logger.Warn(logger.Validation, logger.Api, "invalid balance adjustment request", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: exception.ErrInsufficientBalance.Error(),
-		})
+		s.logger.Warn(ctx, "invalid balance adjustment request", domainlogger.Error(exception.ErrInsufficientBalance))
 		return 0, exception.ErrInsufficientBalance
 	}
 

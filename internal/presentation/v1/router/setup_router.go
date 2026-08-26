@@ -4,13 +4,14 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/cache"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/middleware"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/handler"
-	"github.com/mehdi1443/cinema-booking-system/pkg/logger"
 )
 
 type Handlers struct {
@@ -44,12 +45,18 @@ type Services struct {
 	CaptchaService      service_contract.CaptchaServiceInterface
 }
 
-func SetUpRouter(handler *Handlers, services *Services, repositories *Repositories, config *bootstrap.Config, limiter *middleware.RedisLimiter, appLogger logger.Logger) *gin.Engine {
+func SetUpRouter(
+	handler *Handlers,
+	services *Services,
+	repositories *Repositories,
+	config *bootstrap.Config,
+	limiter *middleware.RedisLimiter,
+	appLogger domainlogger.Logger,
+) *gin.Engine {
 	r := gin.New()
 
-	// gin logger
+	// Gin built-in middlewares
 	r.Use(gin.Logger())
-	// gin panic recovery
 	r.Use(gin.Recovery())
 
 	// CORS
@@ -156,5 +163,6 @@ func SetUpRouter(handler *Handlers, services *Services, repositories *Repositori
 	)
 
 	SetUpCaptchaRouter(v1, &handler.Captcha, limiter, &config.Environment.Limiter, appLogger)
+
 	return r
 }

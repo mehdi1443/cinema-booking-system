@@ -2,16 +2,17 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
+
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/cache"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/middleware"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/handler"
-	"github.com/mehdi1443/cinema-booking-system/pkg/logger"
 )
 
-// TODO : ignrore fileds for base response in each endpoints + permission&Accessibility + userpermission cache issue
+// TODO: ignore fields for base response in each endpoints + permission&Accessibility + userpermission cache issue
 func SetUpUserRouter(
 	rg *gin.RouterGroup,
 	userHandler *handler.UserHandler,
@@ -25,7 +26,7 @@ func SetUpUserRouter(
 	contexTokenService service_contract.ContextTokenServiceInterface,
 	userRepo DB.UserInterface,
 	userCacheConfig *bootstrap.UserPermissionCache,
-	appLogger logger.Logger,
+	appLogger domainlogger.Logger,
 ) {
 	// User Endpoints
 	users := rg.Group("/users")

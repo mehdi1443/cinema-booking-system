@@ -12,8 +12,8 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	domainjwt "github.com/mehdi1443/cinema-booking-system/internal/domain/jwt"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/cache"
-	"github.com/mehdi1443/cinema-booking-system/pkg/logger"
 	"github.com/mehdi1443/cinema-booking-system/pkg/rsa"
 )
 
@@ -22,7 +22,7 @@ type jwtService struct {
 	refreshRSAKeys *rsa.RSAKeys
 	cfg            *bootstrap.JWT
 	blacklistRepo  cache.TokenBlacklistInterface
-	logger         logger.Logger
+	logger         domainlogger.Logger
 }
 
 func NewTokenService(
@@ -30,7 +30,7 @@ func NewTokenService(
 	refreshRSAKeys *rsa.RSAKeys,
 	cfg *bootstrap.JWT,
 	blacklistRepo cache.TokenBlacklistInterface,
-	log logger.Logger,
+	log domainlogger.Logger,
 ) service_contract.JWTServiceInterface {
 	return &jwtService{
 		accessRSAKeys:  accessRSAKeys,
@@ -61,7 +61,7 @@ func (s *jwtService) GenerateAccessToken(ctx context.Context, req dto.GenerateTo
 		IssuedAt:  now,
 		ExpiresAt: now.Add(s.cfg.AccessDuration()),
 	}
-	return s.generateToken(payload)
+	return s.generateToken(ctx, payload)
 }
 
 func (s *jwtService) GenerateRefreshToken(ctx context.Context, req dto.GenerateTokenRequest) (string, error) {
@@ -72,7 +72,7 @@ func (s *jwtService) GenerateRefreshToken(ctx context.Context, req dto.GenerateT
 		IssuedAt:  now,
 		ExpiresAt: now.Add(s.cfg.RefreshDuration()),
 	}
-	return s.generateToken(payload)
+	return s.generateToken(ctx, payload)
 }
 
 func (s *jwtService) ValidateToken(ctx context.Context, signedToken string, tokenType string) (*domainjwt.TokenPayload, error) {
@@ -92,9 +92,7 @@ func (s *jwtService) ValidateToken(ctx context.Context, signedToken string, toke
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			return nil, exception.ErrTokenExpired
 		}
-		s.logger.Warn(logger.Internal, logger.Api, "failed to parse JWT token", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: err.Error(),
-		})
+		s.logger.Warn(ctx, "failed to parse JWT token", domainlogger.Error(err))
 		return nil, errors.Join(exception.ErrInvalidToken, err)
 	}
 
@@ -110,7 +108,7 @@ func (s *jwtService) ValidateToken(ctx context.Context, signedToken string, toke
 	return s.parseClaimsToPayload(claims)
 }
 
-func (s *jwtService) generateToken(payload domainjwt.TokenPayload) (string, error) {
+func (s *jwtService) generateToken(ctx context.Context, payload domainjwt.TokenPayload) (string, error) {
 	claims := jwt.MapClaims{
 		service_contract.UserIDKeyMapClaims:    payload.UserID,
 		service_contract.TokenTypeKeyMapClaims: string(payload.TokenType),
@@ -126,14 +124,12 @@ func (s *jwtService) generateToken(payload domainjwt.TokenPayload) (string, erro
 	} else if payload.TokenType == domainjwt.RefreshTokenTag {
 		signedToken, err = token.SignedString(s.refreshRSAKeys.GetPrivateKey())
 	} else {
-		s.logger.Fatal(logger.Internal, logger.Api, "unknown token type provided for signing", nil)
+		s.logger.Error(ctx, "unknown token type provided for signing", domainlogger.String("type", string(payload.TokenType)))
 		panic("generateToken:WTF")
 	}
 
 	if err != nil {
-		s.logger.Error(logger.Internal, logger.Api, "failed to sign JWT string with private RSA key", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: err.Error(),
-		})
+		s.logger.Error(ctx, "failed to sign JWT string with private RSA key", domainlogger.Error(err))
 		return "", fmt.Errorf("jwtsrv.generateToken: failed to sign token: %w", err)
 	}
 
@@ -178,9 +174,7 @@ func (s *jwtService) BlacklistToken(ctx context.Context, token string, expiresAt
 
 	err := s.blacklistRepo.BlacklistToken(ctx, token, ttl)
 	if err != nil {
-		s.logger.Error(logger.Redis, logger.Insert, "failed to record token in blacklist cache", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: err.Error(),
-		})
+		s.logger.Error(ctx, "failed to record token in blacklist cache", domainlogger.Error(err))
 		return err
 	}
 	return nil

@@ -13,10 +13,10 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	domainjwt "github.com/mehdi1443/cinema-booking-system/internal/domain/jwt"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	cache_repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/cache"
 	"github.com/mehdi1443/cinema-booking-system/pkg/hash"
-	"github.com/mehdi1443/cinema-booking-system/pkg/logger"
 	"github.com/mehdi1443/cinema-booking-system/pkg/random"
 )
 
@@ -31,7 +31,7 @@ type authService struct {
 	smsProvider   service_contract.SMSServiceProviderInterface
 	emailProvider service_contract.EmailServiceProviderInterface
 	hasher        *hash.BcryptHasher
-	logger        logger.Logger
+	logger        domainlogger.Logger
 }
 
 func NewAuthService(
@@ -45,7 +45,7 @@ func NewAuthService(
 	smsProvider service_contract.SMSServiceProviderInterface,
 	emailProvider service_contract.EmailServiceProviderInterface,
 	hasher *hash.BcryptHasher,
-	log logger.Logger,
+	log domainlogger.Logger,
 ) service_contract.AuthenticationServiceInterface {
 	return &authService{
 		userRepo:      userRepo,
@@ -69,9 +69,7 @@ func (s *authService) SendOTP(ctx context.Context, phone string, email string) (
 
 		err := s.otpRepo.SaveOTP(ctx, phone, code, s.otpConfig.ExpirationDuration())
 		if err != nil {
-			s.logger.Error(logger.Redis, logger.Insert, "failed to save phone OTP to cache", map[logger.ExtraKey]interface{}{
-				logger.ErrorMessage: err.Error(),
-			})
+			s.logger.Error(ctx, "failed to save phone OTP to cache", domainlogger.Error(err))
 			return nil, fmt.Errorf("failed to save OTP: %w", err)
 		}
 
@@ -86,9 +84,7 @@ func (s *authService) SendOTP(ctx context.Context, phone string, email string) (
 
 		err := s.otpRepo.SaveOTP(ctx, email, code, s.otpConfig.ExpirationDuration())
 		if err != nil {
-			s.logger.Error(logger.Redis, logger.Insert, "failed to save email OTP to cache", map[logger.ExtraKey]interface{}{
-				logger.ErrorMessage: err.Error(),
-			})
+			s.logger.Error(ctx, "failed to save email OTP to cache", domainlogger.Error(err))
 			return nil, fmt.Errorf("failed to save OTP: %w", err)
 		}
 
@@ -113,32 +109,26 @@ func (s *authService) VerifyOTP(ctx context.Context, phone string, code string) 
 	savedCode, err := s.otpRepo.GetOTP(ctx, phone)
 	if err != nil {
 		if errors.Is(err, exception.ErrOtpKeyNotFound) {
-			s.logger.Warn(logger.Validation, logger.MobileValidation, "OTP verification attempted with expired code", map[logger.ExtraKey]interface{}{
-				logger.ErrorMessage: err.Error(),
-			})
+			s.logger.Warn(ctx, "OTP verification attempted with expired code", domainlogger.Error(err))
 			return nil, exception.ErrOTPExpired
 		}
 		return nil, err
 	}
 
 	if savedCode != code {
-		s.logger.Warn(logger.Validation, logger.MobileValidation, "OTP verification failed due to code mismatch", nil)
+		s.logger.Warn(ctx, "OTP verification failed due to code mismatch")
 		return nil, exception.ErrInvalidOTP
 	}
 
 	err = s.otpRepo.DeleteOTP(ctx, phone)
 	if err != nil {
-		s.logger.Error(logger.Redis, logger.Delete, "failed to delete OTP after verification", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: err.Error(),
-		})
+		s.logger.Error(ctx, "failed to delete OTP after verification", domainlogger.Error(err))
 		return nil, err
 	}
 
 	err = s.otpRepo.SetVerified(ctx, phone, s.otpConfig.VerifyExpirationDuration())
 	if err != nil {
-		s.logger.Error(logger.Redis, logger.Insert, "failed to mark phone as verified in cache", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: err.Error(),
-		})
+		s.logger.Error(ctx, "failed to mark phone as verified in cache", domainlogger.Error(err))
 		return nil, err
 	}
 
@@ -150,40 +140,28 @@ func (s *authService) Login(ctx context.Context, phone string, password string) 
 	user, err := s.userRepo.FindUserByPhone(ctx, phone)
 	if err != nil {
 		if errors.Is(err, exception.ErrUserNotFound) {
-			s.logger.Warn(logger.Internal, logger.Api, "login attempt failed: user not found", map[logger.ExtraKey]interface{}{
-				logger.ErrorMessage: err.Error(),
-			})
+			s.logger.Warn(ctx, "login attempt failed: user not found", domainlogger.Error(err))
 			return nil, exception.ErrInvalidCredentials
 		}
 		return nil, err
 	}
 
-	// if user.IsPhoneVerified == false {
-	// 	return nil, exception.ErrNotVerifiedPhoneNumber
-	// }
-
 	err = s.hasher.Compare(password, user.PasswordHash)
 	if err != nil {
-		s.logger.Warn(logger.Internal, logger.HashPassword, "login attempt failed: invalid password", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: err.Error(),
-		})
+		s.logger.Warn(ctx, "login attempt failed: invalid password", domainlogger.Error(err))
 		return nil, exception.ErrInvalidCredentials
 	}
 
 	access, refresh, err := s.tokenService.GenerateTokens(ctx, dto.GenerateTokenRequest{UserID: user.ID})
 	if err != nil {
-		s.logger.Error(logger.Internal, logger.Api, "failed to generate authentication tokens", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: err.Error(),
-		})
+		s.logger.Error(ctx, "failed to generate authentication tokens", domainlogger.Error(err))
 		return nil, fmt.Errorf("failed to generate token: %w", err)
 	}
 
 	strid := strconv.Itoa(int(user.ID))
 	err = s.refreshRepo.SaveRefreshToken(ctx, strid, refresh, s.jwtConfig.RefreshDuration())
 	if err != nil {
-		s.logger.Error(logger.Redis, logger.Insert, "failed to store refresh token during login", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: err.Error(),
-		})
+		s.logger.Error(ctx, "failed to store refresh token during login", domainlogger.Error(err))
 		return nil, fmt.Errorf("failed to save refresh token: %w", err)
 	}
 
@@ -215,9 +193,7 @@ func (s *authService) Register(ctx context.Context, phone string, email string, 
 
 	hashedPassword, err := s.hasher.Hash(password)
 	if err != nil {
-		s.logger.Error(logger.Internal, logger.HashPassword, "failed to hash password during registration", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: err.Error(),
-		})
+		s.logger.Error(ctx, "failed to hash password during registration", domainlogger.Error(err))
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
@@ -235,17 +211,13 @@ func (s *authService) Register(ctx context.Context, phone string, email string, 
 
 	createdUser, err := s.userRepo.CreateUser(ctx, newUser)
 	if err != nil {
-		s.logger.Error(logger.Internal, logger.FailedToCreateUser, "failed to persist new user", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: err.Error(),
-		})
+		s.logger.Error(ctx, "failed to persist new user", domainlogger.Error(err))
 		return nil, err
 	}
 
 	access, refresh, err := s.tokenService.GenerateTokens(ctx, dto.GenerateTokenRequest{UserID: createdUser.ID})
 	if err != nil {
-		s.logger.Error(logger.Internal, logger.Api, "failed to generate tokens for newly registered user", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: err.Error(),
-		})
+		s.logger.Error(ctx, "failed to generate tokens for newly registered user", domainlogger.Error(err))
 		return nil, fmt.Errorf("failed to generate token: %w", err)
 	}
 
@@ -268,9 +240,7 @@ func (s *authService) VerifyPhone(ctx context.Context, userID int64, phone strin
 
 	err = s.userRepo.VerifyUserPhone(ctx, userID)
 	if err != nil {
-		s.logger.Error(logger.Postgres, logger.Update, "failed to set user phone verified status", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: err.Error(),
-		})
+		s.logger.Error(ctx, "failed to set user phone verified status", domainlogger.Error(err))
 		return nil, err
 	}
 
@@ -286,32 +256,26 @@ func (s *authService) VerifyEmail(ctx context.Context, tokenData *dto.TokenInCon
 	savedCode, err := s.otpRepo.GetOTP(ctx, email)
 	if err != nil {
 		if errors.Is(err, exception.ErrOtpKeyNotFound) {
-			s.logger.Warn(logger.Validation, logger.MobileValidation, "email verification attempted with expired code", map[logger.ExtraKey]interface{}{
-				logger.ErrorMessage: err.Error(),
-			})
+			s.logger.Warn(ctx, "email verification attempted with expired code", domainlogger.Error(err))
 			return nil, exception.ErrOTPExpired
 		}
 		return nil, err
 	}
 
 	if savedCode != code {
-		s.logger.Warn(logger.Validation, logger.MobileValidation, "email verification code mismatch", nil)
+		s.logger.Warn(ctx, "email verification code mismatch")
 		return nil, exception.ErrInvalidOTP
 	}
 
 	err = s.userRepo.VerifyUserEmail(ctx, email)
 	if err != nil {
-		s.logger.Error(logger.Postgres, logger.Update, "failed to set user email verified status", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: err.Error(),
-		})
+		s.logger.Error(ctx, "failed to set user email verified status", domainlogger.Error(err))
 		return nil, err
 	}
 
 	err = s.otpRepo.DeleteOTP(ctx, email)
 	if err != nil {
-		s.logger.Error(logger.Redis, logger.Delete, "failed to delete email OTP after verification", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: err.Error(),
-		})
+		s.logger.Error(ctx, "failed to delete email OTP after verification", domainlogger.Error(err))
 		return nil, err
 	}
 
@@ -326,15 +290,13 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken *dto.Refres
 
 	claims, err := s.tokenService.ValidateToken(ctx, refreshToken.RefreshToken, string(domainjwt.RefreshTokenTag))
 	if err != nil {
-		s.logger.Warn(logger.Internal, logger.Api, "refresh token validation failed", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: err.Error(),
-		})
+		s.logger.Warn(ctx, "refresh token validation failed", domainlogger.Error(err))
 		return nil, exception.ErrTokenExpired
 	}
 
 	storedToken, err := s.refreshRepo.GetRefreshToken(ctx, strconv.Itoa(int(claims.UserID)))
 	if err != nil || storedToken != refreshToken.RefreshToken {
-		s.logger.Warn(logger.Internal, logger.Api, "refresh token mismatch or missing in store", nil)
+		s.logger.Warn(ctx, "refresh token mismatch or missing in store")
 		return nil, exception.ErrInvalidToken
 	}
 
@@ -348,25 +310,19 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken *dto.Refres
 
 	newAccessToken, err := s.tokenService.GenerateAccessToken(ctx, dto.GenerateTokenRequest{UserID: user.ID})
 	if err != nil {
-		s.logger.Error(logger.Internal, logger.Api, "failed to generate new access token during refresh", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: err.Error(),
-		})
+		s.logger.Error(ctx, "failed to generate new access token during refresh", domainlogger.Error(err))
 		return nil, fmt.Errorf("failed to generate access token: %w", err)
 	}
 
 	newRefreshToken, err := s.tokenService.GenerateRefreshToken(ctx, dto.GenerateTokenRequest{UserID: user.ID})
 	if err != nil {
-		s.logger.Error(logger.Internal, logger.Api, "failed to generate new refresh token during refresh", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: err.Error(),
-		})
+		s.logger.Error(ctx, "failed to generate new refresh token during refresh", domainlogger.Error(err))
 		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
 	}
 
 	err = s.refreshRepo.SaveRefreshToken(ctx, strconv.Itoa(int(user.ID)), newRefreshToken, s.jwtConfig.RefreshDuration())
 	if err != nil {
-		s.logger.Error(logger.Redis, logger.Insert, "failed to store updated refresh token", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: err.Error(),
-		})
+		s.logger.Error(ctx, "failed to store updated refresh token", domainlogger.Error(err))
 		return nil, fmt.Errorf("failed to store refresh token: %w", err)
 	}
 
@@ -388,17 +344,13 @@ func (s *authService) Logout(ctx context.Context, userID int64, jwtContext *dto.
 
 	err := s.refreshRepo.DeleteRefreshToken(ctx, strconv.Itoa(int(userID)))
 	if err != nil {
-		s.logger.Error(logger.Redis, logger.Delete, "failed to remove refresh token on logout", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: err.Error(),
-		})
+		s.logger.Error(ctx, "failed to remove refresh token on logout", domainlogger.Error(err))
 		return fmt.Errorf("failed to revoke refresh token: %w", err)
 	}
 
 	err = s.tokenService.BlacklistToken(ctx, jwtContext.TheToken, jwtContext.TheTokenExpireAt.Unix())
 	if err != nil {
-		s.logger.Error(logger.Redis, logger.Insert, "failed to blacklist access token on logout", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: err.Error(),
-		})
+		s.logger.Error(ctx, "failed to blacklist access token on logout", domainlogger.Error(err))
 		return err
 	}
 

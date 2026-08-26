@@ -2,13 +2,14 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
+
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/cache"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/middleware"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/handler"
-	"github.com/mehdi1443/cinema-booking-system/pkg/logger"
 )
 
 func SetUpFavoriteRouter(
@@ -20,7 +21,7 @@ func SetUpFavoriteRouter(
 	contexTokenService service_contract.ContextTokenServiceInterface,
 	userRepo DB.UserInterface,
 	userCacheConfig *bootstrap.UserPermissionCache,
-	appLogger logger.Logger,
+	appLogger domainlogger.Logger,
 ) {
 	favorites := rg.Group("/favorites")
 	favorites.Use(authMiddleware)

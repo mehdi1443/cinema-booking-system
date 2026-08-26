@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 type Database interface {
@@ -24,7 +27,7 @@ var (
 	dbInstance *PostgresDatabase
 )
 
-func NewPostgresDatabase(dbConfig *bootstrap.DataBase, dbConst *bootstrap.DBConst) *PostgresDatabase {
+func NewPostgresDatabase(dbConfig *bootstrap.DataBase, dbConst *bootstrap.DBConst, appLogger domainlogger.Logger) *PostgresDatabase {
 	dbOnce.Do(func() {
 		dsn := fmt.Sprintf(
 			"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=UTC",
@@ -36,7 +39,13 @@ func NewPostgresDatabase(dbConfig *bootstrap.DataBase, dbConst *bootstrap.DBCons
 			dbConfig.SSLMode,
 		)
 
-		db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		customLogger := NewGormLoggerAdapter(appLogger, 200*time.Millisecond)
+
+		gormConfig := &gorm.Config{
+			Logger: customLogger.LogMode(gormlogger.Warn),
+		}
+
+		db, err := gorm.Open(postgres.Open(dsn), gormConfig)
 		if err != nil {
 			log.Fatalf("Critical error: failed to connect to Postgres DB '%s': %v", dbConfig.Name, err)
 		}

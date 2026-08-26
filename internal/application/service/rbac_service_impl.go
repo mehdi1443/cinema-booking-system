@@ -10,9 +10,9 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	repository_contract "github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/cache"
-	"github.com/mehdi1443/cinema-booking-system/pkg/logger"
 )
 
 type rbacService struct {
@@ -20,7 +20,7 @@ type rbacService struct {
 	userRepo                  repository_contract.UserInterface
 	userPermissionCacheRepo   cache.UserPermissionCacheInterface
 	userPermissionCacheConfig *bootstrap.UserPermissionCache
-	logger                    logger.Logger
+	logger                    domainlogger.Logger
 }
 
 func NewRBACService(
@@ -28,7 +28,7 @@ func NewRBACService(
 	userRepo repository_contract.UserInterface,
 	userPermissionCacheRepo cache.UserPermissionCacheInterface,
 	userPermissionCacheConfig *bootstrap.UserPermissionCache,
-	log logger.Logger,
+	log domainlogger.Logger,
 ) service_contract.RBACServiceInterface {
 	return &rbacService{
 		rbacRepo:                  rbacRepo,
@@ -63,11 +63,10 @@ func (s *rbacService) AppendPermissionsToRole(ctx context.Context, tokenData *dt
 	}
 	err = s.userPermissionCacheRepo.DeleteAllUserPermission(ctx, userIDs)
 	if err != nil {
-		s.logger.Error(logger.Redis, logger.Delete, "failed to invalidate user permissions cache after appending role permissions", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: err.Error(),
-		})
+		s.logger.Error(ctx, "failed to invalidate user permissions cache after appending role permissions", domainlogger.Error(err))
 		return err
 	}
+	s.logger.Info(ctx, "Permissions appended to role successfully", domainlogger.Int64("role_id", roleID))
 	return nil
 }
 
@@ -95,11 +94,10 @@ func (s *rbacService) DeletePermissionsOfRole(ctx context.Context, tokenData *dt
 	}
 	err = s.userPermissionCacheRepo.DeleteAllUserPermission(ctx, userIDs)
 	if err != nil {
-		s.logger.Error(logger.Redis, logger.Delete, "failed to invalidate user permissions cache after removing role permissions", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: err.Error(),
-		})
+		s.logger.Error(ctx, "failed to invalidate user permissions cache after removing role permissions", domainlogger.Error(err))
 		return err
 	}
+	s.logger.Info(ctx, "Permissions deleted from role successfully", domainlogger.Int64("role_id", roleID))
 	return nil
 }
 
@@ -121,9 +119,7 @@ func (s *rbacService) GetUserPermissionNames(ctx context.Context, tokenData *dto
 			}
 			err := s.userPermissionCacheRepo.SaveUserPermissions(ctx, strconv.Itoa(int(userID)), permsStr, s.userPermissionCacheConfig.ExpirationDuration())
 			if err != nil {
-				s.logger.Error(logger.Redis, logger.Insert, "failed to populate user permissions cache", map[logger.ExtraKey]interface{}{
-					logger.ErrorMessage: err.Error(),
-				})
+				s.logger.Error(ctx, "failed to populate user permissions cache", domainlogger.Error(err))
 				return nil, err
 			}
 			return permsStr, nil
@@ -210,9 +206,7 @@ func (s *rbacService) UpdateUserRoles(ctx context.Context, ctxToken *dto.TokenIn
 
 	err = s.userPermissionCacheRepo.DeleteUserPermission(ctx, strconv.Itoa(int(userID)))
 	if err != nil {
-		s.logger.Error(logger.Redis, logger.Delete, "failed to invalidate user permissions cache after updating user roles", map[logger.ExtraKey]interface{}{
-			logger.ErrorMessage: err.Error(),
-		})
+		s.logger.Error(ctx, "failed to invalidate user permissions cache after updating user roles", domainlogger.Error(err))
 		return nil, err
 	}
 
@@ -220,6 +214,8 @@ func (s *rbacService) UpdateUserRoles(ctx context.Context, ctxToken *dto.TokenIn
 	if err != nil {
 		return nil, err
 	}
+
+	s.logger.Info(ctx, "User roles updated successfully", domainlogger.Int64("user_id", userID))
 
 	return dto.ToUserResponse(updatedUser, &dto.HideFieldUserOption{WalletBalance: false}), nil
 }
@@ -241,6 +237,8 @@ func (s *rbacService) CreateRole(ctx context.Context, tokenData *dto.TokenInCont
 	if err := s.rbacRepo.CreateRole(ctx, role); err != nil {
 		return nil, err
 	}
+
+	s.logger.Info(ctx, "Role created successfully", domainlogger.String("role_name", role.Name))
 
 	return role, nil
 }
@@ -267,6 +265,8 @@ func (s *rbacService) UpdateRole(ctx context.Context, tokenData *dto.TokenInCont
 	if err := s.rbacRepo.UpdateRole(ctx, existingRole); err != nil {
 		return nil, err
 	}
+
+	s.logger.Info(ctx, "Role updated successfully", domainlogger.Int64("role_id", roleID))
 
 	return existingRole, nil
 }
