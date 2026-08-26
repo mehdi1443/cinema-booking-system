@@ -6,20 +6,28 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
 
-type ErrorInfo struct {
-	StatusCode int
-	Message    string
-}
-
-func Handle(c *gin.Context, err error) {
+func Handle(c *gin.Context, err error, log domainlogger.Logger) {
 	if err == nil {
 		return
 	}
 
 	info := mapError(err)
+
+	ctx := c.Request.Context()
+	fields := []domainlogger.Field{
+		domainlogger.Error(err),
+		domainlogger.Int("status_code", info.StatusCode),
+	}
+
+	if info.StatusCode >= 500 {
+		log.Error(ctx, "Internal server error occurred", fields...)
+	} else if info.StatusCode >= 400 {
+		log.Warn(ctx, "Client validation or logic error", fields...)
+	}
 
 	response.Error(
 		c,
@@ -36,8 +44,16 @@ func HandleNotFound(c *gin.Context, message string) {
 	response.Error(c, http.StatusNotFound, message)
 }
 
-func HandleInternal(c *gin.Context) {
+func HandleInternal(c *gin.Context, log domainlogger.Logger, err error) {
+	if log != nil && err != nil {
+		log.Error(c.Request.Context(), "Unhandled internal error", domainlogger.Error(err))
+	}
 	response.Error(c, http.StatusInternalServerError, "Internal server error occurred")
+}
+
+type ErrorInfo struct {
+	StatusCode int
+	Message    string
 }
 
 func mapError(err error) ErrorInfo {

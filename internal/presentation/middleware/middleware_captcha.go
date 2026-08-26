@@ -8,7 +8,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
-	"github.com/mehdi1443/cinema-booking-system/pkg/logger"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
 
@@ -19,13 +19,13 @@ const CtxCaptchaCodeKey = "X-Captcha-Code"
 type CaptchaSolving struct {
 	captchaService service_contract.CaptchaServiceInterface
 	debugConfig    *bootstrap.DebugModeOptions
-	log            logger.Logger
+	log            domainlogger.Logger
 }
 
 func NewCaptchaSolving(
 	captchaService service_contract.CaptchaServiceInterface,
 	debugConfig *bootstrap.DebugModeOptions,
-	log logger.Logger,
+	log domainlogger.Logger,
 ) *CaptchaSolving {
 	return &CaptchaSolving{
 		captchaService: captchaService,
@@ -36,6 +36,8 @@ func NewCaptchaSolving(
 
 func (cs *CaptchaSolving) CaptchaSolvingMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		ctx := c.Request.Context()
+
 		if cs.debugConfig.Enable {
 			c.Set(CtxCaptchaValidationKey, true)
 			c.Next()
@@ -46,38 +48,30 @@ func (cs *CaptchaSolving) CaptchaSolvingMiddleware() gin.HandlerFunc {
 		captchaCode := c.GetHeader(CtxCaptchaCodeKey)
 
 		if captchaID == "" || captchaCode == "" {
-			cs.log.Warn(logger.Validation, logger.Api, "Captcha headers missing", map[logger.ExtraKey]interface{}{
-				logger.ErrorMessage: "X-Captcha-ID or X-Captcha-Code header is empty",
-			})
-			response.Error(c, http.StatusBadRequest, "captcha_headers_required", nil)
+			cs.log.Warn(ctx, "Captcha headers missing", domainlogger.String("details", "X-Captcha-ID or X-Captcha-Code header is empty"))
+			response.Error(c, http.StatusBadRequest, "captcha_headers_required")
 			c.Abort()
 			return
 		}
 
-		isValid, err := cs.captchaService.Verify(c.Request.Context(), captchaID, captchaCode)
+		isValid, err := cs.captchaService.Verify(ctx, captchaID, captchaCode)
 		if err != nil {
 			if errors.Is(err, exception.ErrCaptchaNotFound) {
-				cs.log.Warn(logger.Validation, logger.Api, "VerifyCaptcha failed: captcha not found or expired", map[logger.ExtraKey]interface{}{
-					logger.ErrorMessage: err.Error(),
-				})
-				response.Error(c, http.StatusNotFound, "Captcha not found or expired", err)
+				cs.log.Warn(ctx, "VerifyCaptcha failed: captcha not found or expired", domainlogger.Error(err))
+				response.Error(c, http.StatusNotFound, "Captcha not found or expired")
 				c.Abort()
 				return
 			}
 
-			cs.log.Error(logger.Internal, logger.Api, "VerifyCaptcha internal failure", map[logger.ExtraKey]interface{}{
-				logger.ErrorMessage: err.Error(),
-			})
-			response.Error(c, http.StatusInternalServerError, "Failed to verify captcha", err)
+			cs.log.Error(ctx, "VerifyCaptcha internal failure", domainlogger.Error(err))
+			response.Error(c, http.StatusInternalServerError, "Failed to verify captcha")
 			c.Abort()
 			return
 		}
 
 		if isValid == nil || !*isValid {
-			cs.log.Warn(logger.Validation, logger.Api, "VerifyCaptcha failed: invalid captcha code", map[logger.ExtraKey]interface{}{
-				logger.ErrorMessage: "code mismatch",
-			})
-			response.Error(c, http.StatusBadRequest, "Invalid captcha code", nil)
+			cs.log.Warn(ctx, "VerifyCaptcha failed: invalid captcha code", domainlogger.String("details", "code mismatch"))
+			response.Error(c, http.StatusBadRequest, "Invalid captcha code")
 			c.Abort()
 			return
 		}

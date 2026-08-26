@@ -6,25 +6,25 @@ import (
 	"github.com/gin-gonic/gin"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
-	"github.com/mehdi1443/cinema-booking-system/pkg/logger"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
 
 type FavoriteHandler struct {
 	favoriteService     service_contract.FavoriteServiceInterface
 	contexttokenService service_contract.ContextTokenServiceInterface
-	log                 logger.Logger
+	log                 domainlogger.Logger
 }
 
 func NewFavoriteHandler(
 	favoriteService service_contract.FavoriteServiceInterface,
 	contexttokenService service_contract.ContextTokenServiceInterface,
-	log logger.Logger,
+	log domainlogger.Logger,
 ) *FavoriteHandler {
 	return &FavoriteHandler{
 		favoriteService:     favoriteService,
 		contexttokenService: contexttokenService,
-		log:                 log, // اگر بصورت متمرکز لاگ می‌کنی، این رو می‌تونی کاملاً حذف کنی
+		log:                 log,
 	}
 }
 
@@ -36,7 +36,7 @@ func NewFavoriteHandler(
 func (h *FavoriteHandler) AddMovieToFavorites(c *gin.Context) {
 	tokenData, err := h.contexttokenService.GetTokenFromGinContext(c)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -48,7 +48,7 @@ func (h *FavoriteHandler) AddMovieToFavorites(c *gin.Context) {
 
 	favorite, err := h.favoriteService.AddMovieToFavorites(c.Request.Context(), tokenData.UserID, &req)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -59,7 +59,7 @@ func (h *FavoriteHandler) AddMovieToFavorites(c *gin.Context) {
 func (h *FavoriteHandler) RemoveMovieFromFavorites(c *gin.Context) {
 	tokenData, err := h.contexttokenService.GetTokenFromGinContext(c)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -69,7 +69,7 @@ func (h *FavoriteHandler) RemoveMovieFromFavorites(c *gin.Context) {
 	}
 
 	if err := h.favoriteService.RemoveMovieFromFavorites(c.Request.Context(), tokenData.UserID, movieID); err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -80,7 +80,7 @@ func (h *FavoriteHandler) RemoveMovieFromFavorites(c *gin.Context) {
 func (h *FavoriteHandler) AddCinemaToFavorites(c *gin.Context) {
 	tokenData, err := h.contexttokenService.GetTokenFromGinContext(c)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -92,7 +92,7 @@ func (h *FavoriteHandler) AddCinemaToFavorites(c *gin.Context) {
 
 	favorite, err := h.favoriteService.AddCinemaToFavorites(c.Request.Context(), tokenData.UserID, &req)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -103,7 +103,7 @@ func (h *FavoriteHandler) AddCinemaToFavorites(c *gin.Context) {
 func (h *FavoriteHandler) RemoveCinemaFromFavorites(c *gin.Context) {
 	tokenData, err := h.contexttokenService.GetTokenFromGinContext(c)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -113,7 +113,7 @@ func (h *FavoriteHandler) RemoveCinemaFromFavorites(c *gin.Context) {
 	}
 
 	if err := h.favoriteService.RemoveCinemaFromFavorites(c.Request.Context(), tokenData.UserID, cinemaID); err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -124,7 +124,7 @@ func (h *FavoriteHandler) RemoveCinemaFromFavorites(c *gin.Context) {
 func (h *FavoriteHandler) GetUserFavorites(c *gin.Context) {
 	tokenData, err := h.contexttokenService.GetTokenFromGinContext(c)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -136,7 +136,7 @@ func (h *FavoriteHandler) GetUserFavorites(c *gin.Context) {
 
 	result, err := h.favoriteService.GetUserFavorites(c.Request.Context(), tokenData.UserID, &req)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 

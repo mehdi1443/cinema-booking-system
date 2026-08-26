@@ -6,16 +6,19 @@ import (
 	"github.com/gin-gonic/gin"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
 
 type FacilityHandler struct {
 	facilityService service_contract.FacilityServiceInterface
+	log             domainlogger.Logger
 }
 
-func NewFacilityHandler(facilityService service_contract.FacilityServiceInterface) *FacilityHandler {
+func NewFacilityHandler(facilityService service_contract.FacilityServiceInterface, log domainlogger.Logger) *FacilityHandler {
 	return &FacilityHandler{
 		facilityService: facilityService,
+		log:             log,
 	}
 }
 
@@ -32,7 +35,7 @@ func (h *FacilityHandler) CreateFacility(c *gin.Context) {
 
 	facility, err := h.facilityService.Create(c.Request.Context(), &req)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -47,7 +50,7 @@ func (h *FacilityHandler) GetFacilityByID(c *gin.Context) {
 
 	facility, err := h.facilityService.GetByID(c.Request.Context(), id)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -57,7 +60,7 @@ func (h *FacilityHandler) GetFacilityByID(c *gin.Context) {
 func (h *FacilityHandler) GetAllFacilities(c *gin.Context) {
 	facilities, err := h.facilityService.GetAll(c.Request.Context())
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -78,7 +81,7 @@ func (h *FacilityHandler) UpdateFacility(c *gin.Context) {
 
 	updatedFacility, err := h.facilityService.Update(c.Request.Context(), id, &req)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -92,7 +95,7 @@ func (h *FacilityHandler) DeleteFacility(c *gin.Context) {
 	}
 
 	if err := h.facilityService.Delete(c.Request.Context(), id); err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 

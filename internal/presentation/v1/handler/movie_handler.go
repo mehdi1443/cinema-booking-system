@@ -8,6 +8,7 @@ import (
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
 
@@ -18,13 +19,16 @@ const (
 
 type MovieHandler struct {
 	movieService service_contract.MovieServiceInterface
+	log          domainlogger.Logger // <--- لاگر به هندلر اضافه شد
 }
 
 func NewMovieHandler(
 	movieService service_contract.MovieServiceInterface,
+	log domainlogger.Logger, // <--- دریافت لاگر در کانستراکتور
 ) *MovieHandler {
 	return &MovieHandler{
 		movieService: movieService,
+		log:          log,
 	}
 }
 
@@ -33,7 +37,6 @@ func NewMovieHandler(
 // -----------------------------------------------------------------------------
 
 func (h *MovieHandler) CreateMovie(c *gin.Context) {
-
 	var req dto.CreateMovieRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -42,9 +45,8 @@ func (h *MovieHandler) CreateMovie(c *gin.Context) {
 	}
 
 	movie, err := h.movieService.Create(c.Request.Context(), &req)
-
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log) // <--- پاس دادن لاگر به ارور هندلر
 		return
 	}
 
@@ -56,16 +58,14 @@ func (h *MovieHandler) CreateMovie(c *gin.Context) {
 // -----------------------------------------------------------------------------
 
 func (h *MovieHandler) GetMovieByID(c *gin.Context) {
-
 	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
 
 	movie, err := h.movieService.GetByID(c.Request.Context(), id)
-
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log) // <---
 		return
 	}
 
@@ -77,7 +77,6 @@ func (h *MovieHandler) GetMovieByID(c *gin.Context) {
 // -----------------------------------------------------------------------------
 
 func (h *MovieHandler) GetMovies(c *gin.Context) {
-
 	var req dto.MovieFilterRequest
 
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -88,9 +87,8 @@ func (h *MovieHandler) GetMovies(c *gin.Context) {
 	req.Normalize()
 
 	movies, total, err := h.movieService.GetMovies(c.Request.Context(), req)
-
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log) // <---
 		return
 	}
 
@@ -108,7 +106,6 @@ func (h *MovieHandler) GetMovies(c *gin.Context) {
 // -----------------------------------------------------------------------------
 
 func (h *MovieHandler) UpdateMovie(c *gin.Context) {
-
 	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
@@ -122,9 +119,8 @@ func (h *MovieHandler) UpdateMovie(c *gin.Context) {
 	}
 
 	updatedMovie, err := h.movieService.Update(c.Request.Context(), id, &req)
-
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log) // <---
 		return
 	}
 
@@ -136,15 +132,13 @@ func (h *MovieHandler) UpdateMovie(c *gin.Context) {
 // -----------------------------------------------------------------------------
 
 func (h *MovieHandler) DeleteMovie(c *gin.Context) {
-
 	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
 
 	if err := h.movieService.Delete(c.Request.Context(), id); err != nil {
-
-		Handle(c, err)
+		Handle(c, err, h.log) // <---
 		return
 	}
 
@@ -156,37 +150,32 @@ func (h *MovieHandler) DeleteMovie(c *gin.Context) {
 // -----------------------------------------------------------------------------
 
 func (h *MovieHandler) UploadPoster(c *gin.Context) {
-
 	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
 
 	fileHeader, err := c.FormFile("poster")
-
 	if err != nil {
 		HandleBadRequest(c, "Poster image file is required")
 		return
 	}
 
 	if fileHeader.Size > maxPosterSize {
-		Handle(c, exception.ErrFileSizeTooLarge)
+		Handle(c, exception.ErrFileSizeTooLarge, h.log) // <---
 		return
 	}
 
 	file, err := fileHeader.Open()
-
 	if err != nil {
-		Handle(c, exception.ErrInternal)
+		Handle(c, exception.ErrInternal, h.log) // <---
 		return
 	}
-
 	defer file.Close()
 
 	movie, err := h.movieService.UploadPoster(c.Request.Context(), id, file)
-
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log) // <---
 		return
 	}
 
@@ -198,15 +187,13 @@ func (h *MovieHandler) UploadPoster(c *gin.Context) {
 // -----------------------------------------------------------------------------
 
 func (h *MovieHandler) DeletePoster(c *gin.Context) {
-
 	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
 
 	if err := h.movieService.DeletePoster(c.Request.Context(), id); err != nil {
-
-		Handle(c, err)
+		Handle(c, err, h.log) // <---
 		return
 	}
 
@@ -218,37 +205,32 @@ func (h *MovieHandler) DeletePoster(c *gin.Context) {
 // -----------------------------------------------------------------------------
 
 func (h *MovieHandler) UploadTrailer(c *gin.Context) {
-
 	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
 
 	fileHeader, err := c.FormFile("trailer")
-
 	if err != nil {
 		HandleBadRequest(c, "Trailer video file is required")
 		return
 	}
 
 	if fileHeader.Size > maxTrailerSize {
-		Handle(c, exception.ErrFileSizeTooLarge)
+		Handle(c, exception.ErrFileSizeTooLarge, h.log) // <---
 		return
 	}
 
 	file, err := fileHeader.Open()
-
 	if err != nil {
-		Handle(c, exception.ErrInternal)
+		Handle(c, exception.ErrInternal, h.log) // <---
 		return
 	}
-
 	defer file.Close()
 
 	movie, err := h.movieService.UploadTrailer(c.Request.Context(), id, file)
-
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log) // <---
 		return
 	}
 
@@ -260,15 +242,13 @@ func (h *MovieHandler) UploadTrailer(c *gin.Context) {
 // -----------------------------------------------------------------------------
 
 func (h *MovieHandler) DeleteTrailer(c *gin.Context) {
-
 	id, ok := parseParamID(c, "id")
 	if !ok {
 		return
 	}
 
 	if err := h.movieService.DeleteTrailer(c.Request.Context(), id); err != nil {
-
-		Handle(c, err)
+		Handle(c, err, h.log) // <---
 		return
 	}
 

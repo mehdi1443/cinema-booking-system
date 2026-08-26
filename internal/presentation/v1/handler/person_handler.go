@@ -7,6 +7,7 @@ import (
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
 
@@ -14,11 +15,13 @@ const maxPersonImageSize = 5 * 1024 * 1024 // 5 MB
 
 type PersonHandler struct {
 	personService service_contract.PersonServiceInterface
+	log           domainlogger.Logger
 }
 
-func NewPersonHandler(personService service_contract.PersonServiceInterface) *PersonHandler {
+func NewPersonHandler(personService service_contract.PersonServiceInterface, log domainlogger.Logger) *PersonHandler {
 	return &PersonHandler{
 		personService: personService,
+		log:           log,
 	}
 }
 
@@ -35,7 +38,7 @@ func (h *PersonHandler) CreatePerson(c *gin.Context) {
 
 	person, err := h.personService.Create(c.Request.Context(), &req)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -54,7 +57,7 @@ func (h *PersonHandler) GetPersonByID(c *gin.Context) {
 
 	person, err := h.personService.GetByID(c.Request.Context(), id)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -76,7 +79,7 @@ func (h *PersonHandler) GetPersons(c *gin.Context) {
 
 	persons, total, err := h.personService.GetPersons(c.Request.Context(), req)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -107,7 +110,7 @@ func (h *PersonHandler) UpdatePerson(c *gin.Context) {
 
 	updatedPerson, err := h.personService.Update(c.Request.Context(), id, &req)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -125,7 +128,7 @@ func (h *PersonHandler) DeletePerson(c *gin.Context) {
 	}
 
 	if err := h.personService.Delete(c.Request.Context(), id); err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -149,20 +152,20 @@ func (h *PersonHandler) UploadImage(c *gin.Context) {
 	}
 
 	if fileHeader.Size > maxPersonImageSize {
-		Handle(c, exception.ErrFileSizeTooLarge)
+		Handle(c, exception.ErrFileSizeTooLarge, h.log)
 		return
 	}
 
 	file, err := fileHeader.Open()
 	if err != nil {
-		Handle(c, exception.ErrInternal)
+		Handle(c, exception.ErrInternal, h.log)
 		return
 	}
 	defer file.Close()
 
 	person, err := h.personService.UploadImage(c.Request.Context(), id, file)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -180,7 +183,7 @@ func (h *PersonHandler) DeleteImage(c *gin.Context) {
 	}
 
 	if err := h.personService.DeleteImage(c.Request.Context(), id); err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 

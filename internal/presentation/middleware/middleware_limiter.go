@@ -7,17 +7,17 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis_rate/v10"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
-	"github.com/mehdi1443/cinema-booking-system/pkg/logger"
 	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
 
 type RedisLimiter struct {
 	limiter   *redis_rate.Limiter
-	appLogger logger.Logger
+	appLogger domainlogger.Logger
 }
 
-func NewRedisLimiter(redisClient database.Cache, appLogger logger.Logger) *RedisLimiter {
+func NewRedisLimiter(redisClient database.Cache, appLogger domainlogger.Logger) *RedisLimiter {
 	return &RedisLimiter{
 		limiter:   redis_rate.NewLimiter(redisClient.GetRDB()),
 		appLogger: appLogger,
@@ -59,9 +59,7 @@ func (rlm *RedisLimiter) buildMiddleware(limitRule redis_rate.Limit) gin.Handler
 			c.Header("Retry-After", strconv.Itoa(retryAfterSec))
 
 			if rlm.appLogger != nil {
-				rlm.appLogger.Warn(logger.General, logger.Limiter, "rate limit exceeded", map[logger.ExtraKey]interface{}{
-					logger.Path: c.FullPath(),
-				})
+				rlm.appLogger.Warn(c.Request.Context(), "rate limit exceeded", domainlogger.String("path", c.FullPath()))
 			}
 
 			response.Error(

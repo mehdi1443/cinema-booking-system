@@ -6,16 +6,19 @@ import (
 	"github.com/gin-gonic/gin"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
 
 type RatingHandler struct {
 	ratingService service_contract.RatingServiceInterface
+	log           domainlogger.Logger
 }
 
-func NewRatingHandler(ratingService service_contract.RatingServiceInterface) *RatingHandler {
+func NewRatingHandler(ratingService service_contract.RatingServiceInterface, log domainlogger.Logger) *RatingHandler {
 	return &RatingHandler{
 		ratingService: ratingService,
+		log:           log,
 	}
 }
 
@@ -25,7 +28,7 @@ func NewRatingHandler(ratingService service_contract.RatingServiceInterface) *Ra
 
 // POST /ratings
 func (h *RatingHandler) SubmitRating(c *gin.Context) {
-	userID, ok := getAuthUserID(c)
+	userID, ok := getAuthUserID(c, h.log)
 	if !ok {
 		return
 	}
@@ -38,7 +41,7 @@ func (h *RatingHandler) SubmitRating(c *gin.Context) {
 
 	rating, err := h.ratingService.SubmitRating(c.Request.Context(), userID, &req)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -52,14 +55,14 @@ func (h *RatingHandler) GetUserMovieRating(c *gin.Context) {
 		return
 	}
 
-	userID, ok := getAuthUserID(c)
+	userID, ok := getAuthUserID(c, h.log)
 	if !ok {
 		return
 	}
 
 	rating, err := h.ratingService.GetUserRatingForMovie(c.Request.Context(), userID, movieID)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -73,14 +76,14 @@ func (h *RatingHandler) GetUserCinemaRating(c *gin.Context) {
 		return
 	}
 
-	userID, ok := getAuthUserID(c)
+	userID, ok := getAuthUserID(c, h.log)
 	if !ok {
 		return
 	}
 
 	rating, err := h.ratingService.GetUserRatingForCinema(c.Request.Context(), userID, cinemaID)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -98,7 +101,7 @@ func (h *RatingHandler) GetMovieRatings(c *gin.Context) {
 
 	ratings, err := h.ratingService.GetByMovieID(c.Request.Context(), movieID, page, limit)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -116,7 +119,7 @@ func (h *RatingHandler) GetCinemaRatings(c *gin.Context) {
 
 	ratings, err := h.ratingService.GetByCinemaID(c.Request.Context(), cinemaID, page, limit)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -130,13 +133,13 @@ func (h *RatingHandler) DeleteRating(c *gin.Context) {
 		return
 	}
 
-	userID, ok := getAuthUserID(c)
+	userID, ok := getAuthUserID(c, h.log)
 	if !ok {
 		return
 	}
 
 	if err := h.ratingService.Delete(c.Request.Context(), userID, ratingID); err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 

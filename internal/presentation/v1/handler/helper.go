@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 )
 
 func parseParamID(c *gin.Context, paramName string) (int64, bool) {
@@ -16,16 +17,16 @@ func parseParamID(c *gin.Context, paramName string) (int64, bool) {
 	return id, true
 }
 
-func getAuthUserID(c *gin.Context) (int64, bool) {
+func getAuthUserID(c *gin.Context, log domainlogger.Logger) (int64, bool) {
 	userIDVal, exists := c.Get("user_id")
 	if !exists {
-		Handle(c, exception.ErrGetTokenFromContext)
+		Handle(c, exception.ErrGetTokenFromContext, log)
 		return 0, false
 	}
 
 	userID, ok := userIDVal.(int64)
 	if !ok {
-		Handle(c, exception.ErrGetTokenFromContext)
+		Handle(c, exception.ErrGetTokenFromContext, log)
 		return 0, false
 	}
 

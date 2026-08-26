@@ -7,6 +7,7 @@ import (
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
 
@@ -14,11 +15,13 @@ const maxCinemaImageSize = 5 * 1024 * 1024 // 5 MB
 
 type CinemaHandler struct {
 	cinemaService service_contract.CinemaServiceInterface
+	log           domainlogger.Logger
 }
 
-func NewCinemaHandler(cinemaService service_contract.CinemaServiceInterface) *CinemaHandler {
+func NewCinemaHandler(cinemaService service_contract.CinemaServiceInterface, log domainlogger.Logger) *CinemaHandler {
 	return &CinemaHandler{
 		cinemaService: cinemaService,
+		log:           log,
 	}
 }
 
@@ -35,7 +38,7 @@ func (h *CinemaHandler) CreateCinema(c *gin.Context) {
 
 	cinema, err := h.cinemaService.Create(c.Request.Context(), &req)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -54,7 +57,7 @@ func (h *CinemaHandler) GetCinemaByID(c *gin.Context) {
 
 	cinema, err := h.cinemaService.GetByID(c.Request.Context(), id)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -76,7 +79,7 @@ func (h *CinemaHandler) GetCinemas(c *gin.Context) {
 
 	cinemas, total, err := h.cinemaService.GetCinemas(c.Request.Context(), req)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -107,7 +110,7 @@ func (h *CinemaHandler) UpdateCinema(c *gin.Context) {
 
 	updatedCinema, err := h.cinemaService.Update(c.Request.Context(), id, &req)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -125,7 +128,7 @@ func (h *CinemaHandler) DeleteCinema(c *gin.Context) {
 	}
 
 	if err := h.cinemaService.Delete(c.Request.Context(), id); err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -149,20 +152,20 @@ func (h *CinemaHandler) UploadImage(c *gin.Context) {
 	}
 
 	if fileHeader.Size > maxCinemaImageSize {
-		Handle(c, exception.ErrFileSizeTooLarge)
+		Handle(c, exception.ErrFileSizeTooLarge, h.log)
 		return
 	}
 
 	file, err := fileHeader.Open()
 	if err != nil {
-		Handle(c, exception.ErrInternal)
+		Handle(c, exception.ErrInternal, h.log)
 		return
 	}
 	defer file.Close()
 
 	cinema, err := h.cinemaService.UploadImage(c.Request.Context(), id, file, fileHeader.Filename)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -180,7 +183,7 @@ func (h *CinemaHandler) DeleteImage(c *gin.Context) {
 	}
 
 	if err := h.cinemaService.DeleteImage(c.Request.Context(), id); err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 

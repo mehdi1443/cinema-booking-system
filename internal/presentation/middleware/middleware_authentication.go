@@ -9,13 +9,15 @@ import (
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	domainjwt "github.com/mehdi1443/cinema-booking-system/internal/domain/jwt"
-	"github.com/mehdi1443/cinema-booking-system/pkg/logger"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
 
-func JWTAuthentication(tokenService service_contract.JWTServiceInterface, appLogger logger.Logger) gin.HandlerFunc {
+func JWTAuthentication(tokenService service_contract.JWTServiceInterface, appLogger domainlogger.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		ctx := c.Request.Context()
 		authHeader := c.GetHeader("Authorization")
+
 		if authHeader == "" {
 			response.Error(c, http.StatusUnauthorized, "authorization_header_required")
 			c.Abort()
@@ -31,7 +33,7 @@ func JWTAuthentication(tokenService service_contract.JWTServiceInterface, appLog
 
 		tokenString := parts[1]
 
-		payload, err := tokenService.ValidateToken(c.Request.Context(), tokenString, string(domainjwt.AccessTokenTag))
+		payload, err := tokenService.ValidateToken(ctx, tokenString, string(domainjwt.AccessTokenTag))
 		if err != nil {
 			if errors.Is(err, exception.ErrTokenExpired) {
 				response.Error(c, http.StatusUnauthorized, "access token has expired")
@@ -39,9 +41,7 @@ func JWTAuthentication(tokenService service_contract.JWTServiceInterface, appLog
 				return
 			}
 
-			appLogger.Warn(logger.Auth, logger.JWT, "failed token validation", map[logger.ExtraKey]interface{}{
-				logger.ErrorMessage: err.Error(),
-			})
+			appLogger.Warn(ctx, "failed token validation", domainlogger.Error(err))
 			response.Error(c, http.StatusUnauthorized, "token is malformed or invalid")
 			c.Abort()
 			return
@@ -53,11 +53,10 @@ func JWTAuthentication(tokenService service_contract.JWTServiceInterface, appLog
 			return
 		}
 
-		isBlacklisted, err := tokenService.IsBlacklisted(c.Request.Context(), tokenString)
+		isBlacklisted, err := tokenService.IsBlacklisted(ctx, tokenString)
 		if err != nil || (isBlacklisted != nil && *isBlacklisted) {
-			appLogger.Warn(logger.Auth, logger.JWT, "blacklisted token execution attempt", map[logger.ExtraKey]interface{}{
-				logger.UserID: payload.UserID,
-			})
+
+			appLogger.Warn(ctx, "blacklisted token execution attempt", domainlogger.Int64("user_id", payload.UserID))
 			response.Error(c, http.StatusUnauthorized, "token has been revoked")
 			c.Abort()
 			return
@@ -66,7 +65,7 @@ func JWTAuthentication(tokenService service_contract.JWTServiceInterface, appLog
 		c.Set(domainjwt.CtxUserIDKey, payload.UserID)
 		c.Set(domainjwt.CtxTheTokenKey, tokenString)
 		c.Set(domainjwt.CtxTheTokenExpireAtKey, payload.ExpiresAt)
-		c.Set(domainjwt.CtxPayloadKey, payload) // i don't know may be need it in future :)
+		c.Set(domainjwt.CtxPayloadKey, payload)
 
 		c.Next()
 	}

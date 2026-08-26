@@ -7,16 +7,19 @@ import (
 	"github.com/gin-gonic/gin"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
 
 type AddressHandler struct {
 	addressService service_contract.AddressServiceInterface
+	log            domainlogger.Logger
 }
 
-func NewAddressHandler(addressService service_contract.AddressServiceInterface) *AddressHandler {
+func NewAddressHandler(addressService service_contract.AddressServiceInterface, log domainlogger.Logger) *AddressHandler {
 	return &AddressHandler{
 		addressService: addressService,
+		log:            log,
 	}
 }
 
@@ -31,7 +34,7 @@ func (h *AddressHandler) CreateProvince(c *gin.Context) {
 
 	province, err := h.addressService.CreateProvince(c.Request.Context(), &req)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -46,7 +49,7 @@ func (h *AddressHandler) GetProvinceByID(c *gin.Context) {
 
 	province, err := h.addressService.GetProvinceByID(c.Request.Context(), id)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -56,7 +59,7 @@ func (h *AddressHandler) GetProvinceByID(c *gin.Context) {
 func (h *AddressHandler) GetAllProvinces(c *gin.Context) {
 	provinces, err := h.addressService.GetAllProvinces(c.Request.Context())
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -77,7 +80,7 @@ func (h *AddressHandler) UpdateProvince(c *gin.Context) {
 
 	updatedProvince, err := h.addressService.UpdateProvince(c.Request.Context(), id, &req)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -91,7 +94,7 @@ func (h *AddressHandler) DeleteProvince(c *gin.Context) {
 	}
 
 	if err := h.addressService.DeleteProvince(c.Request.Context(), id); err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -109,7 +112,7 @@ func (h *AddressHandler) CreateCity(c *gin.Context) {
 
 	city, err := h.addressService.CreateCity(c.Request.Context(), &req)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -124,7 +127,7 @@ func (h *AddressHandler) GetCityByID(c *gin.Context) {
 
 	city, err := h.addressService.GetCityByID(c.Request.Context(), id)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -143,7 +146,7 @@ func (h *AddressHandler) GetCities(c *gin.Context) {
 
 		cities, err := h.addressService.GetCitiesByProvinceID(ctx, provinceID)
 		if err != nil {
-			Handle(c, err)
+			Handle(c, err, h.log)
 			return
 		}
 
@@ -153,7 +156,7 @@ func (h *AddressHandler) GetCities(c *gin.Context) {
 
 	cities, err := h.addressService.GetAllCities(ctx)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -174,7 +177,7 @@ func (h *AddressHandler) UpdateCity(c *gin.Context) {
 
 	updatedCity, err := h.addressService.UpdateCity(c.Request.Context(), id, &req)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -188,7 +191,7 @@ func (h *AddressHandler) DeleteCity(c *gin.Context) {
 	}
 
 	if err := h.addressService.DeleteCity(c.Request.Context(), id); err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 

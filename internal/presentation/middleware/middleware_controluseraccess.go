@@ -10,9 +10,9 @@ import (
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	domainjwt "github.com/mehdi1443/cinema-booking-system/internal/domain/jwt"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/cache"
-	"github.com/mehdi1443/cinema-booking-system/pkg/logger"
 	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
 
@@ -23,24 +23,22 @@ func ControlUserAccess(
 	userRepo DB.UserInterface,
 	userCacheConfig *bootstrap.UserPermissionCache,
 	requiredPermission string,
-	appLogger logger.Logger,
+	appLogger domainlogger.Logger,
 ) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		ctx := c.Request.Context()
+
 		userID, err := contexTokenService.GetUserIDFromGinContext(c)
 		if err != nil {
-			appLogger.Error(logger.Auth, logger.RBAC, "failed to extract token context", map[logger.ExtraKey]interface{}{
-				logger.ErrorMessage: err.Error(),
-			})
+			appLogger.Error(ctx, "failed to extract token context", domainlogger.Error(err))
 			response.Error(c, http.StatusUnauthorized, exception.ErrGetTokenFromContext.Error())
 			c.Abort()
 			return
 		}
 
-		user, err := userRepo.FindUserByID(c.Request.Context(), userID)
+		user, err := userRepo.FindUserByID(ctx, userID)
 		if err != nil || user == nil {
-			appLogger.Warn(logger.Auth, logger.RBAC, "user account not found", map[logger.ExtraKey]interface{}{
-				logger.UserID: userID,
-			})
+			appLogger.Warn(ctx, "user account not found", domainlogger.Int64("user_id", userID))
 			response.Error(c, http.StatusUnauthorized, "User account not found")
 			c.Abort()
 			return
@@ -53,49 +51,47 @@ func ControlUserAccess(
 		}
 
 		userIDStr := strconv.Itoa(int(userID))
-		permissions, err := userPermissionCacheRepo.GetUserPermissions(c.Request.Context(), userIDStr)
+		permissions, err := userPermissionCacheRepo.GetUserPermissions(ctx, userIDStr)
 		if err != nil {
 			if errors.Is(err, exception.ErrUserPermissionNotFound) {
-				permissions, err = rbacRepo.GetUserPermissionNames(c.Request.Context(), userID)
+				permissions, err = rbacRepo.GetUserPermissionNames(ctx, userID)
 				if err != nil {
-					appLogger.Error(logger.Auth, logger.RBAC, "failed to fetch permissions from DB", map[logger.ExtraKey]interface{}{
-						logger.UserID:       userID,
-						logger.ErrorMessage: err.Error(),
-					})
+					appLogger.Error(ctx, "failed to fetch permissions from DB",
+						domainlogger.Int64("user_id", userID),
+						domainlogger.Error(err),
+					)
 					response.Error(c, http.StatusInternalServerError, "Failed to verify access permissions")
 					c.Abort()
 					return
 				}
 
-				if cacheErr := userPermissionCacheRepo.SaveUserPermissions(c.Request.Context(), userIDStr, permissions, userCacheConfig.ExpirationDuration()); cacheErr != nil {
-					appLogger.Warn(logger.Auth, logger.RBAC, "failed to save permissions to cache", map[logger.ExtraKey]interface{}{
-						logger.UserID:       userID,
-						logger.ErrorMessage: cacheErr.Error(),
-					})
+				if cacheErr := userPermissionCacheRepo.SaveUserPermissions(ctx, userIDStr, permissions, userCacheConfig.ExpirationDuration()); cacheErr != nil {
+					appLogger.Warn(ctx, "failed to save permissions to cache",
+						domainlogger.Int64("user_id", userID),
+						domainlogger.Error(cacheErr),
+					)
 				}
 			} else {
-				appLogger.Error(logger.Auth, logger.RBAC, "error reading permission cache", map[logger.ExtraKey]interface{}{
-					logger.UserID:       userID,
-					logger.ErrorMessage: err.Error(),
-				})
+				appLogger.Error(ctx, "error reading permission cache",
+					domainlogger.Int64("user_id", userID),
+					domainlogger.Error(err),
+				)
 				response.Error(c, http.StatusInternalServerError, "Internal authorization error")
 				c.Abort()
 				return
 			}
 		}
 
-		hasPermission := true
-		for _, perm := range permissions { //FIXME
+		hasPermission := false
+		for _, perm := range permissions {
 			if perm == requiredPermission || perm == "ALL" {
 				hasPermission = true
 				break
 			}
 		}
 
-		if !hasPermission { //FIXME
-			appLogger.Warn(logger.Auth, logger.RBAC, "access denied due to missing permission", map[logger.ExtraKey]interface{}{
-				logger.UserID: userID,
-			})
+		if !hasPermission {
+			appLogger.Warn(ctx, "access denied due to missing permission", domainlogger.Int64("user_id", userID))
 			response.Error(c, http.StatusForbidden, "You do not have permission to access this resource")
 			c.Abort()
 			return

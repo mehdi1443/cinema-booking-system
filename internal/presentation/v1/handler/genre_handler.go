@@ -6,16 +6,19 @@ import (
 	"github.com/gin-gonic/gin"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
 
 type GenreHandler struct {
 	genreService service_contract.GenreServiceInterface
+	log          domainlogger.Logger
 }
 
-func NewGenreHandler(genreService service_contract.GenreServiceInterface) *GenreHandler {
+func NewGenreHandler(genreService service_contract.GenreServiceInterface, log domainlogger.Logger) *GenreHandler {
 	return &GenreHandler{
 		genreService: genreService,
+		log:          log,
 	}
 }
 
@@ -32,7 +35,7 @@ func (h *GenreHandler) CreateGenre(c *gin.Context) {
 
 	genre, err := h.genreService.CreateGenre(c.Request.Context(), &req)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -51,7 +54,7 @@ func (h *GenreHandler) GetGenreByID(c *gin.Context) {
 
 	genre, err := h.genreService.GetGenreByID(c.Request.Context(), id)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -73,7 +76,7 @@ func (h *GenreHandler) GetGenres(c *gin.Context) {
 
 	genres, total, err := h.genreService.GetGenres(c.Request.Context(), req)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -104,7 +107,7 @@ func (h *GenreHandler) UpdateGenre(c *gin.Context) {
 
 	updatedGenre, err := h.genreService.UpdateGenre(c.Request.Context(), id, &req)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -122,7 +125,7 @@ func (h *GenreHandler) DeleteGenre(c *gin.Context) {
 	}
 
 	if err := h.genreService.DeleteGenre(c.Request.Context(), id); err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 

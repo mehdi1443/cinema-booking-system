@@ -7,16 +7,19 @@ import (
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
+	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
 
 type CommentHandler struct {
 	commentService service_contract.CommentServiceInterface
+	log            domainlogger.Logger
 }
 
-func NewCommentHandler(commentService service_contract.CommentServiceInterface) *CommentHandler {
+func NewCommentHandler(commentService service_contract.CommentServiceInterface, log domainlogger.Logger) *CommentHandler {
 	return &CommentHandler{
 		commentService: commentService,
+		log:            log,
 	}
 }
 
@@ -26,7 +29,7 @@ func NewCommentHandler(commentService service_contract.CommentServiceInterface) 
 
 // POST /comments
 func (h *CommentHandler) CreateComment(c *gin.Context) {
-	userID, ok := getAuthUserID(c)
+	userID, ok := getAuthUserID(c, h.log)
 	if !ok {
 		return
 	}
@@ -39,7 +42,7 @@ func (h *CommentHandler) CreateComment(c *gin.Context) {
 
 	comment, err := h.commentService.Create(c.Request.Context(), userID, &req)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -55,7 +58,7 @@ func (h *CommentHandler) GetCommentByID(c *gin.Context) {
 
 	comment, err := h.commentService.GetByID(c.Request.Context(), id)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -74,7 +77,7 @@ func (h *CommentHandler) GetMovieComments(c *gin.Context) {
 
 	comments, err := h.commentService.GetByMovieID(c.Request.Context(), movieID, currentUserID, page, limit)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -92,7 +95,7 @@ func (h *CommentHandler) GetMovieCommentsAdmin(c *gin.Context) {
 
 	comments, err := h.commentService.GetByMovieIDAdmin(c.Request.Context(), movieID, page, limit)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -111,7 +114,7 @@ func (h *CommentHandler) GetCinemaComments(c *gin.Context) {
 
 	comments, err := h.commentService.GetByCinemaID(c.Request.Context(), cinemaID, currentUserID, page, limit)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -129,7 +132,7 @@ func (h *CommentHandler) GetCinemaCommentsAdmin(c *gin.Context) {
 
 	comments, err := h.commentService.GetByCinemaIDAdmin(c.Request.Context(), cinemaID, page, limit)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -147,7 +150,7 @@ func (h *CommentHandler) GetCommentReplies(c *gin.Context) {
 
 	replies, err := h.commentService.GetReplies(c.Request.Context(), parentID, page, limit)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -165,7 +168,7 @@ func (h *CommentHandler) GetCommentRepliesAdmin(c *gin.Context) {
 
 	replies, err := h.commentService.GetRepliesAdmin(c.Request.Context(), parentID, page, limit)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -179,7 +182,7 @@ func (h *CommentHandler) UpdateComment(c *gin.Context) {
 		return
 	}
 
-	userID, ok := getAuthUserID(c)
+	userID, ok := getAuthUserID(c, h.log)
 	if !ok {
 		return
 	}
@@ -192,7 +195,7 @@ func (h *CommentHandler) UpdateComment(c *gin.Context) {
 
 	updatedComment, err := h.commentService.Update(c.Request.Context(), userID, commentID, &req)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -213,7 +216,7 @@ func (h *CommentHandler) UpdateCommentStatus(c *gin.Context) {
 	}
 
 	if err := h.commentService.UpdateStatus(c.Request.Context(), commentID, req.Status); err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -227,13 +230,13 @@ func (h *CommentHandler) DeleteComment(c *gin.Context) {
 		return
 	}
 
-	userID, ok := getAuthUserID(c)
+	userID, ok := getAuthUserID(c, h.log)
 	if !ok {
 		return
 	}
 
 	if err := h.commentService.Delete(c.Request.Context(), userID, commentID); err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -247,7 +250,7 @@ func (h *CommentHandler) VoteComment(c *gin.Context) {
 		return
 	}
 
-	userID, ok := getAuthUserID(c)
+	userID, ok := getAuthUserID(c, h.log)
 	if !ok {
 		return
 	}
@@ -259,7 +262,7 @@ func (h *CommentHandler) VoteComment(c *gin.Context) {
 	}
 
 	if err := h.commentService.Vote(c.Request.Context(), userID, commentID, req.Vote); err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -273,13 +276,13 @@ func (h *CommentHandler) RemoveVote(c *gin.Context) {
 		return
 	}
 
-	userID, ok := getAuthUserID(c)
+	userID, ok := getAuthUserID(c, h.log)
 	if !ok {
 		return
 	}
 
 	if err := h.commentService.RemoveVote(c.Request.Context(), userID, commentID); err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
@@ -298,7 +301,7 @@ func (h *CommentHandler) GetCommentsAdmin(c *gin.Context) {
 
 	comments, err := h.commentService.GetListAdmin(c.Request.Context(), statusPtr, page, limit)
 	if err != nil {
-		Handle(c, err)
+		Handle(c, err, h.log)
 		return
 	}
 
