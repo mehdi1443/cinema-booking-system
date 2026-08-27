@@ -1,0 +1,27 @@
+filebeat.inputs:
+  - type: filestream
+    id: cinema-app-logs
+    paths:
+      - /var/log/cinema/*.log
+    parsers:
+      - ndjson:
+          target: ""
+          add_error_key: true
+
+processors:
+  - rename:
+      fields:
+        - from: "service"
+          to: "app_service"
+        - from: "user_agent"
+          to: "client_user_agent"
+      ignore_missing: true
+      fail_on_error: false
+
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+  index: "cinema-booking-logs-%{+yyyy.MM.dd}"
+
+setup.template.name: "cinema-booking"
+setup.template.pattern: "cinema-booking-logs-*"
+setup.ilm.enabled: false

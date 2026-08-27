@@ -2,8 +2,11 @@ package logger
 
 import (
 	"context"
+	"io"
+	"log"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
@@ -24,8 +27,23 @@ func New(cfg Config) logger.Logger {
 		AddSource: cfg.AddSource,
 	}
 
+	logDir := "logs"
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		log.Printf("failed to create log directory: %v", err)
+	}
+
+	logFilePath := filepath.Join(logDir, "app.log")
+	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+
+	var writer io.Writer = os.Stdout
+	if err != nil {
+		log.Printf("failed to open log file, falling back to stdout only: %v", err)
+	} else {
+		writer = io.MultiWriter(os.Stdout, logFile)
+	}
+
 	handler := slog.NewJSONHandler(
-		os.Stdout,
+		writer,
 		handlerOptions,
 	)
 
@@ -39,35 +57,19 @@ func New(cfg Config) logger.Logger {
 	}
 }
 
-func (l *SlogLogger) Debug(
-	ctx context.Context,
-	msg string,
-	fields ...logger.Field,
-) {
+func (l *SlogLogger) Debug(ctx context.Context, msg string, fields ...logger.Field) {
 	l.log(ctx, slog.LevelDebug, msg, fields...)
 }
 
-func (l *SlogLogger) Info(
-	ctx context.Context,
-	msg string,
-	fields ...logger.Field,
-) {
+func (l *SlogLogger) Info(ctx context.Context, msg string, fields ...logger.Field) {
 	l.log(ctx, slog.LevelInfo, msg, fields...)
 }
 
-func (l *SlogLogger) Warn(
-	ctx context.Context,
-	msg string,
-	fields ...logger.Field,
-) {
+func (l *SlogLogger) Warn(ctx context.Context, msg string, fields ...logger.Field) {
 	l.log(ctx, slog.LevelWarn, msg, fields...)
 }
 
-func (l *SlogLogger) Error(
-	ctx context.Context,
-	msg string,
-	fields ...logger.Field,
-) {
+func (l *SlogLogger) Error(ctx context.Context, msg string, fields ...logger.Field) {
 	l.log(ctx, slog.LevelError, msg, fields...)
 }
 
@@ -77,38 +79,25 @@ func (l *SlogLogger) With(fields ...logger.Field) logger.Logger {
 	}
 }
 
-func (l *SlogLogger) log(
-	ctx context.Context,
-	level slog.Level,
-	msg string,
-	fields ...logger.Field,
-) {
+func (l *SlogLogger) log(ctx context.Context, level slog.Level, msg string, fields ...logger.Field) {
 	args := make([]any, 0, len(fields)*2+4)
 
 	for _, field := range fields {
 		if field.Key == "" {
 			continue
 		}
-
 		args = append(args, field.Key, sanitizeValue(field.Key, field.Value))
 	}
 
-	// Request correlation.
 	if requestID, ok := RequestIDFromContext(ctx); ok {
-		args = append(args, "request_id", requestID)
+		args = append(args, requestIDKey, requestID)
 	}
 
-	// Trace correlation.
 	if traceID, ok := TraceIDFromContext(ctx); ok {
-		args = append(args, "trace_id", traceID)
+		args = append(args, traceIDKey, traceID)
 	}
 
-	l.logger.Log(
-		ctx,
-		level,
-		msg,
-		args...,
-	)
+	l.logger.Log(ctx, level, msg, args...)
 }
 
 func toSlogAttrs(fields []logger.Field) []any {
@@ -118,12 +107,7 @@ func toSlogAttrs(fields []logger.Field) []any {
 		if field.Key == "" {
 			continue
 		}
-
-		args = append(
-			args,
-			field.Key,
-			sanitizeValue(field.Key, field.Value),
-		)
+		args = append(args, field.Key, sanitizeValue(field.Key, field.Value))
 	}
 
 	return args
@@ -133,7 +117,6 @@ func sanitizeValue(key string, value any) any {
 	if isSensitiveKey(key) {
 		return "[REDACTED]"
 	}
-
 	return value
 }
 
@@ -141,18 +124,9 @@ func isSensitiveKey(key string) bool {
 	key = strings.ToLower(strings.TrimSpace(key))
 
 	sensitiveKeys := []string{
-		"password",
-		"passwd",
-		"secret",
-		"token",
-		"access_token",
-		"refresh_token",
-		"authorization",
-		"cookie",
-		"set-cookie",
-		"api_key",
-		"apikey",
-		"private_key",
+		"password", "passwd", "secret", "token",
+		"access_token", "refresh_token", "authorization",
+		"cookie", "set-cookie", "api_key", "apikey", "private_key",
 	}
 
 	for _, sensitive := range sensitiveKeys {

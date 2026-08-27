@@ -1,4 +1,4 @@
-# version: "3.8"
+version: '3.8'
 
 services:
   db:
@@ -78,11 +78,65 @@ services:
     env_file:
       - .env
 
+  # ===================================
+  # ELK Stack Services
+  # ===================================
+  elasticsearch:
+    image: elasticsearch:8.11.1
+    container_name: ${ELASTICSEARCH_CONTAINER:-cinema_elasticsearch}
+    restart: always
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "${ELASTICSEARCH_PORT:-9200}:9200"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    networks:
+      - cinema_network
+    env_file:
+      - .env
+
+  kibana:
+    image: elastic/kibana:8.11.1
+    container_name: ${KIBANA_CONTAINER:-cinema_kibana}
+    restart: always
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "${KIBANA_PORT:-15020}:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - cinema_network
+    env_file:
+      - .env
+
+  filebeat:
+    image: elastic/filebeat:8.11.1
+    container_name: ${FILEBEAT_CONTAINER:-cinema_filebeat}
+    restart: always
+    user: root
+    command: [ "filebeat", "-e", "--strict.perms=false" ]
+    volumes:
+      - ./filebeat.yaml:/usr/share/filebeat/filebeat.yml:ro
+      - ./logs:/var/log/cinema:ro
+    environment:
+      - STRICT_PERMS=false
+    depends_on:
+      - elasticsearch
+    networks:
+      - cinema_network
+    env_file:
+      - .env
+
 volumes:
   pgdata:
   redisdata:
   pgadmin_data:
   miniodata:
+  esdata:
 
 networks:
   cinema_network:

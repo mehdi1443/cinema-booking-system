@@ -55,11 +55,9 @@ func SetUpRouter(
 ) *gin.Engine {
 	r := gin.New()
 
-	// Gin built-in middlewares
-	r.Use(gin.Logger())
+	r.Use(middleware.GinLoggerMiddleware(appLogger))
 	r.Use(gin.Recovery())
 
-	// CORS
 	r.Use(middleware.SecureCORSMiddleware([]string{
 		fmt.Sprintf("%s:%s", config.Environment.HttpServer.Domain, config.Environment.HttpServer.Port),
 	}))
