@@ -1,0 +1,42 @@
+groups:
+  - name: backend_rules
+    rules:
+      - alert: HighErrorRate
+        expr: rate(cinema_http_requests_total{status=~"5.."}[5m]) / rate(cinema_http_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate detected"
+          description: "More than 5% of HTTP requests are failing with 5xx status codes."
+
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, sum(rate(cinema_http_request_duration_seconds_bucket[5m])) by (le)) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High request latency detected"
+          description: "95th percentile request duration exceeds 0.5 seconds."
+
+  - name: node_rules
+    rules:
+      - alert: NodeDown
+        expr: up{job="node_exporter"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Node Exporter is down"
+          description: "Node Exporter has been unreachable for more than 5 minutes."
+
+  - name: postgres_rules
+    rules:
+      - alert: PostgresDown
+        expr: pg_up == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "PostgreSQL exporter reports database is unreachable."

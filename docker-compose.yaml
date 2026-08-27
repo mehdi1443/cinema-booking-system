@@ -2,7 +2,8 @@ version: '3.8'
 
 services:
   db:
-    image: postgres:${POSTGRES_VERSION:-15}-alpine
+    image: postgres:15-alpine
+    pull_policy: never
     container_name: ${POSTGRES_CONTAINER:-cinema_postgres_db}
     restart: always
     environment:
@@ -24,7 +25,8 @@ services:
       - .env
 
   redis:
-    image: redis:${REDIS_VERSION:-7}-alpine
+    image: redis:7-alpine
+    pull_policy: never
     container_name: ${REDIS_CONTAINER:-cinema_redis_cache}
     restart: always
     command: redis-server --requirepass ${RDB_PASSWORD}
@@ -43,7 +45,8 @@ services:
       - .env
 
   pgadmin:
-    image: dpage/pgadmin4:${PGADMIN_VERSION:-latest}
+    image: dpage/pgadmin4:latest
+    pull_policy: never
     container_name: ${PGADMIN_CONTAINER:-cinema_pgadmin}
     restart: always
     environment:
@@ -62,6 +65,7 @@ services:
 
   minio:
     image: minio/minio:latest
+    pull_policy: never
     container_name: ${MINIO_CONTAINER:-cinema_minio}
     restart: always
     environment:
@@ -83,6 +87,7 @@ services:
   # ===================================
   elasticsearch:
     image: elasticsearch:8.11.1
+    pull_policy: never
     container_name: ${ELASTICSEARCH_CONTAINER:-cinema_elasticsearch}
     restart: always
     environment:
@@ -100,6 +105,7 @@ services:
 
   kibana:
     image: elastic/kibana:8.11.1
+    pull_policy: never
     container_name: ${KIBANA_CONTAINER:-cinema_kibana}
     restart: always
     environment:
@@ -115,6 +121,7 @@ services:
 
   filebeat:
     image: elastic/filebeat:8.11.1
+    pull_policy: never
     container_name: ${FILEBEAT_CONTAINER:-cinema_filebeat}
     restart: always
     user: root
@@ -131,12 +138,108 @@ services:
     env_file:
       - .env
 
+  # ===================================
+  # Prometheus & Grafana Stack
+  # ===================================
+  prometheus:
+    image: prom/prometheus:v2.48.1
+    pull_policy: never
+    container_name: ${PROMETHEUS_CONTAINER:-cinema_prometheus}
+    restart: always
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/rules.yml:/etc/prometheus/rules.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-15021}:9090"
+    networks:
+      - cinema_network
+    env_file:
+      - .env
+
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    pull_policy: never
+    container_name: ${ALERTMANAGER_CONTAINER:-cinema_alertmanager}
+    restart: always
+    volumes:
+      - ./monitoring/prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - "${ALERTMANAGER_PORT:-15022}:9093"
+    networks:
+      - cinema_network
+    env_file:
+      - .env
+
+  grafana:
+    image: grafana/grafana:10.2.3
+    pull_policy: never
+    container_name: ${GRAFANA_CONTAINER:-cinema_grafana}
+    restart: always
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "${GRAFANA_PORT:-15023}:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - cinema_network
+    env_file:
+      - .env
+
+  node-exporter:
+    image: prom/node-exporter:v1.7.0
+    pull_policy: never
+    container_name: ${NODE_EXPORTER_CONTAINER:-cinema_node_exporter}
+    restart: always
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+    ports:
+      - "${NODE_EXPORTER_PORT:-15024}:9100"
+    networks:
+      - cinema_network
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    pull_policy: never
+    container_name: ${POSTGRES_EXPORTER_CONTAINER:-cinema_postgres_exporter}
+    restart: always
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${PDB_USER}:${PDB_PASSWORD}@db:5432/${PDB_DB_NAME}?sslmode=${PDB_SSL_MODE}"
+    ports:
+      - "${POSTGRES_EXPORTER_PORT:-15025}:9187"
+    depends_on:
+      - db
+    networks:
+      - cinema_network
+
 volumes:
   pgdata:
   redisdata:
   pgadmin_data:
   miniodata:
   esdata:
+  prometheus_data:
+  grafana_data:
 
 networks:
   cinema_network:

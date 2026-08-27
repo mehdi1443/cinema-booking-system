@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp" // ایمپورت برای اندپوینت متریک
 
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
@@ -52,11 +53,16 @@ func SetUpRouter(
 	config *bootstrap.Config,
 	limiter *middleware.RedisLimiter,
 	appLogger domainlogger.Logger,
+	promMiddleware *middleware.PrometheusMiddleware,
 ) *gin.Engine {
 	r := gin.New()
 
 	r.Use(middleware.GinLoggerMiddleware(appLogger))
 	r.Use(gin.Recovery())
+
+	r.Use(promMiddleware.Handle())
+
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	r.Use(middleware.SecureCORSMiddleware([]string{
 		fmt.Sprintf("%s:%s", config.Environment.HttpServer.Domain, config.Environment.HttpServer.Port),

@@ -14,6 +14,7 @@ import (
 	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
 	infralogger "github.com/mehdi1443/cinema-booking-system/internal/infrastructure/logger"
+	infralmetrics "github.com/mehdi1443/cinema-booking-system/internal/infrastructure/metrics"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/repository/MinIO"
 	postgres_repo "github.com/mehdi1443/cinema-booking-system/internal/infrastructure/repository/postgres"
 	redis_repo "github.com/mehdi1443/cinema-booking-system/internal/infrastructure/repository/redis"
@@ -23,7 +24,6 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/router"
 	"github.com/mehdi1443/cinema-booking-system/pkg/captcha"
 	"github.com/mehdi1443/cinema-booking-system/pkg/hash"
-
 	"github.com/mehdi1443/cinema-booking-system/pkg/random"
 	"github.com/mehdi1443/cinema-booking-system/pkg/rsa"
 	mail "github.com/mehdi1443/cinema-booking-system/pkg/wneessen-go-mail"
@@ -35,7 +35,6 @@ func main() {
 	config := bootstrap.Run()
 	fmt.Println(config)
 
-	// --- LOGGER INITIALIZATION ---
 	appLogger := infralogger.New(infralogger.Config{
 		ServiceName: "cinema-booking-system",
 		Environment: config.Environment.Logger.Level,
@@ -192,7 +191,10 @@ func main() {
 
 	limiter := middleware.NewRedisLimiter(redisClient, appLogger)
 
-	Engine := router.SetUpRouter(&handlers, &services, &repositories, config, limiter, appLogger)
+	promClient := infralmetrics.NewPrometheusMetrics()
+	promMiddleware := middleware.NewPrometheusMiddleware(promClient)
+
+	Engine := router.SetUpRouter(&handlers, &services, &repositories, config, limiter, appLogger, promMiddleware)
 
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("iranian-phone", validation.ValidateIranianPhone)
