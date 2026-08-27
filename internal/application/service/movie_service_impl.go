@@ -9,6 +9,7 @@ import (
 
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/broker"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum/sort"
@@ -28,17 +29,20 @@ type movieService struct {
 	movieRepo repository_contract.MovieInterFace
 	storage   storage.StorageInterFace
 	log       domainlogger.Logger
+	searchPub broker.SearchEventPublisher
 }
 
 func NewMovieService(
 	movieRepo repository_contract.MovieInterFace,
 	storage storage.StorageInterFace,
 	log domainlogger.Logger,
+	searchPub broker.SearchEventPublisher,
 ) service_contract.MovieServiceInterface {
 	return &movieService{
 		movieRepo: movieRepo,
 		storage:   storage,
 		log:       log,
+		searchPub: searchPub,
 	}
 }
 
@@ -109,6 +113,8 @@ func (s *movieService) Create(
 	}
 
 	s.log.Info(ctx, "Movie created successfully", domainlogger.Int64("movie_id", createdMovie.ID), domainlogger.String("title", createdMovie.Title))
+
+	s.publishIndexEvent(ctx, createdMovie)
 
 	return dto.ToMovieDetailResponse(createdMovie), nil
 }
@@ -295,6 +301,8 @@ func (s *movieService) Update(
 
 	s.log.Info(ctx, "Movie updated successfully", domainlogger.Int64("movie_id", updatedMovie.ID))
 
+	s.publishIndexEvent(ctx, updatedMovie)
+
 	return dto.ToMovieDetailResponse(updatedMovie), nil
 }
 
@@ -337,6 +345,8 @@ func (s *movieService) Delete(
 	}
 
 	s.log.Info(ctx, "Movie deleted successfully", domainlogger.Int64("movie_id", id))
+
+	s.publishDeleteEvent(ctx, id)
 
 	return nil
 }
@@ -497,10 +507,11 @@ func (s *movieService) UploadPoster(
 
 	s.log.Info(ctx, "Movie poster uploaded successfully", domainlogger.Int64("movie_id", id))
 
+	s.publishIndexEvent(ctx, updatedMovie)
+
 	return dto.ToMovieDetailResponse(updatedMovie), nil
 }
 
-// DeletePoster removes movie poster files and URLs.
 func (s *movieService) DeletePoster(
 	ctx context.Context,
 	id int64,
@@ -557,7 +568,7 @@ func (s *movieService) DeletePoster(
 		)
 	}
 
-	_, err = s.movieRepo.Update(
+	updatedMovie, err := s.movieRepo.Update(
 		ctx,
 		movie,
 		genreIDs,
@@ -573,6 +584,8 @@ func (s *movieService) DeletePoster(
 	}
 
 	s.log.Info(ctx, "Movie poster deleted successfully", domainlogger.Int64("movie_id", id))
+
+	s.publishIndexEvent(ctx, updatedMovie)
 
 	return nil
 }
@@ -762,4 +775,34 @@ func (s *movieService) DeleteTrailer(
 	s.log.Info(ctx, "Movie trailer deleted successfully", domainlogger.Int64("movie_id", id))
 
 	return nil
+}
+
+func (s *movieService) publishIndexEvent(ctx context.Context, movie *entity.Movie) {
+	subtitle := movie.Country
+	for _, p := range movie.People {
+		if p.Role == enum.RoleDirector && p.Person.Name != "" {
+			subtitle = p.Person.Name
+			break
+		}
+	}
+
+	doc := entity.SearchDocument{
+		ID:       fmt.Sprintf("movie_%d", movie.ID),
+		EntityID: movie.ID,
+		Type:     enum.DocTypeMovie,
+		Title:    movie.Title,
+		Subtitle: subtitle,
+		ImageURL: movie.PosterURLLow,
+	}
+
+	if err := s.searchPub.PublishSyncEvent(ctx, doc); err != nil {
+		s.log.Error(ctx, "Failed to publish search sync event", domainlogger.Error(err), domainlogger.Int64("movie_id", movie.ID))
+	}
+}
+
+func (s *movieService) publishDeleteEvent(ctx context.Context, movieID int64) {
+	docID := fmt.Sprintf("movie_%d", movieID)
+	if err := s.searchPub.PublishDeleteEvent(ctx, docID); err != nil {
+		s.log.Error(ctx, "Failed to publish search delete event", domainlogger.Error(err), domainlogger.Int64("movie_id", movieID))
+	}
 }
