@@ -16,5 +16,6 @@ func SetUpCinemaRouter(r *gin.RouterGroup, cinemaHandler *handler.CinemaHandler)
 
 		cinemas.POST("/:id/image", cinemaHandler.UploadImage)
 		cinemas.DELETE("/:id/image", cinemaHandler.DeleteImage)
+		cinemas.POST("/sync-search", cinemaHandler.SyncSearch)
 	}
 }

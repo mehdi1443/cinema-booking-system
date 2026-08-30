@@ -12,18 +12,47 @@ import (
 )
 
 type searchService struct {
-	searchRepo elastic.SearchRepository
-	log        domainlogger.Logger
+	searchRepo    elastic.SearchRepository
+	movieService  service_contract.MovieServiceInterface
+	cinemaService service_contract.CinemaServiceInterface
+	personService service_contract.PersonServiceInterface
+	log           domainlogger.Logger
 }
 
 func NewSearchService(
 	searchRepo elastic.SearchRepository,
+	movieService service_contract.MovieServiceInterface,
+	cinemaService service_contract.CinemaServiceInterface,
+	personService service_contract.PersonServiceInterface,
 	log domainlogger.Logger,
 ) service_contract.SearchServiceInterface {
 	return &searchService{
-		searchRepo: searchRepo,
-		log:        log,
+		searchRepo:    searchRepo,
+		movieService:  movieService,
+		cinemaService: cinemaService,
+		personService: personService,
+		log:           log,
 	}
+}
+
+func (s *searchService) SyncAll(ctx context.Context) error {
+	if err := s.movieService.SyncAllToSearch(ctx); err != nil {
+		s.log.Error(ctx, "Failed to sync movies to search", domainlogger.Error(err))
+		return fmt.Errorf("sync movies failed: %w", err)
+	}
+
+	if err := s.cinemaService.SyncAllToSearch(ctx); err != nil {
+		s.log.Error(ctx, "Failed to sync cinemas to search", domainlogger.Error(err))
+		return fmt.Errorf("sync cinemas failed: %w", err)
+	}
+
+	if err := s.personService.SyncAllToSearch(ctx); err != nil {
+		s.log.Error(ctx, "Failed to sync persons to search", domainlogger.Error(err))
+		return fmt.Errorf("sync persons failed: %w", err)
+	}
+
+	s.log.Info(ctx, "All entities successfully triggered for search synchronization")
+	return nil
 }
 
 func (s *searchService) Suggest(

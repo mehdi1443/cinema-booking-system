@@ -19,5 +19,7 @@ func SetUpMovieRouter(r *gin.RouterGroup, movieHandler *handler.MovieHandler) {
 
 		movies.POST("/:id/trailer", movieHandler.UploadTrailer)
 		movies.DELETE("/:id/trailer", movieHandler.DeleteTrailer)
+
+		movies.POST("/sync-search", movieHandler.SyncSearch)
 	}
 }

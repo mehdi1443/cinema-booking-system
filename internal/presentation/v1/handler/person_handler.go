@@ -11,7 +11,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
 
-const maxPersonImageSize = 5 * 1024 * 1024 // 5 MB
+const maxPersonImageSize = 5 * 1024 * 1024
 
 type PersonHandler struct {
 	personService service_contract.PersonServiceInterface
@@ -25,9 +25,14 @@ func NewPersonHandler(personService service_contract.PersonServiceInterface, log
 	}
 }
 
-// -----------------------------------------------------------------------------
-// POST /persons
-// -----------------------------------------------------------------------------
+func (h *PersonHandler) SyncSearch(c *gin.Context) {
+	if err := h.personService.SyncAllToSearch(c.Request.Context()); err != nil {
+		Handle(c, err, h.log)
+		return
+	}
+
+	response.Success(c, http.StatusOK, "Background sync to Elasticsearch started successfully", nil)
+}
 
 func (h *PersonHandler) CreatePerson(c *gin.Context) {
 	var req dto.CreatePersonRequest
@@ -45,10 +50,6 @@ func (h *PersonHandler) CreatePerson(c *gin.Context) {
 	response.Success(c, http.StatusCreated, "Person created successfully", person)
 }
 
-// -----------------------------------------------------------------------------
-// GET /persons/:id
-// -----------------------------------------------------------------------------
-
 func (h *PersonHandler) GetPersonByID(c *gin.Context) {
 	id, ok := parseParamID(c, "id")
 	if !ok {
@@ -63,10 +64,6 @@ func (h *PersonHandler) GetPersonByID(c *gin.Context) {
 
 	response.Success(c, http.StatusOK, "Person retrieved successfully", person)
 }
-
-// -----------------------------------------------------------------------------
-// GET /persons
-// -----------------------------------------------------------------------------
 
 func (h *PersonHandler) GetPersons(c *gin.Context) {
 	var req dto.PersonFilterRequest
@@ -92,10 +89,6 @@ func (h *PersonHandler) GetPersons(c *gin.Context) {
 	response.SuccessWithMeta(c, http.StatusOK, "Persons retrieved successfully", persons, meta)
 }
 
-// -----------------------------------------------------------------------------
-// PUT /persons/:id
-// -----------------------------------------------------------------------------
-
 func (h *PersonHandler) UpdatePerson(c *gin.Context) {
 	id, ok := parseParamID(c, "id")
 	if !ok {
@@ -117,10 +110,6 @@ func (h *PersonHandler) UpdatePerson(c *gin.Context) {
 	response.Success(c, http.StatusOK, "Person updated successfully", updatedPerson)
 }
 
-// -----------------------------------------------------------------------------
-// DELETE /persons/:id
-// -----------------------------------------------------------------------------
-
 func (h *PersonHandler) DeletePerson(c *gin.Context) {
 	id, ok := parseParamID(c, "id")
 	if !ok {
@@ -134,10 +123,6 @@ func (h *PersonHandler) DeletePerson(c *gin.Context) {
 
 	response.Success(c, http.StatusOK, "Person deleted successfully", nil)
 }
-
-// -----------------------------------------------------------------------------
-// POST /persons/:id/image
-// -----------------------------------------------------------------------------
 
 func (h *PersonHandler) UploadImage(c *gin.Context) {
 	id, ok := parseParamID(c, "id")
@@ -171,10 +156,6 @@ func (h *PersonHandler) UploadImage(c *gin.Context) {
 
 	response.Success(c, http.StatusOK, "Person image uploaded successfully", person)
 }
-
-// -----------------------------------------------------------------------------
-// DELETE /persons/:id/image
-// -----------------------------------------------------------------------------
 
 func (h *PersonHandler) DeleteImage(c *gin.Context) {
 	id, ok := parseParamID(c, "id")

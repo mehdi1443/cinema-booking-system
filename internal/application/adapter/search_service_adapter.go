@@ -9,4 +9,5 @@ import (
 type SearchServiceInterface interface {
 	Suggest(ctx context.Context, req dto.SuggestRequest) ([]dto.SearchResponseItem, error)
 	Search(ctx context.Context, req dto.SearchQueryRequest) ([]dto.SearchResponseItem, int64, error)
+	SyncAll(ctx context.Context) error
 }

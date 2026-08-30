@@ -11,7 +11,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
 
-const maxCinemaImageSize = 5 * 1024 * 1024 // 5 MB
+const maxCinemaImageSize = 5 * 1024 * 1024
 
 type CinemaHandler struct {
 	cinemaService service_contract.CinemaServiceInterface
@@ -25,9 +25,14 @@ func NewCinemaHandler(cinemaService service_contract.CinemaServiceInterface, log
 	}
 }
 
-// -----------------------------------------------------------------------------
-// POST /cinemas
-// -----------------------------------------------------------------------------
+func (h *CinemaHandler) SyncSearch(c *gin.Context) {
+	if err := h.cinemaService.SyncAllToSearch(c.Request.Context()); err != nil {
+		Handle(c, err, h.log)
+		return
+	}
+
+	response.Success(c, http.StatusOK, "Background sync to Elasticsearch started successfully", nil)
+}
 
 func (h *CinemaHandler) CreateCinema(c *gin.Context) {
 	var req dto.CreateCinemaRequest
@@ -45,10 +50,6 @@ func (h *CinemaHandler) CreateCinema(c *gin.Context) {
 	response.Success(c, http.StatusCreated, "Cinema created successfully", cinema)
 }
 
-// -----------------------------------------------------------------------------
-// GET /cinemas/:id
-// -----------------------------------------------------------------------------
-
 func (h *CinemaHandler) GetCinemaByID(c *gin.Context) {
 	id, ok := parseParamID(c, "id")
 	if !ok {
@@ -63,10 +64,6 @@ func (h *CinemaHandler) GetCinemaByID(c *gin.Context) {
 
 	response.Success(c, http.StatusOK, "Cinema retrieved successfully", cinema)
 }
-
-// -----------------------------------------------------------------------------
-// GET /cinemas
-// -----------------------------------------------------------------------------
 
 func (h *CinemaHandler) GetCinemas(c *gin.Context) {
 	var req dto.CinemaFilterRequest
@@ -92,10 +89,6 @@ func (h *CinemaHandler) GetCinemas(c *gin.Context) {
 	response.SuccessWithMeta(c, http.StatusOK, "Cinemas retrieved successfully", cinemas, meta)
 }
 
-// -----------------------------------------------------------------------------
-// PUT /cinemas/:id
-// -----------------------------------------------------------------------------
-
 func (h *CinemaHandler) UpdateCinema(c *gin.Context) {
 	id, ok := parseParamID(c, "id")
 	if !ok {
@@ -117,10 +110,6 @@ func (h *CinemaHandler) UpdateCinema(c *gin.Context) {
 	response.Success(c, http.StatusOK, "Cinema updated successfully", updatedCinema)
 }
 
-// -----------------------------------------------------------------------------
-// DELETE /cinemas/:id
-// -----------------------------------------------------------------------------
-
 func (h *CinemaHandler) DeleteCinema(c *gin.Context) {
 	id, ok := parseParamID(c, "id")
 	if !ok {
@@ -134,10 +123,6 @@ func (h *CinemaHandler) DeleteCinema(c *gin.Context) {
 
 	response.Success(c, http.StatusOK, "Cinema deleted successfully", nil)
 }
-
-// -----------------------------------------------------------------------------
-// POST /cinemas/:id/image
-// -----------------------------------------------------------------------------
 
 func (h *CinemaHandler) UploadImage(c *gin.Context) {
 	id, ok := parseParamID(c, "id")
@@ -171,10 +156,6 @@ func (h *CinemaHandler) UploadImage(c *gin.Context) {
 
 	response.Success(c, http.StatusOK, "Cinema image uploaded successfully", cinema)
 }
-
-// -----------------------------------------------------------------------------
-// DELETE /cinemas/:id/image
-// -----------------------------------------------------------------------------
 
 func (h *CinemaHandler) DeleteImage(c *gin.Context) {
 	id, ok := parseParamID(c, "id")

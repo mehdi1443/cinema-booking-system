@@ -8,6 +8,7 @@ import (
 
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/broker"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum/sort"
@@ -24,18 +25,77 @@ type cinemaService struct {
 	cinemaRepo repository_contract.CinemaInterface
 	storage    storage.StorageInterFace
 	log        domainlogger.Logger
+	searchPub  broker.SearchEventPublisher
 }
 
 func NewCinemaService(
 	cinemaRepo repository_contract.CinemaInterface,
 	storage storage.StorageInterFace,
 	log domainlogger.Logger,
+	searchPub broker.SearchEventPublisher,
 ) service_contract.CinemaServiceInterface {
 	return &cinemaService{
 		cinemaRepo: cinemaRepo,
 		storage:    storage,
 		log:        log,
+		searchPub:  searchPub,
 	}
+}
+
+func (s *cinemaService) publishIndexEvent(ctx context.Context, cinema *entity.Cinema) {
+	if s.searchPub == nil || cinema == nil {
+		return
+	}
+
+	doc := entity.SearchDocument{
+		ID:       fmt.Sprintf("cinema_%d", cinema.ID),
+		EntityID: cinema.ID,
+		Type:     enum.DocTypeCinema,
+		Title:    cinema.Name,
+		Subtitle: cinema.Address,
+	}
+
+	if cinema.ImageURLLow != nil {
+		doc.ImageURL = *cinema.ImageURLLow
+	}
+
+	if err := s.searchPub.PublishSyncEvent(ctx, doc); err != nil {
+		s.log.Error(ctx, "Failed to publish search sync event", domainlogger.Error(err), domainlogger.Int64("cinema_id", cinema.ID))
+	}
+}
+
+func (s *cinemaService) publishDeleteEvent(ctx context.Context, cinemaID int64) {
+	docID := fmt.Sprintf("cinema_%d", cinemaID)
+	if err := s.searchPub.PublishDeleteEvent(ctx, docID); err != nil {
+		s.log.Error(ctx, "Failed to publish search delete event", domainlogger.Error(err), domainlogger.Int64("cinema_id", cinemaID))
+	}
+}
+
+func (s *cinemaService) SyncAllToSearch(ctx context.Context) error {
+	limit := 100
+	page := 1
+
+	for {
+		opts := repository_contract.NewQueryOptions().WithPagination(limit, (page-1)*limit)
+		cinemas, _, err := s.cinemaRepo.GetCinemas(ctx, repository_contract.CinemaFilter{}, opts)
+
+		if err != nil {
+			return fmt.Errorf("failed to fetch cinemas for sync: %w", err)
+		}
+
+		if len(cinemas) == 0 {
+			break
+		}
+
+		for i := range cinemas {
+			s.publishIndexEvent(ctx, &cinemas[i])
+		}
+
+		page++
+	}
+
+	s.log.Info(ctx, "All existing cinemas sent to RabbitMQ for search sync")
+	return nil
 }
 
 func (s *cinemaService) Create(ctx context.Context, req *dto.CreateCinemaRequest) (*dto.CinemaDetailResponse, error) {
@@ -76,6 +136,8 @@ func (s *cinemaService) Create(ctx context.Context, req *dto.CreateCinemaRequest
 	if err != nil {
 		return nil, fmt.Errorf("create cinema: %w", err)
 	}
+
+	s.publishIndexEvent(ctx, createdCinema)
 
 	s.log.Info(ctx, "Cinema created successfully", domainlogger.Int64("cinema_id", createdCinema.ID))
 
@@ -204,6 +266,8 @@ func (s *cinemaService) Update(ctx context.Context, id int64, req *dto.UpdateCin
 		return nil, fmt.Errorf("update cinema %d: %w", id, err)
 	}
 
+	s.publishIndexEvent(ctx, updatedCinema)
+
 	s.log.Info(ctx, "Cinema updated successfully", domainlogger.Int64("cinema_id", updatedCinema.ID))
 
 	return dto.ToCinemaDetailResponse(updatedCinema), nil
@@ -228,6 +292,8 @@ func (s *cinemaService) Delete(ctx context.Context, id int64) error {
 	}
 
 	s.log.Info(ctx, "Cinema deleted successfully", domainlogger.Int64("cinema_id", id))
+
+	s.publishDeleteEvent(ctx, id)
 
 	return nil
 }
@@ -293,6 +359,8 @@ func (s *cinemaService) UploadImage(ctx context.Context, id int64, file io.Reade
 		return nil, fmt.Errorf("save image URLs for cinema %d: %w", id, err)
 	}
 
+	s.publishIndexEvent(ctx, updatedCinema)
+
 	s.log.Info(ctx, "Cinema image uploaded successfully", domainlogger.Int64("cinema_id", id))
 
 	return dto.ToCinemaDetailResponse(updatedCinema), nil
@@ -326,10 +394,12 @@ func (s *cinemaService) DeleteImage(ctx context.Context, id int64) error {
 		facilityIDs = append(facilityIDs, f.ID)
 	}
 
-	_, err = s.cinemaRepo.Update(ctx, cinema, facilityIDs)
+	updatedCinema, err := s.cinemaRepo.Update(ctx, cinema, facilityIDs)
 	if err != nil {
 		return fmt.Errorf("remove image URLs for cinema %d: %w", id, err)
 	}
+
+	s.publishIndexEvent(ctx, updatedCinema)
 
 	s.log.Info(ctx, "Cinema image deleted successfully", domainlogger.Int64("cinema_id", id))
 

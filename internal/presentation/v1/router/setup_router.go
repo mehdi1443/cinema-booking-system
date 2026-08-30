@@ -30,6 +30,7 @@ type Handlers struct {
 	Favorite  handler.FavoriteHandler
 	Comment   handler.CommentHandler
 	Rating    handler.RatingHandler
+	Search    handler.SearchHandler
 }
 
 type Repositories struct {
@@ -167,6 +168,8 @@ func SetUpRouter(
 	)
 
 	SetUpCaptchaRouter(v1, &handler.Captcha, limiter, &config.Environment.Limiter, appLogger)
+
+	SetUpSearchRouter(v1, &handler.Search)
 
 	return r
 }

@@ -254,3 +254,16 @@ func (h *MovieHandler) DeleteTrailer(c *gin.Context) {
 
 	response.Success(c, http.StatusOK, "Movie trailer deleted successfully", nil)
 }
+
+// -----------------------------------------------------------------------------
+// POST /movies/sync-search
+// -----------------------------------------------------------------------------
+
+func (h *MovieHandler) SyncSearch(c *gin.Context) {
+	if err := h.movieService.SyncAllToSearch(c.Request.Context()); err != nil {
+		Handle(c, err, h.log)
+		return
+	}
+
+	response.Success(c, http.StatusOK, "Background sync to Elasticsearch started successfully", nil)
+}

@@ -22,6 +22,8 @@ type Environment struct {
 	Logger              LoggerConfig        `mapstructure:",squash" json:"logger"`
 	Email               EmailConfig         `mapstructure:",squash" json:"email"`
 	Captcha             CaptchaConfig       `mapstructure:",squash" json:"captcha"`
+	Elasticsearch       ElasticsearchConfig `mapstructure:",squash" json:"elasticsearch"`
+	RabbitMQ            RabbitMQConfig      `mapstructure:",squash" json:"rabbitmq"`
 }
 
 type DebugModeOptions struct {
@@ -102,6 +104,7 @@ type EmailConfig struct {
 	SMTPHost                     string `mapstructure:"SMTP_HOST"                        json:"smtp_host"`
 	SMTPPort                     string `mapstructure:"SMTP_HOST_PORT"                   json:"smtp_host_port"`
 }
+
 type CaptchaConfig struct {
 	Type string `mapstructure:"CAPTCHA_TYPE" json:"type"`
 	TTL  int    `mapstructure:"CAPTCHA_TTL_IN_SECONDS" json:"ttl"`
@@ -109,6 +112,14 @@ type CaptchaConfig struct {
 
 type UserPermissionCache struct {
 	UserPermissionExpiredDuration int `mapstructure:"USER_PERMISSION_CACHE_EXPIRE_MINUTES" json:"expire_duration"`
+}
+
+type ElasticsearchConfig struct {
+	URL string `mapstructure:"ELASTICSEARCH_URL" json:"url"`
+}
+
+type RabbitMQConfig struct {
+	URL string `mapstructure:"RABBITMQ_URL" json:"url"`
 }
 
 func (c *JWT) AccessDuration() time.Duration {
@@ -169,8 +180,8 @@ func (e *Environment) String() string {
 
 	data, err := json.MarshalIndent(e, "", "  ")
 	if err != nil {
-		return fmt.Sprintf("Environment{DataBase:%+v, Redis:%+v, HttpServer:%+v, JWT:%+v, Storage:%+v, Limiter:%+v, OTP:%+v, Email:%+v}",
-			e.DataBase, e.Redis, e.HttpServer, e.JWT, e.Storage, e.Limiter, e.OTP, e.Email)
+		return fmt.Sprintf("Environment{DataBase:%+v, Redis:%+v, HttpServer:%+v, JWT:%+v, Storage:%+v, Limiter:%+v, OTP:%+v, Email:%+v, Elasticsearch:%+v, RabbitMQ:%+v}",
+			e.DataBase, e.Redis, e.HttpServer, e.JWT, e.Storage, e.Limiter, e.OTP, e.Email, e.Elasticsearch, e.RabbitMQ)
 	}
 
 	return string(data)

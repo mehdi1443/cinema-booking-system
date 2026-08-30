@@ -12,10 +12,12 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/application/service"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/validation"
 	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
+	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/broker"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
 	infralogger "github.com/mehdi1443/cinema-booking-system/internal/infrastructure/logger"
 	infralmetrics "github.com/mehdi1443/cinema-booking-system/internal/infrastructure/metrics"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/repository/MinIO"
+	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/repository/elasticsearch"
 	postgres_repo "github.com/mehdi1443/cinema-booking-system/internal/infrastructure/repository/postgres"
 	redis_repo "github.com/mehdi1443/cinema-booking-system/internal/infrastructure/repository/redis"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/seed"
@@ -28,6 +30,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/pkg/rsa"
 	mail "github.com/mehdi1443/cinema-booking-system/pkg/wneessen-go-mail"
 	"github.com/mehdi1443/cinema-booking-system/static"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 func main() {
@@ -51,6 +54,45 @@ func main() {
 		appLogger.Error(ctx, "failed to initialize S3 storage", domainlogger.Error(err))
 		os.Exit(1)
 	}
+
+	esClient, err := elasticsearch.NewClient(config.Environment.Elasticsearch.URL)
+	if err != nil {
+		appLogger.Error(ctx, "failed to initialize Elasticsearch", domainlogger.Error(err))
+		os.Exit(1)
+	}
+	searchRepo := elasticsearch.NewSearchRepository(esClient)
+
+	rabbitConn, err := amqp.Dial(config.Environment.RabbitMQ.URL)
+	if err != nil {
+		appLogger.Error(ctx, "failed to connect to RabbitMQ", domainlogger.Error(err))
+		os.Exit(1)
+	}
+	defer rabbitConn.Close()
+
+	rabbitCh, err := rabbitConn.Channel()
+	if err != nil {
+		appLogger.Error(ctx, "failed to open RabbitMQ channel", domainlogger.Error(err))
+		os.Exit(1)
+	}
+	defer rabbitCh.Close()
+
+	searchPub, err := broker.NewSearchEventPublisher(rabbitCh)
+	if err != nil {
+		appLogger.Error(ctx, "failed to create search event publisher", domainlogger.Error(err))
+		os.Exit(1)
+	}
+
+	searchWorker, err := broker.NewSearchWorker(rabbitCh, searchRepo, appLogger)
+	if err != nil {
+		appLogger.Error(ctx, "failed to create search worker", domainlogger.Error(err))
+		os.Exit(1)
+	}
+
+	go func() {
+		if err := searchWorker.Start(ctx); err != nil {
+			appLogger.Error(ctx, "Search worker stopped with error", domainlogger.Error(err))
+		}
+	}()
 
 	if pgDB != nil && redisClient != nil {
 		appLogger.Info(ctx, "Postgres, Redis, and Object Storage initialized successfully")
@@ -138,15 +180,16 @@ func main() {
 	contextokenSrv := service.NewContextTokenService()
 
 	genreSrv := service.NewGenreService(genreRepo, appLogger)
-	personSrv := service.NewPersonService(personRepo, storage, appLogger)
-	movieSrv := service.NewMovieService(movieRepo, storage, appLogger)
+	personSrv := service.NewPersonService(personRepo, storage, appLogger, searchPub)
+	movieSrv := service.NewMovieService(movieRepo, storage, appLogger, searchPub)
 	captchaSrv := service.NewCaptchaService(captchaRepo, &config.Environment.Captcha, captchaMan, appLogger)
 	addressSrv := service.NewAddressService(provinceRepo, cityRepo, appLogger)
 	facilitySrv := service.NewFacilityService(facilityRepo, appLogger)
-	cinemaSrv := service.NewCinemaService(cinemaRepo, storage, appLogger)
+	cinemaSrv := service.NewCinemaService(cinemaRepo, storage, appLogger, searchPub)
 	favoriteSrv := service.NewFavoriteService(favoriteRepo, appLogger)
 	commentSrv := service.NewCommentService(commentRepo, appLogger)
 	ratingSrv := service.NewRatingService(ratingRepo, movieRepo, cinemaRepo, appLogger)
+	searchSrv := service.NewSearchService(searchRepo, movieSrv, cinemaSrv, personSrv, appLogger)
 
 	services := router.Services{
 		TokenService:        jwtSrv,
@@ -171,6 +214,7 @@ func main() {
 	favoriteHandler := *handler.NewFavoriteHandler(favoriteSrv, contextokenSrv, appLogger)
 	commentHandler := *handler.NewCommentHandler(commentSrv, appLogger)
 	ratingHandler := *handler.NewRatingHandler(ratingSrv, appLogger)
+	searchHandler := *handler.NewSearchHandler(searchSrv, appLogger)
 
 	handlers := router.Handlers{
 		Auth:      authHandler,
@@ -187,6 +231,7 @@ func main() {
 		Favorite:  favoriteHandler,
 		Comment:   commentHandler,
 		Rating:    ratingHandler,
+		Search:    searchHandler,
 	}
 
 	limiter := middleware.NewRedisLimiter(redisClient, appLogger)

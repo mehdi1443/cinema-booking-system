@@ -18,4 +18,6 @@ type MovieServiceInterface interface {
 	DeletePoster(ctx context.Context, id int64) error
 	UploadTrailer(ctx context.Context, id int64, file io.Reader) (*dto.MovieDetailResponse, error)
 	DeleteTrailer(ctx context.Context, id int64) error
+
+	SyncAllToSearch(ctx context.Context) error
 }

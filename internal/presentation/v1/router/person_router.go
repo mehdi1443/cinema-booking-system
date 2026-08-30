@@ -14,8 +14,8 @@ func SetUpPersonRouter(r *gin.RouterGroup, personHandler *handler.PersonHandler)
 		persons.PUT("/:id", personHandler.UpdatePerson)
 		persons.DELETE("/:id", personHandler.DeletePerson)
 
-		// Image management routes
 		persons.POST("/:id/image", personHandler.UploadImage)
 		persons.DELETE("/:id/image", personHandler.DeleteImage)
+		persons.POST("/sync-search", personHandler.SyncSearch)
 	}
 }

@@ -806,3 +806,30 @@ func (s *movieService) publishDeleteEvent(ctx context.Context, movieID int64) {
 		s.log.Error(ctx, "Failed to publish search delete event", domainlogger.Error(err), domainlogger.Int64("movie_id", movieID))
 	}
 }
+
+func (s *movieService) SyncAllToSearch(ctx context.Context) error {
+	limit := 100
+	page := 1
+
+	for {
+		opts := repository_contract.NewQueryOptions().WithPagination(limit, (page-1)*limit)
+		movies, _, err := s.movieRepo.GetMovies(ctx, repository_contract.MovieFilter{}, opts)
+
+		if err != nil {
+			return fmt.Errorf("failed to fetch movies for sync: %w", err)
+		}
+
+		if len(movies) == 0 {
+			break
+		}
+
+		for i := range movies {
+			s.publishIndexEvent(ctx, &movies[i])
+		}
+
+		page++
+	}
+
+	s.log.Info(ctx, "All existing movies sent to RabbitMQ for search sync")
+	return nil
+}

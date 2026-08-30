@@ -8,6 +8,7 @@ import (
 
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/broker"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
@@ -23,18 +24,74 @@ type personService struct {
 	personRepo repository_contract.PersonInterface
 	storage    storage.StorageInterFace
 	log        domainlogger.Logger
+	searchPub  broker.SearchEventPublisher
 }
 
 func NewPersonService(
 	personRepo repository_contract.PersonInterface,
 	storage storage.StorageInterFace,
 	log domainlogger.Logger,
+	searchPub broker.SearchEventPublisher,
 ) service_contract.PersonServiceInterface {
 	return &personService{
 		personRepo: personRepo,
 		storage:    storage,
 		log:        log,
+		searchPub:  searchPub,
 	}
+}
+
+func (s *personService) publishIndexEvent(ctx context.Context, person *entity.Person) {
+	if s.searchPub == nil || person == nil {
+		return
+	}
+
+	doc := entity.SearchDocument{
+		ID:       fmt.Sprintf("person_%d", person.ID),
+		EntityID: person.ID,
+		Type:     enum.DocTypePerson,
+		Title:    person.Name,
+		Subtitle: person.Biography,
+		ImageURL: person.ImageURLLow,
+	}
+
+	if err := s.searchPub.PublishSyncEvent(ctx, doc); err != nil {
+		s.log.Error(ctx, "Failed to publish search sync event", domainlogger.Error(err), domainlogger.Int64("person_id", person.ID))
+	}
+}
+
+func (s *personService) publishDeleteEvent(ctx context.Context, personID int64) {
+	docID := fmt.Sprintf("person_%d", personID)
+	if err := s.searchPub.PublishDeleteEvent(ctx, docID); err != nil {
+		s.log.Error(ctx, "Failed to publish search delete event", domainlogger.Error(err), domainlogger.Int64("person_id", personID))
+	}
+}
+
+func (s *personService) SyncAllToSearch(ctx context.Context) error {
+	limit := 100
+	page := 1
+
+	for {
+		opts := repository_contract.NewQueryOptions().WithPagination(limit, (page-1)*limit)
+		persons, _, err := s.personRepo.GetPersons(ctx, repository_contract.PersonFilter{}, opts)
+
+		if err != nil {
+			return fmt.Errorf("failed to fetch persons for sync: %w", err)
+		}
+
+		if len(persons) == 0 {
+			break
+		}
+
+		for i := range persons {
+			s.publishIndexEvent(ctx, &persons[i])
+		}
+
+		page++
+	}
+
+	s.log.Info(ctx, "All existing persons sent to RabbitMQ for search sync")
+	return nil
 }
 
 func (s *personService) Create(ctx context.Context, req *dto.CreatePersonRequest) (*dto.PersonDetailResponse, error) {
@@ -56,6 +113,8 @@ func (s *personService) Create(ctx context.Context, req *dto.CreatePersonRequest
 	if err != nil {
 		return nil, fmt.Errorf("create person: %w", err)
 	}
+
+	s.publishIndexEvent(ctx, createdPerson)
 
 	s.log.Info(ctx, "Person created successfully", domainlogger.Int64("person_id", createdPerson.ID))
 
@@ -121,6 +180,8 @@ func (s *personService) Update(ctx context.Context, id int64, req *dto.UpdatePer
 		return nil, fmt.Errorf("update person %d: %w", id, err)
 	}
 
+	s.publishIndexEvent(ctx, updatedPerson)
+
 	s.log.Info(ctx, "Person updated successfully", domainlogger.Int64("person_id", updatedPerson.ID))
 
 	return dto.ToPersonDetailResponse(updatedPerson), nil
@@ -143,6 +204,8 @@ func (s *personService) Delete(ctx context.Context, id int64) error {
 	if err := s.personRepo.Delete(ctx, id); err != nil {
 		return fmt.Errorf("delete person %d: %w", id, err)
 	}
+
+	s.publishDeleteEvent(ctx, id)
 
 	s.log.Info(ctx, "Person deleted successfully", domainlogger.Int64("person_id", id))
 
@@ -205,6 +268,8 @@ func (s *personService) UploadImage(ctx context.Context, id int64, file io.Reade
 		return nil, fmt.Errorf("save image URLs for person %d: %w", id, err)
 	}
 
+	s.publishIndexEvent(ctx, updatedPerson)
+
 	s.log.Info(ctx, "Person image uploaded successfully", domainlogger.Int64("person_id", id))
 
 	return dto.ToPersonDetailResponse(updatedPerson), nil
@@ -234,10 +299,12 @@ func (s *personService) DeleteImage(ctx context.Context, id int64) error {
 	person.ImageURLLow = ""
 	person.ImageURLHigh = ""
 
-	_, err = s.personRepo.Update(ctx, person)
+	updatedPerson, err := s.personRepo.Update(ctx, person)
 	if err != nil {
 		return fmt.Errorf("remove image URLs for person %d: %w", id, err)
 	}
+
+	s.publishIndexEvent(ctx, updatedPerson)
 
 	s.log.Info(ctx, "Person image deleted successfully", domainlogger.Int64("person_id", id))
 

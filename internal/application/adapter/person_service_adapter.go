@@ -13,7 +13,7 @@ type PersonServiceInterface interface {
 	GetPersons(ctx context.Context, req dto.PersonFilterRequest) ([]*dto.PersonListResponse, int64, error)
 	Update(ctx context.Context, id int64, req *dto.UpdatePersonRequest) (*dto.PersonDetailResponse, error)
 	Delete(ctx context.Context, id int64) error
-
 	UploadImage(ctx context.Context, id int64, file io.Reader) (*dto.PersonDetailResponse, error)
 	DeleteImage(ctx context.Context, id int64) error
+	SyncAllToSearch(ctx context.Context) error
 }
