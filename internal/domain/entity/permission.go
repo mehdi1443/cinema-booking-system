@@ -8,21 +8,10 @@ import (
 type Permission struct {
 	BaseEntity
 	DeletedAt   gorm.DeletedAt
-	Name        string                  `json:"name"`
+	Name        string                  `json:"name" gorm:"uniqueIndex;not null"`
 	Title       string                  `json:"title"`
 	Category    enum.PermissionCategory `json:"category"`
 	Description string                  `json:"description"`
 
-	Roles []*Role `json:"roles,omitempty" gorm:"many2many:permission_roles;"`
+	Roles []*Role `json:"roles,omitempty" gorm:"many2many:role_permissions;"`
 }
-
-// ? enum : PermissionType
-// example :
-/*
-var p PermissionType
-ID 			 Create With DB
-Name:        p.String()
-Title:       p.Description()
-Category:    permType.Category()
-Description: permType.Description()
-*/

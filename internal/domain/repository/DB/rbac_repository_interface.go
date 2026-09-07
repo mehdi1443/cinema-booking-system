@@ -11,12 +11,11 @@ type RBACInterface interface {
 	CreateRole(ctx context.Context, role *entity.Role) error
 	FindRoleByName(ctx context.Context, name string) (*entity.Role, error)
 	FindRoleByID(ctx context.Context, roleID int64) (*entity.Role, error)
-	CreatePermission(ctx context.Context, permission *entity.Permission) error // just used for seed!
+	CreatePermission(ctx context.Context, permission *entity.Permission) error
 	FindPermissionByName(ctx context.Context, name string) (*entity.Permission, error)
 	RoleHasPermission(ctx context.Context, roleID int64, permissionID int64) (bool, error)
-	AppendPermissionsToRole(ctx context.Context, roleID int64, permissionIDs []*int64) error
-
-	DeletePermissionsOfRole(ctx context.Context, roleID int64, permissionIDs []*int64) error
+	AppendPermissionsToRole(ctx context.Context, roleID int64, permissionIDs []int64) error
+	DeletePermissionsOfRole(ctx context.Context, roleID int64, permissionIDs []int64) error
 
 	UserHasPermission(ctx context.Context, userID int64, permissionName string) (bool, error)
 

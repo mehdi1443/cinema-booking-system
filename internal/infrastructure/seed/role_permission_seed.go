@@ -149,18 +149,26 @@ func (s *RoleSeeder) seedSuperAdmin(ctx context.Context, adminRole *entity.Role)
 			return fmt.Errorf("hash password: %w", err)
 		}
 
+		now := time.Now()
+
+		var emailPtr *string
+		if s.superAdmin.Email != "" {
+			email := s.superAdmin.Email
+			emailPtr = &email
+		}
+
 		user = &entity.User{
 			Phone:           s.superAdmin.Phone,
-			Email:           s.superAdmin.Email,
-			PasswordHash:    hashedPassword,
+			Email:           emailPtr,
+			PasswordHash:    &hashedPassword,
 			FirstName:       s.superAdmin.FirstName,
 			LastName:        s.superAdmin.LastName,
 			WalletBalance:   s.superAdmin.Wallet,
 			IsPhoneVerified: true,
 			IsEmailVerified: true,
-			PhoneVerifiedAt: time.Now(),
-			EmailVerifiedAt: time.Now(),
-			Status:          "ACTIVE",
+			PhoneVerifiedAt: &now,
+			EmailVerifiedAt: &now,
+			Status:          enum.UserActive,
 		}
 
 		user, err = s.userRepo.CreateUser(ctx, user)
