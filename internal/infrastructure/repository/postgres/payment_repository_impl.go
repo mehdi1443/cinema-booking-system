@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
@@ -237,6 +238,16 @@ func (r *paymentRepository) FinalizePayment(ctx context.Context, id, userID int6
 		payment.FailureReason = nil
 		payment.PaidAt = &now
 		payment.UpdatedAt = now
+		ticket := entity.Ticket{
+			ReservationID: reservation.ID,
+			PaymentID:     payment.ID,
+			UserID:        payment.UserID,
+			Code:          "ct_" + strings.ReplaceAll(uuid.NewString(), "-", ""),
+			Status:        enum.TicketActive,
+		}
+		if err := tx.Create(&ticket).Error; err != nil {
+			return handlePaymentDBError(err)
+		}
 		return nil
 	})
 	if err != nil {

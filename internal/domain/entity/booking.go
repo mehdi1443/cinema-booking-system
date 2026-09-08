@@ -100,3 +100,19 @@ type Payment struct {
 	Reservation *Reservation `gorm:"foreignKey:ReservationID" json:"reservation,omitempty"`
 	User        *User        `gorm:"foreignKey:UserID" json:"user,omitempty"`
 }
+
+type Ticket struct {
+	BaseEntity
+	ReservationID int64             `gorm:"not null;uniqueIndex" json:"reservation_id"`
+	PaymentID     int64             `gorm:"not null;uniqueIndex" json:"payment_id"`
+	UserID        int64             `gorm:"not null;index" json:"user_id"`
+	Code          string            `gorm:"type:varchar(100);not null;uniqueIndex" json:"code"`
+	Status        enum.TicketStatus `gorm:"type:ticket_status;not null;index" json:"status"`
+	UsedAt        *time.Time        `json:"used_at,omitempty"`
+	UsedByUserID  *int64            `gorm:"index" json:"used_by_user_id,omitempty"`
+
+	Reservation *Reservation `gorm:"foreignKey:ReservationID" json:"reservation,omitempty"`
+	Payment     *Payment     `gorm:"foreignKey:PaymentID" json:"payment,omitempty"`
+	User        *User        `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	UsedBy      *User        `gorm:"foreignKey:UsedByUserID" json:"used_by,omitempty"`
+}

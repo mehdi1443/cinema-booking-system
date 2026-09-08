@@ -73,6 +73,24 @@ func TestPaymentLifecycleIntegration(t *testing.T) {
 		t.Fatalf("successful verification failed: payment=%#v err=%v", succeeded, err)
 	}
 	assertReservationAndSeatStatus(t, tx, reservationID, enum.ReservationPaid, enum.ShowtimeSeatSold)
+	var ticket entity.Ticket
+	if err := tx.Where("payment_id = ?", second.ID).First(&ticket).Error; err != nil {
+		t.Fatalf("successful payment did not issue a ticket: %v", err)
+	}
+	if ticket.Status != enum.TicketActive || ticket.UserID != userID || ticket.ReservationID != reservationID || ticket.Code == "" {
+		t.Fatalf("issued ticket is invalid: %#v", ticket)
+	}
+	ticketRepo := NewTicketRepository(&database.PostgresDatabase{DB: tx})
+	if _, err := ticketRepo.ConsumeTicket(ctx, ticket.Code, otherUserID, false, time.Now()); !errors.Is(err, exception.ErrNotAccessible) {
+		t.Fatalf("non-owner cinema user validated ticket: %v", err)
+	}
+	usedTicket, err := ticketRepo.ConsumeTicket(ctx, ticket.Code, userID, false, time.Now())
+	if err != nil || usedTicket.Status != enum.TicketUsed || usedTicket.UsedAt == nil || usedTicket.UsedByUserID == nil {
+		t.Fatalf("cinema owner could not validate ticket: ticket=%#v err=%v", usedTicket, err)
+	}
+	if _, err := ticketRepo.ConsumeTicket(ctx, ticket.Code, userID, false, time.Now()); !errors.Is(err, exception.ErrTicketAlreadyUsed) {
+		t.Fatalf("ticket was not one-time use: %v", err)
+	}
 
 	replayedFinal, err := repo.FinalizePayment(ctx, second.ID, userID, false, true, "different-reference", "", time.Now())
 	if err != nil || replayedFinal.ReferenceID == nil || *replayedFinal.ReferenceID != "mock-reference-success" {
@@ -137,11 +155,11 @@ func createPaymentFixture(t *testing.T, tx *gorm.DB) (int64, int64, int64) {
 	if err := tx.Raw("INSERT INTO seats (hall_id, row_label, number, seat_type, status) VALUES (?, 'A', 1, 'STANDARD', 'ACTIVE') RETURNING id", hallID).Scan(&seatID).Error; err != nil {
 		t.Fatal(err)
 	}
-	startsAt := time.Now().Add(2 * time.Hour)
+	startsAt := time.Now().Add(30 * time.Minute)
 	if err := tx.Raw("INSERT INTO showtimes (hall_id, movie_id, starts_at, ends_at, status) VALUES (?, ?, ?, ?, 'PUBLISHED') RETURNING id", hallID, movieID, startsAt, startsAt.Add(90*time.Minute)).Scan(&showtimeID).Error; err != nil {
 		t.Fatal(err)
 	}
-	expiresAt := time.Now().Add(time.Hour)
+	expiresAt := time.Now().Add(20 * time.Minute)
 	if err := tx.Raw("INSERT INTO reservations (user_id, showtime_id, status, expires_at, total_amount) VALUES (?, ?, 'PENDING_PAYMENT', ?, 250000) RETURNING id", userID, showtimeID, expiresAt).Scan(&reservationID).Error; err != nil {
 		t.Fatal(err)
 	}

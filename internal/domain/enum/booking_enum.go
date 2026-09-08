@@ -79,3 +79,12 @@ const (
 	PaymentSucceeded PaymentStatus = "SUCCEEDED"
 	PaymentFailed    PaymentStatus = "FAILED"
 )
+
+type TicketStatus string
+
+const (
+	TicketActive    TicketStatus = "ACTIVE"
+	TicketUsed      TicketStatus = "USED"
+	TicketExpired   TicketStatus = "EXPIRED"
+	TicketCancelled TicketStatus = "CANCELLED"
+)

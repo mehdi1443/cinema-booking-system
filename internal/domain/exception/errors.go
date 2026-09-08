@@ -86,6 +86,11 @@ const (
 	CodePaymentInProgress     ErrorCode = "PAYMENT_IN_PROGRESS"
 	CodeIdempotencyConflict   ErrorCode = "IDEMPOTENCY_CONFLICT"
 	CodeReservationNotPayable ErrorCode = "RESERVATION_NOT_PAYABLE"
+	CodeTicketNotFound        ErrorCode = "TICKET_NOT_FOUND"
+	CodeTicketAlreadyUsed     ErrorCode = "TICKET_ALREADY_USED"
+	CodeTicketNotYetValid     ErrorCode = "TICKET_NOT_YET_VALID"
+	CodeTicketExpired         ErrorCode = "TICKET_EXPIRED"
+	CodeTicketInvalid         ErrorCode = "TICKET_INVALID"
 
 	// Location Domain
 	CodeCityNotFound          ErrorCode = "CITY_NOT_FOUND"
@@ -302,6 +307,11 @@ var ErrPaymentNotFound = &AppError{Code: CodePaymentNotFound, Kind: KindNotFound
 var ErrPaymentInProgress = &AppError{Code: CodePaymentInProgress, Kind: KindConflict, Message: "another payment is already pending for this reservation"}
 var ErrIdempotencyConflict = &AppError{Code: CodeIdempotencyConflict, Kind: KindConflict, Message: "idempotency key was already used for another request"}
 var ErrReservationNotPayable = &AppError{Code: CodeReservationNotPayable, Kind: KindConflict, Message: "reservation is not payable"}
+var ErrTicketNotFound = &AppError{Code: CodeTicketNotFound, Kind: KindNotFound, Message: "ticket not found"}
+var ErrTicketAlreadyUsed = &AppError{Code: CodeTicketAlreadyUsed, Kind: KindConflict, Message: "ticket has already been used"}
+var ErrTicketNotYetValid = &AppError{Code: CodeTicketNotYetValid, Kind: KindConflict, Message: "ticket is not valid yet"}
+var ErrTicketExpired = &AppError{Code: CodeTicketExpired, Kind: KindConflict, Message: "ticket has expired"}
+var ErrTicketInvalid = &AppError{Code: CodeTicketInvalid, Kind: KindConflict, Message: "ticket is not active"}
 var ErrCityNotFound = &AppError{Code: CodeCityNotFound, Kind: KindNotFound, Message: "city not found"}
 var ErrCityAlreadyExists = &AppError{Code: CodeCityAlreadyExists, Kind: KindConflict, Message: "city already exists"}
 var ErrProvinceNotFound = &AppError{Code: CodeProvinceNotFound, Kind: KindNotFound, Message: "province not found"}

@@ -33,6 +33,7 @@ type Handlers struct {
 	Search    handler.SearchHandler
 	Booking   handler.BookingHandler
 	Payment   handler.PaymentHandler
+	Ticket    handler.TicketHandler
 }
 
 type Repositories struct {
@@ -131,6 +132,8 @@ func SetUpRouter(
 	SetUpBookingRouter(v1, &handler.Booking)
 
 	SetUpPaymentRouter(v1, &handler.Payment)
+
+	SetUpTicketRouter(v1, &handler.Ticket)
 	if err := middleware.ValidateRoutePolicies(r.Routes()); err != nil {
 		panic(err)
 	}

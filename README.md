@@ -88,6 +88,16 @@ verification atomically changes the payment to `SUCCEEDED`, the reservation to `
 seats to `SOLD`. A failed mock verification changes only the payment attempt to `FAILED`, allowing a
 new attempt with a new idempotency key. Reusing the same key returns the original payment.
 
+## Tickets and admission
+
+A successful payment issues exactly one ticket in the same database transaction. Users can access
+their tickets through `GET /v1/tickets`, `GET /v1/tickets/:id`, and the PNG QR endpoint
+`GET /v1/tickets/:id/qr`. The QR payload uses the form `cinema-ticket:<ticket-code>`.
+
+Cinema owners validate tickets for their own cinemas with `POST /v1/tickets/validate`; support and
+admin users may validate across cinemas. Validation opens one hour before the showtime and closes at
+its end time. A successful scan marks the ticket `USED` atomically, so subsequent scans are rejected.
+
 ## Database changes
 
 Run the Goose migrations before starting the application. The latest migrations rename the legacy
