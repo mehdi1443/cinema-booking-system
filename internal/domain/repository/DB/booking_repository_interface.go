@@ -9,12 +9,12 @@ import (
 )
 
 type ShowtimeFilter struct {
-	CinemaID *int64
-	HallID   *int64
-	MovieID  *int64
-	Status   *enum.ShowtimeStatus
-	From     *time.Time
-	To       *time.Time
+	CinemaID   *int64
+	HallID     *int64
+	MovieID    *int64
+	Status     *enum.ShowtimeStatus
+	From       *time.Time
+	To         *time.Time
 	PublicOnly bool
 }
 

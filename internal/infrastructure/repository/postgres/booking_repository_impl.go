@@ -336,6 +336,7 @@ func (r *bookingRepository) ListShowtimes(ctx context.Context, filter DB.Showtim
 			Joins("JOIN halls ON halls.id = showtimes.hall_id AND halls.deleted_at IS NULL").
 			Joins("JOIN cinemas ON cinemas.id = halls.cinema_id AND cinemas.deleted_at IS NULL").
 			Joins("JOIN movies ON movies.id = showtimes.movie_id AND movies.deleted_at IS NULL").
+			Where("showtimes.status = ? AND showtimes.starts_at > CURRENT_TIMESTAMP", enum.ShowtimeStatusPublished).
 			Where("halls.status = ? AND cinemas.status = ?", enum.HallStatusActive, enum.CinemaStatusActive).
 			Where("movies.status NOT IN ?", []enum.MovieStatus{enum.MovieInactive, enum.MovieEnded})
 		hallsJoined = true

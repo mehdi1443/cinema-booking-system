@@ -65,3 +65,17 @@ const (
 	ReservationExpired        ReservationStatus = "EXPIRED"
 	ReservationCancelled      ReservationStatus = "CANCELLED"
 )
+
+type PaymentProvider string
+
+const (
+	PaymentProviderMock PaymentProvider = "MOCK"
+)
+
+type PaymentStatus string
+
+const (
+	PaymentPending   PaymentStatus = "PENDING"
+	PaymentSucceeded PaymentStatus = "SUCCEEDED"
+	PaymentFailed    PaymentStatus = "FAILED"
+)

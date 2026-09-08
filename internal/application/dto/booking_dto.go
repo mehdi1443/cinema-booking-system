@@ -78,11 +78,11 @@ type UpdateShowtimeRequest struct {
 
 type ShowtimeFilterRequest struct {
 	PaginationRequest
-	CinemaID *int64               `form:"cinema_id" binding:"omitempty,gt=0"`
-	HallID   *int64               `form:"hall_id" binding:"omitempty,gt=0"`
-	MovieID  *int64               `form:"movie_id" binding:"omitempty,gt=0"`
-	From     *time.Time           `form:"from" time_format:"2006-01-02T15:04:05Z07:00"`
-	To       *time.Time           `form:"to" time_format:"2006-01-02T15:04:05Z07:00"`
+	CinemaID *int64     `form:"cinema_id" binding:"omitempty,gt=0"`
+	HallID   *int64     `form:"hall_id" binding:"omitempty,gt=0"`
+	MovieID  *int64     `form:"movie_id" binding:"omitempty,gt=0"`
+	From     *time.Time `form:"from" time_format:"2006-01-02T15:04:05Z07:00"`
+	To       *time.Time `form:"to" time_format:"2006-01-02T15:04:05Z07:00"`
 }
 
 type ShowtimeResponse struct {

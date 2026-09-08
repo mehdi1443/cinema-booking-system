@@ -7,7 +7,6 @@ import (
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
-	domainjwt "github.com/mehdi1443/cinema-booking-system/internal/domain/jwt"
 	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
@@ -290,7 +289,7 @@ func (h *BookingHandler) GetReservation(c *gin.Context) {
 	if !ok {
 		return
 	}
-	result, err := h.reservations.Get(c.Request.Context(), id, userID, hasBookingPermission(c, enum.ReservationsReadAny))
+	result, err := h.reservations.Get(c.Request.Context(), id, userID, hasPermission(c, enum.ReservationsReadAny))
 	if err != nil {
 		Handle(c, err, h.log)
 		return
@@ -320,27 +319,10 @@ func (h *BookingHandler) CancelReservation(c *gin.Context) {
 	if !ok {
 		return
 	}
-	result, err := h.reservations.Cancel(c.Request.Context(), id, userID, hasBookingPermission(c, enum.ReservationsCancelAny))
+	result, err := h.reservations.Cancel(c.Request.Context(), id, userID, hasPermission(c, enum.ReservationsCancelAny))
 	if err != nil {
 		Handle(c, err, h.log)
 		return
 	}
 	response.Success(c, http.StatusOK, "Reservation cancelled successfully", result)
-}
-
-func hasBookingPermission(c *gin.Context, required enum.PermissionType) bool {
-	value, exists := c.Get(domainjwt.CtxPermissionsKey)
-	if !exists {
-		return false
-	}
-	permissions, ok := value.([]string)
-	if !ok {
-		return false
-	}
-	for _, permission := range permissions {
-		if permission == required.String() || permission == enum.PermissionAll.String() {
-			return true
-		}
-	}
-	return false
 }

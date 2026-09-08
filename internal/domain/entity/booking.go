@@ -55,6 +55,7 @@ type Reservation struct {
 	User     *User             `gorm:"foreignKey:UserID" json:"user,omitempty"`
 	Showtime *Showtime         `gorm:"foreignKey:ShowtimeID" json:"showtime,omitempty"`
 	Items    []ReservationItem `gorm:"foreignKey:ReservationID" json:"items,omitempty"`
+	Payments []Payment         `gorm:"foreignKey:ReservationID" json:"payments,omitempty"`
 }
 
 type ShowtimeSeat struct {
@@ -81,4 +82,21 @@ type ReservationItem struct {
 	UnitPrice      int64 `gorm:"not null" json:"unit_price"`
 
 	ShowtimeSeat *ShowtimeSeat `gorm:"foreignKey:ShowtimeSeatID" json:"showtime_seat,omitempty"`
+}
+
+type Payment struct {
+	BaseEntity
+	ReservationID  int64                `gorm:"not null;index" json:"reservation_id"`
+	UserID         int64                `gorm:"not null;index" json:"user_id"`
+	Amount         int64                `gorm:"not null" json:"amount"`
+	Provider       enum.PaymentProvider `gorm:"type:payment_provider;not null" json:"provider"`
+	Status         enum.PaymentStatus   `gorm:"type:payment_status;not null;index" json:"status"`
+	Authority      string               `gorm:"type:varchar(100);not null;uniqueIndex" json:"authority"`
+	ReferenceID    *string              `gorm:"type:varchar(100);uniqueIndex" json:"reference_id,omitempty"`
+	IdempotencyKey string               `gorm:"type:varchar(100);not null" json:"-"`
+	FailureReason  *string              `gorm:"type:varchar(255)" json:"failure_reason,omitempty"`
+	PaidAt         *time.Time           `json:"paid_at,omitempty"`
+
+	Reservation *Reservation `gorm:"foreignKey:ReservationID" json:"reservation,omitempty"`
+	User        *User        `gorm:"foreignKey:UserID" json:"user,omitempty"`
 }

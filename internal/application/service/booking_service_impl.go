@@ -285,22 +285,22 @@ func (s *showtimeService) List(ctx context.Context, req *dto.ShowtimeFilterReque
 		return nil, 0, exception.ErrInvalidFilter
 	}
 	req.Normalize()
-	if req.From != nil && req.To != nil && !req.To.After(*req.From) {
-		return nil, 0, exception.ErrInvalidFilter
-	}
 	now := time.Now()
 	from := req.From
 	if from == nil || from.Before(now) {
 		from = &now
 	}
+	if req.To != nil && !req.To.After(*from) {
+		return nil, 0, exception.ErrInvalidFilter
+	}
 	published := enum.ShowtimeStatusPublished
 	filter := DB.ShowtimeFilter{
-		CinemaID:  req.CinemaID,
-		HallID:    req.HallID,
-		MovieID:   req.MovieID,
-		Status:    &published,
-		From:      from,
-		To:        req.To,
+		CinemaID:   req.CinemaID,
+		HallID:     req.HallID,
+		MovieID:    req.MovieID,
+		Status:     &published,
+		From:       from,
+		To:         req.To,
 		PublicOnly: true,
 	}
 	items, total, err := s.repo.ListShowtimes(ctx, filter, DB.NewQueryOptions().WithPagination(req.Limit, req.GetOffset()))
@@ -451,7 +451,7 @@ func (s *reservationService) Get(ctx context.Context, id, userID int64, allowAny
 		return nil, err
 	}
 	if !allowAny && reservation.UserID != userID {
-		return nil, exception.ErrNoteAccessible
+		return nil, exception.ErrNotAccessible
 	}
 	return dto.ToReservationResponse(reservation), nil
 }
@@ -477,7 +477,7 @@ func (s *reservationService) Cancel(ctx context.Context, id, userID int64, allow
 		return nil, err
 	}
 	if !allowAny && reservation.UserID != userID {
-		return nil, exception.ErrNoteAccessible
+		return nil, exception.ErrNotAccessible
 	}
 	cancelled, err := s.repo.CancelReservation(ctx, id)
 	if err != nil {
