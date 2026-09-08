@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 
@@ -34,7 +35,10 @@ func (rlm *RedisLimiter) PerMinute(limit int) gin.HandlerFunc {
 
 func (rlm *RedisLimiter) buildMiddleware(limitRule redis_rate.Limit) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		clientIdentifier := c.Request.URL.Host
+		clientIdentifier := c.Request.RemoteAddr
+		if host, _, err := net.SplitHostPort(c.Request.RemoteAddr); err == nil {
+			clientIdentifier = host
+		}
 		if userID, exists := c.Get("user_id"); exists {
 			clientIdentifier = fmt.Sprintf("user:%v", userID)
 		}

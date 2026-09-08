@@ -4,26 +4,22 @@ import (
 	"bytes"
 	"fmt"
 	"image"
-	_ "image/jpeg"
+	"image/jpeg"
 	_ "image/png"
 	"io"
 
-	"github.com/chai2010/webp"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	"github.com/nfnt/resize"
-	"github.com/pixiv/go-libjpeg/jpeg"
+	_ "golang.org/x/image/webp"
 )
 
 type Format int
 
 const (
-	FormatWebP Format = iota + 1
-	FormatJPEG
+	FormatJPEG Format = iota + 1
 )
 
 func DecodeImage(r io.Reader) (image.Image, error) {
-	image.RegisterFormat("webp", "RIFF????WEBP", webp.Decode, webp.DecodeConfig)
-
 	img, _, err := image.Decode(r)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", exception.ErrInvalidFileType, err)
@@ -39,14 +35,8 @@ func EncodeToBuffer(img image.Image, format Format) (io.Reader, error) {
 	var buf bytes.Buffer
 
 	switch format {
-	case FormatWebP:
-		opts := &webp.Options{Lossless: false, Quality: 85}
-		if err := webp.Encode(&buf, img, opts); err != nil {
-			return nil, fmt.Errorf("failed to encode webp: %w", err)
-		}
 	case FormatJPEG:
-		opts := &jpeg.EncoderOptions{Quality: 85, ProgressiveMode: true}
-		if err := jpeg.Encode(&buf, img, opts); err != nil {
+		if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 85}); err != nil {
 			return nil, fmt.Errorf("failed to encode jpeg: %w", err)
 		}
 	default:
@@ -58,8 +48,6 @@ func EncodeToBuffer(img image.Image, format Format) (io.Reader, error) {
 
 func GetContentType(format Format) string {
 	switch format {
-	case FormatWebP:
-		return "image/webp"
 	case FormatJPEG:
 		return "image/jpeg"
 	default:

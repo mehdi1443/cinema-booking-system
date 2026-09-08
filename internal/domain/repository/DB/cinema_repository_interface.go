@@ -25,6 +25,7 @@ type CinemaInterface interface {
 
 	Update(ctx context.Context, cinema *entity.Cinema, facilityIDs []int64) (*entity.Cinema, error)
 	Delete(ctx context.Context, id int64) error
+	IsOwnedBy(ctx context.Context, cinemaID int64, userID int64) (bool, error)
 
 	UpdateRatingAggregate(ctx context.Context, cinemaID int64) error
 }

@@ -108,33 +108,18 @@ func (s *RoleSeeder) seedRolesWithPermissions(
 		}
 		roleMap[roleEnum] = role
 
+		permissionIDs := make([]int64, 0, len(roleEnum.DefaultPermissions()))
 		for _, permType := range roleEnum.DefaultPermissions() {
-			if permType == enum.PermissionAll {
-				for _, perm := range permMap {
-					if err := s.appendPermissionIfNotExist(ctx, role.ID, perm.ID); err != nil {
-						return nil, fmt.Errorf("append perm to role: %w", err)
-					}
-				}
-			} else if perm, exists := permMap[permType]; exists {
-				if err := s.appendPermissionIfNotExist(ctx, role.ID, perm.ID); err != nil {
-					return nil, fmt.Errorf("append perm to role: %w", err)
-				}
+			if perm, exists := permMap[permType]; exists {
+				permissionIDs = append(permissionIDs, perm.ID)
 			}
+		}
+		if err := s.rbacRepo.ReplacePermissionsOfRole(ctx, role.ID, permissionIDs); err != nil {
+			return nil, fmt.Errorf("synchronize permissions for role %s: %w", role.Name, err)
 		}
 	}
 
 	return roleMap, nil
-}
-
-func (s *RoleSeeder) appendPermissionIfNotExist(ctx context.Context, roleID, permID int64) error {
-	hasPerm, err := s.rbacRepo.RoleHasPermission(ctx, roleID, permID)
-	if err != nil {
-		return err
-	}
-	if !hasPerm {
-		return s.rbacRepo.AppendPermissionToRole(ctx, roleID, permID)
-	}
-	return nil
 }
 
 func (s *RoleSeeder) seedSuperAdmin(ctx context.Context, adminRole *entity.Role) error {

@@ -1,259 +1,211 @@
 package enum
 
-type PermissionType uint
+import "strings"
+
+type PermissionType string
 type PermissionCategory uint
-
-const (
-	PermissionAll PermissionType = iota + 1
-	PermissionGeneral
-
-	// Admin / User Management
-	UserViewAll
-	UserBanUnban
-	UserChangeRole
-	UserViewRoles
-	UserManageRolePermissions
-
-	// Movie Management
-	MovieViewAll
-	MovieCreate
-	MovieEdit
-	MovieDelete
-
-	// Cinema & Hall Management
-	CinemaViewAll
-	CinemaCreate
-	CinemaEdit
-	CinemaDelete
-	HallCreate
-	HallEdit
-	HallDelete
-
-	// Showtime Management
-	ShowtimeViewAll
-	ShowtimeCreate
-	ShowtimeEdit
-	ShowtimeDelete
-
-	// Ticket & Reservation Management
-	TicketBuy
-	TicketCancel
-	TicketViewOwn
-	TicketViewAll
-
-	// Wallet & Financial Management
-	WalletCharge
-	WalletViewBalance
-	FinancialReportView
-)
 
 const (
 	CategoryGeneral PermissionCategory = iota + 1
 	CategoryUser
 	CategoryMovie
 	CategoryCinema
-	CategoryShowtime
-	CategoryTicket
-	CategoryWallet
+	CategoryInteraction
+	CategoryRBAC
+	CategoryLocation
+	CategoryBooking
 )
 
-var permissionNames = map[PermissionType]string{
-	PermissionAll:     "general.all",
-	PermissionGeneral: "general.general",
+const (
+	PermissionAll PermissionType = "general:all"
+	AuthLogout    PermissionType = "auth:logout"
 
-	// User Management
-	UserViewAll:               "user.viewAll",
-	UserBanUnban:              "user.banUnban",
-	UserChangeRole:            "user.changeRole",
-	UserViewRoles:             "user.viewRoles",
-	UserManageRolePermissions: "user.manageRolePermissions",
+	UsersUpdatePassword     PermissionType = "users:update_password"
+	UsersReadProfile        PermissionType = "users:read_profile"
+	UsersReadProfileAny     PermissionType = "users:read_profile_any"
+	UsersUpdateProfile      PermissionType = "users:update_profile"
+	UsersChangeStatus       PermissionType = "users:change_status"
+	UsersReadRoles          PermissionType = "users:read_roles"
+	UsersReadRolesAny       PermissionType = "users:read_roles_any"
+	UsersUpdateRoles        PermissionType = "users:update_roles"
+	UsersReadPermissions    PermissionType = "users:read_permissions"
+	UsersReadPermissionsAny PermissionType = "users:read_permissions_any"
+	UsersDelete             PermissionType = "users:delete"
+	UsersList               PermissionType = "users:list"
+	WalletReadBalance       PermissionType = "wallet:read_balance"
+	WalletReadBalanceAny    PermissionType = "wallet:read_balance_any"
+	WalletChangeBalance     PermissionType = "wallet:change_balance"
 
-	// Movie Management
-	MovieViewAll: "movie.viewAll",
-	MovieCreate:  "movie.create",
-	MovieEdit:    "movie.edit",
-	MovieDelete:  "movie.delete",
+	RolesRead              PermissionType = "roles:read"
+	RolesCreate            PermissionType = "roles:create"
+	RolesUpdate            PermissionType = "roles:update"
+	RolesAppendPermissions PermissionType = "roles:append_permissions"
+	RolesRevokePermissions PermissionType = "roles:revoke_permissions"
+	PermissionsRead        PermissionType = "permissions:read"
+	PermissionsReadByRole  PermissionType = "permissions:read_by_role"
 
-	// Cinema & Hall Management
-	CinemaViewAll: "cinema.viewAll",
-	CinemaCreate:  "cinema.create",
-	CinemaEdit:    "cinema.edit",
-	CinemaDelete:  "cinema.delete",
-	HallCreate:    "hall.create",
-	HallEdit:      "hall.edit",
-	HallDelete:    "hall.delete",
+	GenresCreate       PermissionType = "genres:create"
+	GenresUpdate       PermissionType = "genres:update"
+	GenresDelete       PermissionType = "genres:delete"
+	PersonsCreate      PermissionType = "persons:create"
+	PersonsUpdate      PermissionType = "persons:update"
+	PersonsDelete      PermissionType = "persons:delete"
+	PersonsManageImage PermissionType = "persons:manage_image"
+	PersonsSyncSearch  PermissionType = "persons:sync_search"
+	MoviesCreate       PermissionType = "movies:create"
+	MoviesUpdate       PermissionType = "movies:update"
+	MoviesDelete       PermissionType = "movies:delete"
+	MoviesManageMedia  PermissionType = "movies:manage_media"
+	MoviesSyncSearch   PermissionType = "movies:sync_search"
 
-	// Showtime Management
-	ShowtimeViewAll: "showtime.viewAll",
-	ShowtimeCreate:  "showtime.create",
-	ShowtimeEdit:    "showtime.edit",
-	ShowtimeDelete:  "showtime.delete",
+	ProvincesCreate  PermissionType = "provinces:create"
+	ProvincesUpdate  PermissionType = "provinces:update"
+	ProvincesDelete  PermissionType = "provinces:delete"
+	CitiesCreate     PermissionType = "cities:create"
+	CitiesUpdate     PermissionType = "cities:update"
+	CitiesDelete     PermissionType = "cities:delete"
+	FacilitiesCreate PermissionType = "facilities:create"
+	FacilitiesUpdate PermissionType = "facilities:update"
+	FacilitiesDelete PermissionType = "facilities:delete"
 
-	// Ticket Management
-	TicketBuy:     "ticket.buy",
-	TicketCancel:  "ticket.cancel",
-	TicketViewOwn: "ticket.viewOwn",
-	TicketViewAll: "ticket.viewAll",
+	CinemasCreate      PermissionType = "cinemas:create"
+	CinemasUpdate      PermissionType = "cinemas:update"
+	CinemasDelete      PermissionType = "cinemas:delete"
+	CinemasManageImage PermissionType = "cinemas:manage_image"
+	CinemasSyncSearch  PermissionType = "cinemas:sync_search"
+	SearchSync         PermissionType = "search:sync"
 
-	// Wallet Management
-	WalletCharge:        "wallet.charge",
-	WalletViewBalance:   "wallet.viewBalance",
-	FinancialReportView: "financial.reportView",
+	HallsCreate           PermissionType = "halls:create"
+	HallsUpdate           PermissionType = "halls:update"
+	HallsDelete           PermissionType = "halls:delete"
+	HallsManageSeats      PermissionType = "halls:manage_seats"
+	ShowtimesCreate       PermissionType = "showtimes:create"
+	ShowtimesUpdate       PermissionType = "showtimes:update"
+	ShowtimesDelete       PermissionType = "showtimes:delete"
+	ShowtimesManagePrices PermissionType = "showtimes:manage_prices"
+	ReservationsCreate    PermissionType = "reservations:create"
+	ReservationsRead      PermissionType = "reservations:read"
+	ReservationsCancel    PermissionType = "reservations:cancel"
+	ReservationsReadAny   PermissionType = "reservations:read_any"
+	ReservationsCancelAny PermissionType = "reservations:cancel_any"
+
+	FavoritesAddMovie     PermissionType = "favorites:add_movie"
+	FavoritesRemoveMovie  PermissionType = "favorites:remove_movie"
+	FavoritesAddCinema    PermissionType = "favorites:add_cinema"
+	FavoritesRemoveCinema PermissionType = "favorites:remove_cinema"
+	FavoritesRead         PermissionType = "favorites:read"
+
+	CommentsCreate       PermissionType = "comments:create"
+	CommentsUpdate       PermissionType = "comments:update"
+	CommentsDelete       PermissionType = "comments:delete"
+	CommentsVote         PermissionType = "comments:vote"
+	CommentsRemoveVote   PermissionType = "comments:remove_vote"
+	CommentsManageStatus PermissionType = "comments:manage_status"
+	CommentsAdminRead    PermissionType = "comments:admin_read"
+
+	RatingsSubmit   PermissionType = "ratings:submit"
+	RatingsReadSelf PermissionType = "ratings:read_self"
+	RatingsDelete   PermissionType = "ratings:delete"
+)
+
+var allPermissionTypes = []PermissionType{
+	PermissionAll, AuthLogout,
+	UsersUpdatePassword, UsersReadProfile, UsersReadProfileAny, UsersUpdateProfile,
+	UsersChangeStatus, UsersReadRoles, UsersReadRolesAny, UsersUpdateRoles,
+	UsersReadPermissions, UsersReadPermissionsAny, UsersDelete, UsersList,
+	WalletReadBalance, WalletReadBalanceAny, WalletChangeBalance,
+	RolesRead, RolesCreate, RolesUpdate, RolesAppendPermissions, RolesRevokePermissions,
+	PermissionsRead, PermissionsReadByRole,
+	GenresCreate, GenresUpdate, GenresDelete,
+	PersonsCreate, PersonsUpdate, PersonsDelete, PersonsManageImage, PersonsSyncSearch,
+	MoviesCreate, MoviesUpdate, MoviesDelete, MoviesManageMedia, MoviesSyncSearch,
+	ProvincesCreate, ProvincesUpdate, ProvincesDelete,
+	CitiesCreate, CitiesUpdate, CitiesDelete,
+	FacilitiesCreate, FacilitiesUpdate, FacilitiesDelete,
+	CinemasCreate, CinemasUpdate, CinemasDelete, CinemasManageImage, CinemasSyncSearch, SearchSync,
+	HallsCreate, HallsUpdate, HallsDelete, HallsManageSeats,
+	ShowtimesCreate, ShowtimesUpdate, ShowtimesDelete, ShowtimesManagePrices,
+	ReservationsCreate, ReservationsRead, ReservationsCancel, ReservationsReadAny, ReservationsCancelAny,
+	FavoritesAddMovie, FavoritesRemoveMovie, FavoritesAddCinema, FavoritesRemoveCinema, FavoritesRead,
+	CommentsCreate, CommentsUpdate, CommentsDelete, CommentsVote, CommentsRemoveVote, CommentsManageStatus, CommentsAdminRead,
+	RatingsSubmit, RatingsReadSelf, RatingsDelete,
 }
 
-var permissionDescriptions = map[PermissionType]string{
-	PermissionAll:     "دسترسی کامل به کل سیستم سینما",
-	PermissionGeneral: "دسترسی عمومی",
-
-	// User Management
-	UserViewAll:               "مشاهده لیست کاربران",
-	UserBanUnban:              "مسدود/رفع مسدودیت کاربران",
-	UserChangeRole:            "تغییر نقش کاربر",
-	UserViewRoles:             "مشاهده لیست نقش‌ها و دسترسی‌ها",
-	UserManageRolePermissions: "تغییر دسترسی‌های نقش",
-
-	// Movie Management
-	MovieViewAll: "مشاهده لیست تمام فیلم‌ها",
-	MovieCreate:  "ایجاد فیلم جدید",
-	MovieEdit:    "ویرایش اطلاعات فیلم",
-	MovieDelete:  "حذف فیلم",
-
-	// Cinema & Hall Management
-	CinemaViewAll: "مشاهده لیست سینماها",
-	CinemaCreate:  "تعریف سینمای جدید",
-	CinemaEdit:    "ویرایش اطلاعات سینما",
-	CinemaDelete:  "حذف سینما",
-	HallCreate:    "افزودن سالن به سینما",
-	HallEdit:      "ویرایش سالن و چیدمان صندلی‌ها",
-	HallDelete:    "حذف سالن سینما",
-
-	// Showtime Management
-	ShowtimeViewAll: "مشاهده جدول سانس‌ها",
-	ShowtimeCreate:  "تعریف سانس جدید برای اکران",
-	ShowtimeEdit:    "ویرایش زمان و قیمت سانس",
-	ShowtimeDelete:  "لغو/حذف سانس",
-
-	// Ticket Management
-	TicketBuy:     "خرید و رزرو بلیت",
-	TicketCancel:  "استرداد و لغو بلیت",
-	TicketViewOwn: "مشاهده بلیت‌های شخصی",
-	TicketViewAll: "مشاهده تمام بلیت‌های صادر شده",
-
-	// Wallet Management
-	WalletCharge:        "شارژ کیف پول",
-	WalletViewBalance:   "مشاهده موجودی کیف پول",
-	FinancialReportView: "مشاهده گزارش‌های مالی فروش",
+func (permission PermissionType) String() string { return string(permission) }
+func (permission PermissionType) Description() string {
+	return strings.ReplaceAll(string(permission), ":", " ")
 }
 
-var permissionCategories = map[PermissionType]PermissionCategory{
-	PermissionAll:     CategoryGeneral,
-	PermissionGeneral: CategoryGeneral,
-
-	// User Management
-	UserViewAll:               CategoryUser,
-	UserBanUnban:              CategoryUser,
-	UserChangeRole:            CategoryUser,
-	UserViewRoles:             CategoryUser,
-	UserManageRolePermissions: CategoryUser,
-
-	// Movie Management
-	MovieViewAll: CategoryMovie,
-	MovieCreate:  CategoryMovie,
-	MovieEdit:    CategoryMovie,
-	MovieDelete:  CategoryMovie,
-
-	// Cinema & Hall Management
-	CinemaViewAll: CategoryCinema,
-	CinemaCreate:  CategoryCinema,
-	CinemaEdit:    CategoryCinema,
-	CinemaDelete:  CategoryCinema,
-	HallCreate:    CategoryCinema,
-	HallEdit:      CategoryCinema,
-	HallDelete:    CategoryCinema,
-
-	// Showtime Management
-	ShowtimeViewAll: CategoryShowtime,
-	ShowtimeCreate:  CategoryShowtime,
-	ShowtimeEdit:    CategoryShowtime,
-	ShowtimeDelete:  CategoryShowtime,
-
-	// Ticket Management
-	TicketBuy:     CategoryTicket,
-	TicketCancel:  CategoryTicket,
-	TicketViewOwn: CategoryTicket,
-	TicketViewAll: CategoryTicket,
-
-	// Wallet Management
-	WalletCharge:        CategoryWallet,
-	WalletViewBalance:   CategoryWallet,
-	FinancialReportView: CategoryWallet,
-}
-
-func (perm PermissionType) String() string {
-	if name, ok := permissionNames[perm]; ok {
-		return name
+func (permission PermissionType) Category() PermissionCategory {
+	prefix, _, _ := strings.Cut(string(permission), ":")
+	switch prefix {
+	case "users", "wallet", "auth":
+		return CategoryUser
+	case "movies", "genres", "persons":
+		return CategoryMovie
+	case "cinemas", "facilities":
+		return CategoryCinema
+	case "halls", "showtimes", "reservations":
+		return CategoryBooking
+	case "favorites", "comments", "ratings":
+		return CategoryInteraction
+	case "roles", "permissions":
+		return CategoryRBAC
+	case "provinces", "cities":
+		return CategoryLocation
+	default:
+		return CategoryGeneral
 	}
-	return ""
-}
-
-func (perm PermissionType) Description() string {
-	if desc, ok := permissionDescriptions[perm]; ok {
-		return desc
-	}
-	return ""
-}
-
-func (perm PermissionType) Category() PermissionCategory {
-	if category, ok := permissionCategories[perm]; ok {
-		return category
-	}
-	return CategoryGeneral
 }
 
 func (category PermissionCategory) String() string {
 	switch category {
-	case CategoryGeneral:
-		return "عمومی"
 	case CategoryUser:
-		return "مدیریت کاربران"
+		return "user"
 	case CategoryMovie:
-		return "مدیریت فیلم‌ها"
+		return "movie"
 	case CategoryCinema:
-		return "مدیریت سینما و سالن‌ها"
-	case CategoryShowtime:
-		return "مدیریت سانس‌ها"
-	case CategoryTicket:
-		return "مدیریت بلیت‌ها"
-	case CategoryWallet:
-		return "کیف پول و امور مالی"
+		return "cinema"
+	case CategoryInteraction:
+		return "interaction"
+	case CategoryRBAC:
+		return "rbac"
+	case CategoryLocation:
+		return "location"
+	case CategoryBooking:
+		return "booking"
+	default:
+		return "general"
 	}
-	return "unknown"
 }
 
 func GetAllPermissionTypes() []PermissionType {
+	result := make([]PermissionType, len(allPermissionTypes))
+	copy(result, allPermissionTypes)
+	return result
+}
+
+func GetUserPermissionTypes() []PermissionType {
 	return []PermissionType{
-		PermissionAll, PermissionGeneral,
-		UserViewAll, UserBanUnban, UserChangeRole, UserViewRoles, UserManageRolePermissions,
-		MovieViewAll, MovieCreate, MovieEdit, MovieDelete,
-		CinemaViewAll, CinemaCreate, CinemaEdit, CinemaDelete, HallCreate, HallEdit, HallDelete,
-		ShowtimeViewAll, ShowtimeCreate, ShowtimeEdit, ShowtimeDelete,
-		TicketBuy, TicketCancel, TicketViewOwn, TicketViewAll,
-		WalletCharge, WalletViewBalance, FinancialReportView,
+		AuthLogout, UsersUpdatePassword, UsersReadProfile, UsersUpdateProfile,
+		UsersReadRoles, UsersReadPermissions, WalletReadBalance,
+		FavoritesAddMovie, FavoritesRemoveMovie, FavoritesAddCinema, FavoritesRemoveCinema, FavoritesRead,
+		CommentsCreate, CommentsUpdate, CommentsDelete, CommentsVote, CommentsRemoveVote,
+		RatingsSubmit, RatingsReadSelf, RatingsDelete,
+		ReservationsCreate, ReservationsRead, ReservationsCancel,
 	}
 }
 
 func GetCinemaOwnerPermissionTypes() []PermissionType {
-	return []PermissionType{
-		CinemaViewAll, CinemaEdit, HallCreate, HallEdit, HallDelete,
-		ShowtimeViewAll, ShowtimeCreate, ShowtimeEdit, ShowtimeDelete,
-		TicketViewAll, FinancialReportView,
-	}
+	permissions := GetUserPermissionTypes()
+	return append(permissions,
+		CinemasCreate, CinemasUpdate, CinemasDelete, CinemasManageImage,
+		HallsCreate, HallsUpdate, HallsDelete, HallsManageSeats,
+		ShowtimesCreate, ShowtimesUpdate, ShowtimesDelete, ShowtimesManagePrices,
+	)
 }
 
-func GetCustomerPermissionTypes() []PermissionType {
-	return []PermissionType{
-		MovieViewAll, ShowtimeViewAll,
-		TicketBuy, TicketCancel, TicketViewOwn,
-		WalletCharge, WalletViewBalance,
-	}
+func GetSupportPermissionTypes() []PermissionType {
+	permissions := GetUserPermissionTypes()
+	return append(permissions, UsersList, UsersReadProfileAny, UsersReadRolesAny, UsersReadPermissionsAny, CommentsManageStatus, CommentsAdminRead, ReservationsReadAny, ReservationsCancelAny)
 }

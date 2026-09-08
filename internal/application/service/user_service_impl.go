@@ -116,7 +116,7 @@ func (s *userService) DeleteUserByID(ctx context.Context, ctxToken *dto.TokenInC
 }
 
 func (s *userService) GetUsers(ctx context.Context, tokenData *dto.TokenInContext, query *dto.GetUsersQueryDTO) ([]*dto.UserResponse, error) {
-	if query == nil || query.IsEmpty() {
+	if query == nil {
 		return nil, exception.ErrInvalidFilter
 	}
 

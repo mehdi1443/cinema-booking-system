@@ -24,6 +24,7 @@ type Environment struct {
 	Captcha             CaptchaConfig       `mapstructure:",squash" json:"captcha"`
 	Elasticsearch       ElasticsearchConfig `mapstructure:",squash" json:"elasticsearch"`
 	RabbitMQ            RabbitMQConfig      `mapstructure:",squash" json:"rabbitmq"`
+	Reservation         ReservationConfig   `mapstructure:",squash" json:"reservation"`
 }
 
 type DebugModeOptions struct {
@@ -122,6 +123,18 @@ type RabbitMQConfig struct {
 	URL string `mapstructure:"RABBITMQ_URL" json:"url"`
 }
 
+type ReservationConfig struct {
+	HoldSeconds int `mapstructure:"RESERVATION_HOLD_SECONDS" json:"hold_seconds"`
+}
+
+func (r *ReservationConfig) HoldDuration() time.Duration {
+	seconds := r.HoldSeconds
+	if seconds <= 0 {
+		seconds = 600
+	}
+	return time.Duration(seconds) * time.Second
+}
+
 func (c *JWT) AccessDuration() time.Duration {
 	return time.Duration(c.AccessExpireMinutes) * time.Minute
 }
@@ -151,6 +164,7 @@ func (cc *CaptchaConfig) TTLInSeconds() time.Duration {
 
 func NewEnvironment() *Environment {
 	v := viper.New()
+	v.SetDefault("RESERVATION_HOLD_SECONDS", 600)
 
 	v.AddConfigPath(".")
 	v.AddConfigPath("..")

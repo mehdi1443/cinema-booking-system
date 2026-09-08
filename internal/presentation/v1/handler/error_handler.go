@@ -21,6 +21,12 @@ func Handle(c *gin.Context, err error, log domainlogger.Logger) {
 	fields := []domainlogger.Field{
 		domainlogger.Error(err),
 		domainlogger.Int("status_code", info.StatusCode),
+		domainlogger.String("error_code", info.Code),
+	}
+
+	if log == nil {
+		response.ErrorWithCode(c, info.StatusCode, info.Code, info.Message)
+		return
 	}
 
 	if info.StatusCode >= 500 {
@@ -29,9 +35,10 @@ func Handle(c *gin.Context, err error, log domainlogger.Logger) {
 		log.Warn(ctx, "Client validation or logic error", fields...)
 	}
 
-	response.Error(
+	response.ErrorWithCode(
 		c,
 		info.StatusCode,
+		info.Code,
 		info.Message,
 	)
 }
@@ -53,6 +60,7 @@ func HandleInternal(c *gin.Context, log domainlogger.Logger, err error) {
 
 type ErrorInfo struct {
 	StatusCode int
+	Code       string
 	Message    string
 }
 
@@ -84,18 +92,21 @@ func mapError(err error) ErrorInfo {
 		if status == http.StatusInternalServerError {
 			return ErrorInfo{
 				StatusCode: status,
+				Code:       string(appErr.Code),
 				Message:    "An unexpected internal error occurred",
 			}
 		}
 
 		return ErrorInfo{
 			StatusCode: status,
+			Code:       string(appErr.Code),
 			Message:    appErr.Message,
 		}
 	}
 
 	return ErrorInfo{
 		StatusCode: http.StatusInternalServerError,
+		Code:       string(exception.CodeInternal),
 		Message:    "An unexpected error occurred",
 	}
 }

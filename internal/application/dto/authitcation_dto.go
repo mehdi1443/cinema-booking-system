@@ -1,8 +1,7 @@
 package dto
 
 type SendOTPRequest struct {
-	Phone string `json:"phone" binding:"omitempty,iranian-phone"`
-	Email string `json:"email" binding:"omitempty,email"`
+	Phone string `json:"phone" binding:"required,iranian-phone"`
 }
 
 type VerifyOTPRequest struct {
@@ -16,13 +15,21 @@ type LoginRequest struct {
 }
 
 type StartAuthResponse struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-	UserID       int64  `json:"user_id"`
-	Phone        string `json:"phone"`
-	Email        string `json:"email"`
-	FirstName    string `json:"first_name"`
-	LastName     string `json:"last_name"`
+	AccessToken  string   `json:"access_token"`
+	RefreshToken string   `json:"refresh_token"`
+	UserID       int64    `json:"user_id"`
+	Phone        string   `json:"phone"`
+	Email        *string  `json:"email,omitempty"`
+	FirstName    string   `json:"first_name"`
+	LastName     string   `json:"last_name"`
+	IsNewUser    bool     `json:"is_new_user"`
+	Roles        []string `json:"roles"`
+}
+
+type SendOTPResponse struct {
+	Phone            string `json:"phone"`
+	OTPCode          string `json:"otp_code"`
+	ExpiresInSeconds int64  `json:"expires_in_seconds"`
 }
 
 type RegisterRequest struct {

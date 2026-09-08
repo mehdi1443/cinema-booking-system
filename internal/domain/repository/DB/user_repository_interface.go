@@ -10,6 +10,7 @@ import (
 
 type UserInterface interface {
 	CreateUser(ctx context.Context, user *entity.User) (*entity.User, error)
+	CreateUserWithRole(ctx context.Context, user *entity.User, roleName string) (*entity.User, error)
 	FindUserByID(ctx context.Context, id int64) (*entity.User, error)
 	FindUserByPhone(ctx context.Context, phone string) (*entity.User, error)
 	FindUserByEmail(ctx context.Context, email string) (*entity.User, error)

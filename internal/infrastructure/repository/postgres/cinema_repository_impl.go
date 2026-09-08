@@ -12,6 +12,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type CinemaFacility struct {
@@ -191,6 +192,7 @@ func (r *cinemaRepository) Update(ctx context.Context, cinema *entity.Cinema, fa
 
 		updateData := map[string]interface{}{
 			"city_id":        cinema.CityID,
+			"owner_user_id":  cinema.OwnerUserID,
 			"name":           cinema.Name,
 			"description":    cinema.Description,
 			"address":        cinema.Address,
@@ -243,6 +245,21 @@ func (r *cinemaRepository) Update(ctx context.Context, cinema *entity.Cinema, fa
 func (r *cinemaRepository) Delete(ctx context.Context, id int64) error {
 	return r.db.WithTransaction(func(txWrapper database.Database) error {
 		tx := txWrapper.GetDB().WithContext(ctx)
+		var cinema entity.Cinema
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&cinema, id).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return exception.ErrCinemaNotFound
+			}
+			return handleCinemaDBError(err)
+		}
+
+		var hallCount int64
+		if err := tx.Model(&entity.Hall{}).Where("cinema_id = ?", id).Count(&hallCount).Error; err != nil {
+			return handleCinemaDBError(err)
+		}
+		if hallCount > 0 {
+			return exception.ErrResourceInUse
+		}
 
 		if err := tx.Where("cinema_id = ?", id).Delete(&CinemaFacility{}).Error; err != nil {
 			return handleCinemaDBError(err)
@@ -273,4 +290,15 @@ func (r *cinemaRepository) UpdateRatingAggregate(ctx context.Context, cinemaID i
 		return handleCinemaDBError(err)
 	}
 	return nil
+}
+
+func (r *cinemaRepository) IsOwnedBy(ctx context.Context, cinemaID int64, userID int64) (bool, error) {
+	var count int64
+	err := r.db.GetDB().WithContext(ctx).Model(&entity.Cinema{}).
+		Where("id = ? AND owner_user_id = ? AND deleted_at IS NULL", cinemaID, userID).
+		Count(&count).Error
+	if err != nil {
+		return false, handleCinemaDBError(err)
+	}
+	return count > 0, nil
 }

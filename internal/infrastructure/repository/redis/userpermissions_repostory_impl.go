@@ -21,7 +21,7 @@ func NewUserPermissionCacheRepository(client database.Cache) *UserPermissionCach
 
 func (r *UserPermissionCacheRepository) getkeysignuture(userID string) string {
 	// user:user_id:permissions : REDIS_SET_DATATYPE
-	return fmt.Sprintf("%s:%s:%s", r.client.GetRedisConstant().UserSignature, userID, r.client.GetRedisConstant().UserPermissionSignature)
+	return fmt.Sprintf("%s:%s:%s:v2", r.client.GetRedisConstant().UserSignature, userID, r.client.GetRedisConstant().UserPermissionSignature)
 }
 
 func (r *UserPermissionCacheRepository) SaveUserPermissions(ctx context.Context, userID string, permissions []string, ttl time.Duration) error {

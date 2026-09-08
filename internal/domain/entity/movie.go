@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
+	"gorm.io/gorm"
 )
 
 type Movie struct {
@@ -19,7 +20,7 @@ type Movie struct {
 	Status          enum.MovieStatus `gorm:"type:varchar(50);not null" json:"status"`
 	RatingAvg       float64          `gorm:"type:decimal(3,2);not null;default:0.00" json:"rating_avg"`
 	RatingCount     int              `gorm:"not null;default:0" json:"rating_count"`
-	DeletedAt       *time.Time       `gorm:"index" json:"deleted_at,omitempty"`
+	DeletedAt       gorm.DeletedAt   `gorm:"index" json:"-"`
 
 	Genres []Genre       `gorm:"many2many:movie_genres;" json:"genres,omitempty"`
 	People []MoviePerson `gorm:"foreignKey:MovieID" json:"people,omitempty"`

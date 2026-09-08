@@ -237,13 +237,13 @@ func (s *personService) UploadImage(ctx context.Context, id int64, file io.Reade
 	}
 
 	lowImg := image.Resize(200, 200, img)
-	lowBuf, err := image.EncodeToBuffer(lowImg, image.FormatWebP)
+	lowBuf, err := image.EncodeToBuffer(lowImg, image.FormatJPEG)
 	if err != nil {
 		return nil, fmt.Errorf("encode low resolution person image: %w", exception.ErrInternal)
 	}
 
-	lowKey := fmt.Sprintf("persons/person_%d_low.webp", id)
-	lowURL, err := s.storage.UploadObject(ctx, enum.ActorPhoto, lowKey, lowBuf, image.GetContentType(image.FormatWebP))
+	lowKey := fmt.Sprintf("persons/person_%d_low.jpg", id)
+	lowURL, err := s.storage.UploadObject(ctx, enum.ActorPhoto, lowKey, lowBuf, image.GetContentType(image.FormatJPEG))
 	if err != nil {
 		return nil, fmt.Errorf("upload low resolution person image: %w", exception.ErrInternal)
 	}
@@ -285,7 +285,7 @@ func (s *personService) DeleteImage(ctx context.Context, id int64) error {
 		return fmt.Errorf("get person before image deletion %d: %w", id, err)
 	}
 
-	lowKey := fmt.Sprintf("persons/person_%d_low.webp", id)
+	lowKey := fmt.Sprintf("persons/person_%d_low.jpg", id)
 	highKey := fmt.Sprintf("persons/person_%d_high.jpg", id)
 
 	if err := s.storage.DeleteObject(ctx, enum.ActorPhoto, lowKey); err != nil {

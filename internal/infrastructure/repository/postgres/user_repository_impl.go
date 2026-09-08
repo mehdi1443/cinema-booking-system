@@ -45,6 +45,38 @@ func (r *userRepositoryPostgres) CreateUser(
 	return user, nil
 }
 
+func (r *userRepositoryPostgres) CreateUserWithRole(
+	ctx context.Context,
+	user *entity.User,
+	roleName string,
+) (*entity.User, error) {
+	err := r.db.WithTransaction(func(txDatabase database.Database) error {
+		tx := txDatabase.GetDB().WithContext(ctx)
+		var role entity.Role
+		if err := tx.Where("name = ? AND deleted_at IS NULL", roleName).First(&role).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return exception.ErrRoleNotFound
+			}
+			return handleDBError(err)
+		}
+		if err := tx.Create(user).Error; err != nil {
+			if errors.Is(err, gorm.ErrDuplicatedKey) {
+				return exception.ErrUserAlreadyExists
+			}
+			return handleDBError(err)
+		}
+		if err := tx.Model(user).Association("Roles").Append(&role); err != nil {
+			return handleDBError(err)
+		}
+		user.Roles = []*entity.Role{&role}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
 func (r *userRepositoryPostgres) FindUserByID(
 	ctx context.Context,
 	id int64,
@@ -55,6 +87,7 @@ func (r *userRepositoryPostgres) FindUserByID(
 	err := r.db.
 		GetDB().
 		WithContext(ctx).
+		Preload("Roles").
 		First(&user, id).
 		Error
 
@@ -75,10 +108,16 @@ func (r *userRepositoryPostgres) FindUserByPhone(
 
 	var user entity.User
 
+	phones := []string{phone}
+	if len(phone) == 11 && phone[:2] == "09" {
+		phones = append(phones, phone[1:], "+98"+phone[1:])
+	}
+
 	err := r.db.
 		GetDB().
 		WithContext(ctx).
-		Where("phone = ?", phone).
+		Preload("Roles").
+		Where("phone IN ?", phones).
 		First(&user).
 		Error
 

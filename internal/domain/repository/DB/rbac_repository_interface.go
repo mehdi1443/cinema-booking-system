@@ -16,6 +16,7 @@ type RBACInterface interface {
 	RoleHasPermission(ctx context.Context, roleID int64, permissionID int64) (bool, error)
 	AppendPermissionsToRole(ctx context.Context, roleID int64, permissionIDs []int64) error
 	DeletePermissionsOfRole(ctx context.Context, roleID int64, permissionIDs []int64) error
+	ReplacePermissionsOfRole(ctx context.Context, roleID int64, permissionIDs []int64) error
 
 	UserHasPermission(ctx context.Context, userID int64, permissionName string) (bool, error)
 

@@ -36,7 +36,6 @@ import (
 func main() {
 	ctx := context.Background()
 	config := bootstrap.Run()
-	fmt.Println(config)
 
 	appLogger := infralogger.New(infralogger.Config{
 		ServiceName: "cinema-booking-system",
@@ -142,11 +141,14 @@ func main() {
 	favoriteRepo := postgres_repo.NewFavoriteRepository(pgDB)
 	commentRepo := postgres_repo.NewCommentRepository(pgDB)
 	ratingRepo := postgres_repo.NewRatingRepository(pgDB)
+	bookingRepo := postgres_repo.NewBookingRepository(pgDB)
 
 	repositories := router.Repositories{
 		UserRepo:                userRepo,
 		RBACRepo:                rbacRepo,
 		UserPermissionCacheRepo: userpermissionRepo,
+		CinemaRepo:              cinemaRepo,
+		BookingRepo:             bookingRepo,
 	}
 
 	seeder := seed.NewRoleSeeder(config.Constant.User, userRepo, rbacRepo, pgDB, bcryptHasher)
@@ -190,6 +192,9 @@ func main() {
 	commentSrv := service.NewCommentService(commentRepo, appLogger)
 	ratingSrv := service.NewRatingService(ratingRepo, movieRepo, cinemaRepo, appLogger)
 	searchSrv := service.NewSearchService(searchRepo, movieSrv, cinemaSrv, personSrv, appLogger)
+	hallSrv := service.NewHallService(bookingRepo, cinemaRepo, appLogger)
+	showtimeSrv := service.NewShowtimeService(bookingRepo, bookingRepo, movieRepo, bookingRepo, appLogger)
+	reservationSrv := service.NewReservationService(bookingRepo, &config.Environment.Reservation, appLogger)
 
 	services := router.Services{
 		TokenService:        jwtSrv,
@@ -215,6 +220,7 @@ func main() {
 	commentHandler := *handler.NewCommentHandler(commentSrv, appLogger)
 	ratingHandler := *handler.NewRatingHandler(ratingSrv, appLogger)
 	searchHandler := *handler.NewSearchHandler(searchSrv, appLogger)
+	bookingHandler := *handler.NewBookingHandler(hallSrv, showtimeSrv, reservationSrv, appLogger)
 
 	handlers := router.Handlers{
 		Auth:      authHandler,
@@ -232,6 +238,7 @@ func main() {
 		Comment:   commentHandler,
 		Rating:    ratingHandler,
 		Search:    searchHandler,
+		Booking:   bookingHandler,
 	}
 
 	limiter := middleware.NewRedisLimiter(redisClient, appLogger)

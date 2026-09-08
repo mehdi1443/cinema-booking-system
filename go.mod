@@ -4,7 +4,6 @@ go 1.25.8
 
 require (
 	github.com/aws/aws-sdk-go v1.55.8
-	github.com/chai2010/webp v1.4.0
 	github.com/elastic/go-elasticsearch/v8 v8.19.7
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-playground/validator/v10 v10.30.3
@@ -14,13 +13,13 @@ require (
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/mojocn/base64Captcha v1.3.8
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
-	github.com/pixiv/go-libjpeg v0.0.0-20190822045933-3da21a74767d
 	github.com/prometheus/client_golang v1.24.1
 	github.com/rabbitmq/amqp091-go v1.14.0
 	github.com/redis/go-redis/v9 v9.22.0
 	github.com/spf13/viper v1.21.0
 	github.com/wneessen/go-mail v0.8.1
 	golang.org/x/crypto v0.54.0
+	golang.org/x/image v0.23.0
 	golang.org/x/net v0.57.0
 	gorm.io/driver/postgres v1.6.2
 	gorm.io/gorm v1.31.2
@@ -79,7 +78,6 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/arch v0.22.0 // indirect
-	golang.org/x/image v0.23.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.40.0 // indirect

@@ -66,7 +66,7 @@ func NewPostgresDatabase(dbConfig *bootstrap.DataBase, dbConst *bootstrap.DBCons
 }
 
 func (pgx *PostgresDatabase) GetDB() *gorm.DB {
-	return dbInstance.DB
+	return pgx.DB
 }
 
 func (pgx *PostgresDatabase) WithTransaction(fn func(Database) error) error {

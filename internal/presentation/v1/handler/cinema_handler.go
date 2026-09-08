@@ -6,7 +6,9 @@ import (
 	"github.com/gin-gonic/gin"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
+	domainjwt "github.com/mehdi1443/cinema-booking-system/internal/domain/jwt"
 	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
@@ -39,6 +41,13 @@ func (h *CinemaHandler) CreateCinema(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		HandleBadRequest(c, "Invalid request payload")
 		return
+	}
+	userID, ok := getAuthUserID(c, h.log)
+	if !ok {
+		return
+	}
+	if req.OwnerUserID == nil || !hasSystemAccess(c) {
+		req.OwnerUserID = &userID
 	}
 
 	cinema, err := h.cinemaService.Create(c.Request.Context(), &req)
@@ -99,6 +108,9 @@ func (h *CinemaHandler) UpdateCinema(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		HandleBadRequest(c, "Invalid request payload")
 		return
+	}
+	if !hasSystemAccess(c) {
+		req.OwnerUserID = nil
 	}
 
 	updatedCinema, err := h.cinemaService.Update(c.Request.Context(), id, &req)
@@ -169,4 +181,21 @@ func (h *CinemaHandler) DeleteImage(c *gin.Context) {
 	}
 
 	response.Success(c, http.StatusOK, "Cinema image deleted successfully", nil)
+}
+
+func hasSystemAccess(c *gin.Context) bool {
+	value, ok := c.Get(domainjwt.CtxPermissionsKey)
+	if !ok {
+		return false
+	}
+	permissions, ok := value.([]string)
+	if !ok {
+		return false
+	}
+	for _, permission := range permissions {
+		if permission == enum.PermissionAll.String() {
+			return true
+		}
+	}
+	return false
 }

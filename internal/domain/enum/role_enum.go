@@ -6,63 +6,35 @@ const (
 	RoleAdmin RoleName = iota + 1
 	RoleCinemaOwner
 	RoleSupport
-	RoleCustomer
+	RoleUser
 )
 
 var roleNames = map[RoleName]string{
-	RoleAdmin:       "admin",
-	RoleCinemaOwner: "cinema_owner",
-	RoleSupport:     "support",
-	RoleCustomer:    "customer",
+	RoleAdmin: "admin", RoleCinemaOwner: "cinema_owner", RoleSupport: "support", RoleUser: "user",
 }
 
 var roleTitles = map[RoleName]string{
-	RoleAdmin:       "مدیر ارشد سیستم",
-	RoleCinemaOwner: "مدیر سینما",
-	RoleSupport:     "پشتیبان وب‌سایت",
-	RoleCustomer:    "مشتری / کاربر عادی",
+	RoleAdmin: "مدیر سیستم", RoleCinemaOwner: "صاحب سینما", RoleSupport: "پشتیبان", RoleUser: "کاربر عادی",
 }
 
-func (r RoleName) String() string {
-	if name, ok := roleNames[r]; ok {
-		return name
-	}
-	return "unknown"
-}
+func (role RoleName) String() string { return roleNames[role] }
+func (role RoleName) Title() string  { return roleTitles[role] }
 
-func (r RoleName) Title() string {
-	if title, ok := roleTitles[r]; ok {
-		return title
-	}
-	return "ناشناخته"
-}
-
-func (r RoleName) DefaultPermissions() []PermissionType {
-	switch r {
+func (role RoleName) DefaultPermissions() []PermissionType {
+	switch role {
 	case RoleAdmin:
 		return []PermissionType{PermissionAll}
-
 	case RoleCinemaOwner:
 		return GetCinemaOwnerPermissionTypes()
-
-	case RoleCustomer:
-		return GetCustomerPermissionTypes()
-
 	case RoleSupport:
-		return []PermissionType{
-			UserViewAll,
-			TicketViewAll, TicketCancel,
-			MovieViewAll, ShowtimeViewAll,
-		}
+		return GetSupportPermissionTypes()
+	case RoleUser:
+		return GetUserPermissionTypes()
+	default:
+		return nil
 	}
-	return nil
 }
 
 func GetAllRoles() []RoleName {
-	return []RoleName{
-		RoleAdmin,
-		RoleCinemaOwner,
-		RoleSupport,
-		RoleCustomer,
-	}
+	return []RoleName{RoleAdmin, RoleCinemaOwner, RoleSupport, RoleUser}
 }

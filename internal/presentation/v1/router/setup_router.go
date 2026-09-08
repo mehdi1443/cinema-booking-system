@@ -31,12 +31,15 @@ type Handlers struct {
 	Comment   handler.CommentHandler
 	Rating    handler.RatingHandler
 	Search    handler.SearchHandler
+	Booking   handler.BookingHandler
 }
 
 type Repositories struct {
 	UserRepo                DB.UserInterface
 	RBACRepo                DB.RBACInterface
 	UserPermissionCacheRepo cache.UserPermissionCacheInterface
+	CinemaRepo              DB.CinemaInterface
+	BookingRepo             DB.BookingRepositoryInterface
 }
 
 type Services struct {
@@ -69,54 +72,42 @@ func SetUpRouter(
 		fmt.Sprintf("%s:%s", config.Environment.HttpServer.Domain, config.Environment.HttpServer.Port),
 	}))
 
-	authMiddleware := middleware.JWTAuthentication(services.TokenService, appLogger)
 	captchaMiddleware := middleware.NewCaptchaSolving(services.CaptchaService, &config.Environment.DebugModeOptions, appLogger)
 
 	v1 := r.Group("/v1")
-
-	SetUpUserRouter(
-		v1,
-		&handler.User,
-		&handler.RBAC,
-		&handler.Wallet,
-		authMiddleware,
-		limiter,
-		&config.Environment.Limiter,
+	v1.Use(middleware.RouteAuthorization(
+		services.TokenService,
 		repositories.RBACRepo,
 		repositories.UserPermissionCacheRepo,
 		services.ContextTokenService,
 		repositories.UserRepo,
+		repositories.CinemaRepo,
+		repositories.BookingRepo,
 		&config.Environment.UserPermissionCache,
 		appLogger,
+	))
+
+	SetUpUserRouter(
+		v1,
+		&handler.User,
+		&handler.Wallet,
+		limiter,
+		&config.Environment.Limiter,
 	)
 
 	SetUpAuthRouter(
 		v1,
 		&handler.Auth,
-		authMiddleware,
 		limiter,
 		&config.Environment.Limiter,
-		repositories.RBACRepo,
-		repositories.UserPermissionCacheRepo,
-		services.ContextTokenService,
-		repositories.UserRepo,
-		&config.Environment.UserPermissionCache,
-		appLogger,
 		captchaMiddleware,
 	)
 
 	SetUpRBACRouter(
 		v1,
 		&handler.RBAC,
-		authMiddleware,
 		limiter,
 		&config.Environment.Limiter,
-		repositories.RBACRepo,
-		repositories.UserPermissionCacheRepo,
-		services.ContextTokenService,
-		repositories.UserRepo,
-		&config.Environment.UserPermissionCache,
-		appLogger,
 	)
 
 	SetUpGenreRouter(v1, &handler.Genre)
@@ -131,45 +122,17 @@ func SetUpRouter(
 
 	SetUpCinemaRouter(v1, &handler.Cinema)
 
-	SetUpFavoriteRouter(
-		v1,
-		&handler.Favorite,
-		authMiddleware,
-		repositories.RBACRepo,
-		repositories.UserPermissionCacheRepo,
-		services.ContextTokenService,
-		repositories.UserRepo,
-		&config.Environment.UserPermissionCache,
-		appLogger,
-	)
+	SetUpFavoriteRouter(v1, &handler.Favorite)
 
-	SetUpCommentRouter(
-		v1,
-		&handler.Comment,
-		authMiddleware,
-		repositories.RBACRepo,
-		repositories.UserPermissionCacheRepo,
-		services.ContextTokenService,
-		repositories.UserRepo,
-		&config.Environment.UserPermissionCache,
-		appLogger,
-	)
+	SetUpCommentRouter(v1, &handler.Comment)
 
-	SetUpRatingRouter(
-		v1,
-		&handler.Rating,
-		authMiddleware,
-		repositories.RBACRepo,
-		repositories.UserPermissionCacheRepo,
-		services.ContextTokenService,
-		repositories.UserRepo,
-		&config.Environment.UserPermissionCache,
-		appLogger,
-	)
+	SetUpRatingRouter(v1, &handler.Rating)
 
 	SetUpCaptchaRouter(v1, &handler.Captcha, limiter, &config.Environment.Limiter, appLogger)
 
 	SetUpSearchRouter(v1, &handler.Search)
+
+	SetUpBookingRouter(v1, &handler.Booking)
 
 	return r
 }

@@ -43,7 +43,13 @@ func (s *rbacService) AppendPermissionsToRole(ctx context.Context, tokenData *dt
 	if len(permissionIDs) == 0 {
 		return nil
 	}
-	err := s.rbacRepo.AppendPermissionsToRole(ctx, roleID, permissionIDs)
+	ids := make([]int64, 0, len(permissionIDs))
+	for _, id := range permissionIDs {
+		if id != nil {
+			ids = append(ids, *id)
+		}
+	}
+	err := s.rbacRepo.AppendPermissionsToRole(ctx, roleID, ids)
 	if err != nil {
 		return err
 	}
@@ -74,7 +80,13 @@ func (s *rbacService) DeletePermissionsOfRole(ctx context.Context, tokenData *dt
 	if len(permissionIDs) == 0 {
 		return nil
 	}
-	err := s.rbacRepo.DeletePermissionsOfRole(ctx, roleID, permissionIDs)
+	ids := make([]int64, 0, len(permissionIDs))
+	for _, id := range permissionIDs {
+		if id != nil {
+			ids = append(ids, *id)
+		}
+	}
+	err := s.rbacRepo.DeletePermissionsOfRole(ctx, roleID, ids)
 	if err != nil {
 		return err
 	}

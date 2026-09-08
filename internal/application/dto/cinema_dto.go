@@ -22,6 +22,7 @@ type CinemaFilterRequest struct {
 }
 
 type CreateCinemaRequest struct {
+	OwnerUserID *int64            `json:"owner_user_id"`
 	CityID      int64             `json:"city_id" binding:"required"`
 	Name        string            `json:"name" binding:"required,notblank,min=2,max=255"`
 	Description string            `json:"description"`
@@ -34,6 +35,7 @@ type CreateCinemaRequest struct {
 }
 
 type UpdateCinemaRequest struct {
+	OwnerUserID *int64             `json:"owner_user_id"`
 	CityID      *int64             `json:"city_id"`
 	Name        *string            `json:"name" binding:"omitempty,notblank,min=2,max=255"`
 	Description *string            `json:"description"`
@@ -59,6 +61,7 @@ type CinemaListResponse struct {
 
 type CinemaDetailResponse struct {
 	ID           int64              `json:"id"`
+	OwnerUserID  *int64             `json:"owner_user_id,omitempty"`
 	CityID       int64              `json:"city_id"`
 	CityName     string             `json:"city_name,omitempty"`
 	ProvinceName string             `json:"province_name,omitempty"`
@@ -164,6 +167,7 @@ func ToCinemaDetailResponse(cinema *entity.Cinema) *CinemaDetailResponse {
 
 	return &CinemaDetailResponse{
 		ID:           cinema.ID,
+		OwnerUserID:  cinema.OwnerUserID,
 		CityID:       cinema.CityID,
 		CityName:     cityName,
 		ProvinceName: provinceName,

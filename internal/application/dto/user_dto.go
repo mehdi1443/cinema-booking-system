@@ -44,7 +44,7 @@ type UpdateUserProfileDTO struct {
 
 type GetUsersQueryDTO struct {
 	Phone       string   `form:"phone"`
-	Email       string   `form:"email" binding:",email"`
+	Email       string   `form:"email" binding:"omitempty,email"`
 	FirstName   string   `form:"first_name"`
 	LastName    string   `form:"last_name"`
 	Status      string   `form:"status"`
@@ -69,10 +69,15 @@ func ToUserResponse(user *entity.User, hideOpt *HideFieldUserOption) *UserRespon
 		return nil
 	}
 
+	email := ""
+	if user.Email != nil {
+		email = *user.Email
+	}
+
 	res := &UserResponse{
 		ID:              user.ID,
 		Phone:           user.Phone,
-		Email:           user.Email,
+		Email:           email,
 		FirstName:       user.FirstName,
 		LastName:        user.LastName,
 		Status:          user.Status,

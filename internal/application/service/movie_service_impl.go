@@ -406,7 +406,7 @@ func (s *movieService) UploadPoster(
 
 	lowBuf, err := image.EncodeToBuffer(
 		lowImg,
-		image.FormatWebP,
+		image.FormatJPEG,
 	)
 
 	if err != nil {
@@ -417,7 +417,7 @@ func (s *movieService) UploadPoster(
 	}
 
 	lowKey := fmt.Sprintf(
-		"movies/movie_%d_poster_low.webp",
+		"movies/movie_%d_poster_low.jpg",
 		id,
 	)
 
@@ -426,7 +426,7 @@ func (s *movieService) UploadPoster(
 		enum.MoviePoster,
 		lowKey,
 		lowBuf,
-		image.GetContentType(image.FormatWebP),
+		image.GetContentType(image.FormatJPEG),
 	)
 
 	if err != nil {
@@ -535,7 +535,7 @@ func (s *movieService) DeletePoster(
 	}
 
 	lowKey := fmt.Sprintf(
-		"movies/movie_%d_poster_low.webp",
+		"movies/movie_%d_poster_low.jpg",
 		id,
 	)
 

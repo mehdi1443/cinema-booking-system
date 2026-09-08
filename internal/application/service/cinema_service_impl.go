@@ -115,12 +115,13 @@ func (s *cinemaService) Create(ctx context.Context, req *dto.CreateCinemaRequest
 	}
 
 	cinema := &entity.Cinema{
-		CityID:    req.CityID,
-		Name:      trimmedName,
-		Address:   trimmedAddress,
-		Latitude:  req.Latitude,
-		Longitude: req.Longitude,
-		Status:    req.Status,
+		CityID:      req.CityID,
+		OwnerUserID: req.OwnerUserID,
+		Name:        trimmedName,
+		Address:     trimmedAddress,
+		Latitude:    req.Latitude,
+		Longitude:   req.Longitude,
+		Status:      req.Status,
 	}
 
 	if req.Description != "" {
@@ -215,6 +216,9 @@ func (s *cinemaService) Update(ctx context.Context, id int64, req *dto.UpdateCin
 			return nil, exception.ErrInvalidInput
 		}
 		cinema.CityID = *req.CityID
+	}
+	if req.OwnerUserID != nil {
+		cinema.OwnerUserID = req.OwnerUserID
 	}
 	if req.Name != nil {
 		trimmedName := strings.TrimSpace(*req.Name)
@@ -323,13 +327,13 @@ func (s *cinemaService) UploadImage(ctx context.Context, id int64, file io.Reade
 	}
 
 	lowImg := image.Resize(400, 300, img)
-	lowBuf, err := image.EncodeToBuffer(lowImg, image.FormatWebP)
+	lowBuf, err := image.EncodeToBuffer(lowImg, image.FormatJPEG)
 	if err != nil {
 		return nil, fmt.Errorf("encode low resolution cinema image: %w", exception.ErrInternal)
 	}
 
-	lowKey := fmt.Sprintf("cinemas/cinema_%d_image_low.webp", id)
-	lowURL, err := s.storage.UploadObject(ctx, enum.CinemaPhoto, lowKey, lowBuf, image.GetContentType(image.FormatWebP))
+	lowKey := fmt.Sprintf("cinemas/cinema_%d_image_low.jpg", id)
+	lowURL, err := s.storage.UploadObject(ctx, enum.CinemaPhoto, lowKey, lowBuf, image.GetContentType(image.FormatJPEG))
 	if err != nil {
 		return nil, fmt.Errorf("upload low resolution cinema image: %w", exception.ErrInternal)
 	}
@@ -376,7 +380,7 @@ func (s *cinemaService) DeleteImage(ctx context.Context, id int64) error {
 		return fmt.Errorf("get cinema before image deletion %d: %w", id, err)
 	}
 
-	lowKey := fmt.Sprintf("cinemas/cinema_%d_image_low.webp", id)
+	lowKey := fmt.Sprintf("cinemas/cinema_%d_image_low.jpg", id)
 	highKey := fmt.Sprintf("cinemas/cinema_%d_image_high.jpg", id)
 
 	if err := s.storage.DeleteObject(ctx, enum.CinemaPhoto, lowKey); err != nil {

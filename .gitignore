@@ -43,3 +43,9 @@ matin_notes.txt
 # logs
 logs/*.log
 !logs/2026-08-08-6bd1b6ca-7f6f-42c7-8b77-b292834d0777-example.log
+
+# Go cache
+.gocache/
+
+# Build output
+bin/

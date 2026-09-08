@@ -45,6 +45,35 @@ func (r *OTPRepository) GetOTP(ctx context.Context, tagId string) (string, error
 	return val, nil
 }
 
+func (r *OTPRepository) ConsumeOTP(ctx context.Context, tagId string, code string) error {
+	key := r.getkeysignuture(r.client.GetRedisConstant().PhoneEmailOtpSignature, tagId)
+	const consumeScript = `
+local value = redis.call("GET", KEYS[1])
+if not value then
+  return 0
+end
+if value ~= ARGV[1] then
+  return -1
+end
+redis.call("DEL", KEYS[1])
+return 1
+`
+
+	result, err := r.client.GetRDB().Eval(ctx, consumeScript, []string{key}, code).Int()
+	if err != nil {
+		return fmt.Errorf("redis consume otp error: %w", err)
+	}
+
+	switch result {
+	case 1:
+		return nil
+	case -1:
+		return exception.ErrInvalidOTP
+	default:
+		return exception.ErrOTPExpired
+	}
+}
+
 func (r *OTPRepository) DeleteOTP(ctx context.Context, tagId string) error {
 	key := r.getkeysignuture(r.client.GetRedisConstant().PhoneEmailOtpSignature, tagId)
 	if err := r.client.GetRDB().Del(ctx, key).Err(); err != nil {

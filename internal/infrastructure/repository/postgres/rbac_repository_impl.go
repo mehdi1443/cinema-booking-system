@@ -365,6 +365,18 @@ func (r *rbacRepositoryPostgres) DeletePermissionsOfRole(
 	return nil
 }
 
+func (r *rbacRepositoryPostgres) ReplacePermissionsOfRole(ctx context.Context, roleID int64, permissionIDs []int64) error {
+	role := entity.Role{BaseEntity: entity.BaseEntity{ID: roleID}}
+	permissions := make([]*entity.Permission, 0, len(permissionIDs))
+	for _, permissionID := range permissionIDs {
+		permissions = append(permissions, &entity.Permission{BaseEntity: entity.BaseEntity{ID: permissionID}})
+	}
+	if err := r.db.GetDB().WithContext(ctx).Model(&role).Association("Permissions").Replace(permissions); err != nil {
+		return handleDBError(err)
+	}
+	return nil
+}
+
 func (r *rbacRepositoryPostgres) UserHasPermission(
 	ctx context.Context,
 	userID int64,
@@ -379,7 +391,8 @@ func (r *rbacRepositoryPostgres) UserHasPermission(
 		Table("permissions").
 		Joins("JOIN role_permissions ON role_permissions.permission_id = permissions.id").
 		Joins("JOIN user_roles ON user_roles.role_id = role_permissions.role_id").
-		Where("user_roles.user_id = ? AND permissions.name = ? AND permissions.deleted_at IS NULL", userID, permissionName).
+		Joins("JOIN roles ON roles.id = user_roles.role_id").
+		Where("user_roles.user_id = ? AND permissions.name = ? AND permissions.deleted_at IS NULL AND roles.deleted_at IS NULL AND user_roles.deleted_at IS NULL AND role_permissions.deleted_at IS NULL", userID, permissionName).
 		Count(&count).
 		Error
 
@@ -406,7 +419,7 @@ func (r *rbacRepositoryPostgres) UserHasRoleByName(
 		WithContext(ctx).
 		Table("roles").
 		Joins("JOIN user_roles ON user_roles.role_id = roles.id").
-		Where("user_roles.user_id = ? AND roles.name = ? AND roles.deleted_at IS NULL", userID, roleName).
+		Where("user_roles.user_id = ? AND roles.name = ? AND roles.deleted_at IS NULL AND user_roles.deleted_at IS NULL", userID, roleName).
 		Count(&count).
 		Error
 
@@ -433,7 +446,8 @@ func (r *rbacRepositoryPostgres) GetUserPermissionNames(
 		Table("permissions").
 		Joins("JOIN role_permissions ON role_permissions.permission_id = permissions.id").
 		Joins("JOIN user_roles ON user_roles.role_id = role_permissions.role_id").
-		Where("user_roles.user_id = ? AND permissions.deleted_at IS NULL", userID).
+		Joins("JOIN roles ON roles.id = user_roles.role_id").
+		Where("user_roles.user_id = ? AND permissions.deleted_at IS NULL AND roles.deleted_at IS NULL AND user_roles.deleted_at IS NULL AND role_permissions.deleted_at IS NULL", userID).
 		Distinct("permissions.name").
 		Pluck("permissions.name", &perms).
 		Error
@@ -462,7 +476,8 @@ func (r *rbacRepositoryPostgres) GetUserPermissions(
 		Table("permissions").
 		Joins("JOIN role_permissions ON role_permissions.permission_id = permissions.id").
 		Joins("JOIN user_roles ON user_roles.role_id = role_permissions.role_id").
-		Where("user_roles.user_id = ? AND permissions.deleted_at IS NULL", userID).
+		Joins("JOIN roles ON roles.id = user_roles.role_id").
+		Where("user_roles.user_id = ? AND permissions.deleted_at IS NULL AND roles.deleted_at IS NULL AND user_roles.deleted_at IS NULL AND role_permissions.deleted_at IS NULL", userID).
 		Find(&perms).
 		Error
 
@@ -488,7 +503,7 @@ func (r *rbacRepositoryPostgres) GetUserRoles(
 		WithContext(ctx).
 		Table("roles").
 		Joins("JOIN user_roles ON user_roles.role_id = roles.id").
-		Where("user_roles.user_id = ? AND roles.deleted_at IS NULL", userID).
+		Where("user_roles.user_id = ? AND roles.deleted_at IS NULL AND user_roles.deleted_at IS NULL", userID).
 		Find(&roles).
 		Error
 
@@ -599,7 +614,7 @@ func (r *rbacRepositoryPostgres) GetPermissionsByRoleName(
 		Table("permissions").
 		Joins("JOIN role_permissions ON role_permissions.permission_id = permissions.id").
 		Joins("JOIN roles ON roles.id = role_permissions.role_id").
-		Where("roles.name = ? AND permissions.deleted_at IS NULL", roleName).
+		Where("roles.name = ? AND roles.deleted_at IS NULL AND permissions.deleted_at IS NULL AND role_permissions.deleted_at IS NULL", roleName).
 		Find(&perms).
 		Error
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/entity"
@@ -13,6 +14,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type MovieGenre struct {
@@ -605,21 +607,35 @@ func (r *movieRepository) Delete(
 	ctx context.Context,
 	id int64,
 ) error {
+	return r.db.WithTransaction(func(txDB database.Database) error {
+		tx := txDB.GetDB().WithContext(ctx)
+		var movie entity.Movie
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&movie, id).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return exception.ErrMovieNotFound
+			}
+			return handleDBError(err)
+		}
 
-	result := r.db.
-		GetDB().
-		WithContext(ctx).
-		Delete(&entity.Movie{}, id)
+		var showtimeCount int64
+		if err := tx.Model(&entity.Showtime{}).
+			Where("movie_id = ? AND starts_at > ? AND status IN ?", id, time.Now(), []enum.ShowtimeStatus{enum.ShowtimeStatusDraft, enum.ShowtimeStatusPublished}).
+			Count(&showtimeCount).Error; err != nil {
+			return handleDBError(err)
+		}
+		if showtimeCount > 0 {
+			return exception.ErrResourceInUse
+		}
 
-	if result.Error != nil {
-		return handleDBError(result.Error)
-	}
-
-	if result.RowsAffected == 0 {
-		return exception.ErrMovieNotFound
-	}
-
-	return nil
+		result := tx.Delete(&movie)
+		if result.Error != nil {
+			return handleDBError(result.Error)
+		}
+		if result.RowsAffected == 0 {
+			return exception.ErrMovieNotFound
+		}
+		return nil
+	})
 }
 
 // -----------------------------------------------------------------------------

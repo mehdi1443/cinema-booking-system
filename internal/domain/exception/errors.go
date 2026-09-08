@@ -70,6 +70,18 @@ const (
 	CodeCinemaAlreadyExists   ErrorCode = "CINEMA_ALREADY_EXISTS"
 	CodeFacilityNotFound      ErrorCode = "FACILITY_NOT_FOUND"
 	CodeFacilityAlreadyExists ErrorCode = "FACILITY_ALREADY_EXISTS"
+	CodeHallNotFound          ErrorCode = "HALL_NOT_FOUND"
+	CodeHallAlreadyExists     ErrorCode = "HALL_ALREADY_EXISTS"
+	CodeSeatNotFound          ErrorCode = "SEAT_NOT_FOUND"
+	CodeSeatAlreadyExists     ErrorCode = "SEAT_ALREADY_EXISTS"
+	CodeShowtimeNotFound      ErrorCode = "SHOWTIME_NOT_FOUND"
+	CodeShowtimeOverlap       ErrorCode = "SHOWTIME_OVERLAP"
+	CodeShowtimeNotBookable   ErrorCode = "SHOWTIME_NOT_BOOKABLE"
+	CodeNoActiveSeats         ErrorCode = "NO_ACTIVE_SEATS"
+	CodeReservationNotFound   ErrorCode = "RESERVATION_NOT_FOUND"
+	CodeReservationExpired    ErrorCode = "RESERVATION_EXPIRED"
+	CodeSeatUnavailable       ErrorCode = "SEAT_UNAVAILABLE"
+	CodeInvalidSeatSelection  ErrorCode = "INVALID_SEAT_SELECTION"
 
 	// Location Domain
 	CodeCityNotFound          ErrorCode = "CITY_NOT_FOUND"
@@ -181,7 +193,7 @@ func Wrap(
 var ErrRecordNotFound = &AppError{Code: CodeRecordNotFound, Kind: KindNotFound, Message: "record not found"}
 var ErrInvalidInput = &AppError{Code: CodeInvalidInput, Kind: KindValidation, Message: "invalid input"}
 var ErrInvalidFilter = &AppError{Code: CodeInvalidFilter, Kind: KindValidation, Message: "invalid search filter criteria"}
-var ErrInvalidStatus = &AppError{Code: CodeInvalidStatus, Kind: KindValidation, Message: "invalid cinema status"}
+var ErrInvalidStatus = &AppError{Code: CodeInvalidStatus, Kind: KindValidation, Message: "invalid status"}
 
 // -----------------------------------------------------------------------------
 // Authentication / Authorization
@@ -270,6 +282,18 @@ var ErrCinemaNotFound = &AppError{Code: CodeCinemaNotFound, Kind: KindNotFound, 
 var ErrCinemaAlreadyExists = &AppError{Code: CodeCinemaAlreadyExists, Kind: KindConflict, Message: "cinema already exists"}
 var ErrFacilityNotFound = &AppError{Code: CodeFacilityNotFound, Kind: KindNotFound, Message: "facility not found"}
 var ErrFacilityAlreadyExists = &AppError{Code: CodeFacilityAlreadyExists, Kind: KindConflict, Message: "facility already exists"}
+var ErrHallNotFound = &AppError{Code: CodeHallNotFound, Kind: KindNotFound, Message: "hall not found"}
+var ErrHallAlreadyExists = &AppError{Code: CodeHallAlreadyExists, Kind: KindConflict, Message: "hall already exists in this cinema"}
+var ErrSeatNotFound = &AppError{Code: CodeSeatNotFound, Kind: KindNotFound, Message: "seat not found"}
+var ErrSeatAlreadyExists = &AppError{Code: CodeSeatAlreadyExists, Kind: KindConflict, Message: "seat position already exists in this hall"}
+var ErrShowtimeNotFound = &AppError{Code: CodeShowtimeNotFound, Kind: KindNotFound, Message: "showtime not found"}
+var ErrShowtimeOverlap = &AppError{Code: CodeShowtimeOverlap, Kind: KindConflict, Message: "showtime overlaps another showtime in this hall"}
+var ErrShowtimeNotBookable = &AppError{Code: CodeShowtimeNotBookable, Kind: KindValidation, Message: "showtime is not open for reservation"}
+var ErrNoActiveSeats = &AppError{Code: CodeNoActiveSeats, Kind: KindValidation, Message: "hall has no active seats"}
+var ErrReservationNotFound = &AppError{Code: CodeReservationNotFound, Kind: KindNotFound, Message: "reservation not found"}
+var ErrReservationExpired = &AppError{Code: CodeReservationExpired, Kind: KindConflict, Message: "reservation has expired"}
+var ErrSeatUnavailable = &AppError{Code: CodeSeatUnavailable, Kind: KindConflict, Message: "one or more selected seats are unavailable"}
+var ErrInvalidSeatSelection = &AppError{Code: CodeInvalidSeatSelection, Kind: KindValidation, Message: "invalid or duplicate seat selection"}
 var ErrCityNotFound = &AppError{Code: CodeCityNotFound, Kind: KindNotFound, Message: "city not found"}
 var ErrCityAlreadyExists = &AppError{Code: CodeCityAlreadyExists, Kind: KindConflict, Message: "city already exists"}
 var ErrProvinceNotFound = &AppError{Code: CodeProvinceNotFound, Kind: KindNotFound, Message: "province not found"}
