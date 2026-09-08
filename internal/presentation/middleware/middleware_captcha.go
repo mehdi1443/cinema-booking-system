@@ -49,7 +49,7 @@ func (cs *CaptchaSolving) CaptchaSolvingMiddleware() gin.HandlerFunc {
 
 		if captchaID == "" || captchaCode == "" {
 			cs.log.Warn(ctx, "Captcha headers missing", domainlogger.String("details", "X-Captcha-ID or X-Captcha-Code header is empty"))
-			response.Error(c, http.StatusBadRequest, "captcha_headers_required")
+			response.ErrorWithCode(c, http.StatusBadRequest, string(exception.CodeInvalidInput), "Captcha headers are required")
 			c.Abort()
 			return
 		}
@@ -58,20 +58,20 @@ func (cs *CaptchaSolving) CaptchaSolvingMiddleware() gin.HandlerFunc {
 		if err != nil {
 			if errors.Is(err, exception.ErrCaptchaNotFound) {
 				cs.log.Warn(ctx, "VerifyCaptcha failed: captcha not found or expired", domainlogger.Error(err))
-				response.Error(c, http.StatusNotFound, "Captcha not found or expired")
+				response.ErrorWithCode(c, http.StatusNotFound, string(exception.CodeCaptchaNotFound), "Captcha not found or expired")
 				c.Abort()
 				return
 			}
 
 			cs.log.Error(ctx, "VerifyCaptcha internal failure", domainlogger.Error(err))
-			response.Error(c, http.StatusInternalServerError, "Failed to verify captcha")
+			response.ErrorWithCode(c, http.StatusInternalServerError, string(exception.CodeInternal), "Failed to verify captcha")
 			c.Abort()
 			return
 		}
 
 		if isValid == nil || !*isValid {
 			cs.log.Warn(ctx, "VerifyCaptcha failed: invalid captcha code", domainlogger.String("details", "code mismatch"))
-			response.Error(c, http.StatusBadRequest, "Invalid captcha code")
+			response.ErrorWithCode(c, http.StatusBadRequest, string(exception.CodeInvalidInput), "Invalid captcha code")
 			c.Abort()
 			return
 		}

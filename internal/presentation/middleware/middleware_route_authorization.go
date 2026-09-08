@@ -2,7 +2,9 @@ package middleware
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -129,6 +131,49 @@ var protectedEndpointPolicies = map[string]endpointPolicy{
 	"PUT /v1/showtimes/:id/prices": ownedShowtimePolicy(enum.ShowtimesManagePrices),
 	"POST /v1/reservations":        permissionPolicy(enum.ReservationsCreate), "GET /v1/reservations": permissionPolicy(enum.ReservationsRead),
 	"GET /v1/reservations/:id": permissionPolicy(enum.ReservationsRead), "DELETE /v1/reservations/:id": permissionPolicy(enum.ReservationsCancel),
+	"POST /v1/reservations/:id/payments": permissionPolicy(enum.PaymentsCreate), "GET /v1/reservations/:id/payments": permissionPolicy(enum.PaymentsRead),
+	"GET /v1/payments/:id": permissionPolicy(enum.PaymentsRead), "POST /v1/payments/:id/verify": permissionPolicy(enum.PaymentsVerify),
+}
+
+// ValidateRoutePolicies makes authorization configuration fail fast when a
+// registered v1 endpoint has no explicit public or protected policy. It also
+// detects stale policy entries and accidental public/protected overlaps.
+func ValidateRoutePolicies(routes gin.RoutesInfo) error {
+	registered := make(map[string]struct{}, len(routes))
+	problems := make([]string, 0)
+
+	for _, route := range routes {
+		if !strings.HasPrefix(route.Path, "/v1/") {
+			continue
+		}
+		key := route.Method + " " + route.Path
+		registered[key] = struct{}{}
+		_, public := publicEndpointPolicies[key]
+		_, protected := protectedEndpointPolicies[key]
+		switch {
+		case public && protected:
+			problems = append(problems, "policy is both public and protected: "+key)
+		case !public && !protected:
+			problems = append(problems, "missing policy: "+key)
+		}
+	}
+
+	for key := range publicEndpointPolicies {
+		if _, ok := registered[key]; !ok {
+			problems = append(problems, "public policy has no registered route: "+key)
+		}
+	}
+	for key := range protectedEndpointPolicies {
+		if _, ok := registered[key]; !ok {
+			problems = append(problems, "protected policy has no registered route: "+key)
+		}
+	}
+
+	if len(problems) == 0 {
+		return nil
+	}
+	sort.Strings(problems)
+	return fmt.Errorf("route authorization policy mismatch: %s", strings.Join(problems, "; "))
 }
 
 func RouteAuthorization(
@@ -225,7 +270,7 @@ func authenticateRoute(c *gin.Context, tokenService service_contract.JWTServiceI
 	authorization := c.GetHeader("Authorization")
 	parts := strings.SplitN(authorization, " ", 2)
 	if len(parts) != 2 || parts[0] != "Bearer" || parts[1] == "" {
-		response.ErrorWithCode(c, http.StatusUnauthorized, string(exception.CodeUnauthorized), "authorization_header_required")
+		response.ErrorWithCode(c, http.StatusUnauthorized, string(exception.CodeUnauthorized), "Authorization header is required")
 		c.Abort()
 		return false
 	}
@@ -241,7 +286,7 @@ func authenticateRoute(c *gin.Context, tokenService service_contract.JWTServiceI
 		return false
 	}
 	if payload.TokenType != domainjwt.AccessTokenTag {
-		response.ErrorWithCode(c, http.StatusForbidden, string(exception.CodeForbidden), "invalid_token_type")
+		response.ErrorWithCode(c, http.StatusForbidden, string(exception.CodeForbidden), "Invalid token type")
 		c.Abort()
 		return false
 	}

@@ -3,6 +3,7 @@ package middleware
 import (
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 )
 
@@ -46,7 +47,44 @@ func TestCriticalEndpointPolicies(t *testing.T) {
 	if protectedEndpointPolicies["POST /v1/reservations"].permission != enum.ReservationsCreate.String() {
 		t.Fatal("reservation creation permission mismatch")
 	}
+	if protectedEndpointPolicies["POST /v1/reservations/:id/payments"].permission != enum.PaymentsCreate.String() {
+		t.Fatal("payment creation permission mismatch")
+	}
+	if protectedEndpointPolicies["POST /v1/payments/:id/verify"].permission != enum.PaymentsVerify.String() {
+		t.Fatal("payment verification permission mismatch")
+	}
 	if protectedEndpointPolicies["GET /v1/users/:id/profile"].selfPermission != enum.UsersReadProfile.String() {
 		t.Fatal("profile reads must be self scoped")
 	}
+}
+
+func TestValidateRoutePolicies(t *testing.T) {
+	routes := make(gin.RoutesInfo, 0, len(publicEndpointPolicies)+len(protectedEndpointPolicies))
+	for key := range publicEndpointPolicies {
+		method, path := splitPolicyKey(t, key)
+		routes = append(routes, gin.RouteInfo{Method: method, Path: path})
+	}
+	for key := range protectedEndpointPolicies {
+		method, path := splitPolicyKey(t, key)
+		routes = append(routes, gin.RouteInfo{Method: method, Path: path})
+	}
+	if err := ValidateRoutePolicies(routes); err != nil {
+		t.Fatalf("valid route policies rejected: %v", err)
+	}
+
+	routes = append(routes, gin.RouteInfo{Method: "POST", Path: "/v1/unconfigured"})
+	if err := ValidateRoutePolicies(routes); err == nil {
+		t.Fatal("unconfigured route must fail validation")
+	}
+}
+
+func splitPolicyKey(t *testing.T, key string) (string, string) {
+	t.Helper()
+	for i := range key {
+		if key[i] == ' ' {
+			return key[:i], key[i+1:]
+		}
+	}
+	t.Fatalf("invalid policy key %q", key)
+	return "", ""
 }

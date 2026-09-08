@@ -66,12 +66,7 @@ func (rlm *RedisLimiter) buildMiddleware(limitRule redis_rate.Limit) gin.Handler
 				rlm.appLogger.Warn(c.Request.Context(), "rate limit exceeded", domainlogger.String("path", c.FullPath()))
 			}
 
-			response.Error(
-				c,
-				http.StatusTooManyRequests,
-				"Rate limit exceeded. Please try again later...",
-				fmt.Errorf("too many requests"),
-			)
+			response.Error(c, http.StatusTooManyRequests, "Rate limit exceeded. Please try again later...")
 			c.Abort()
 			return
 		}
