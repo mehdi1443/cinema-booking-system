@@ -3,8 +3,6 @@ package router
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/mehdi1443/cinema-booking-system/bootstrap"
-	"github.com/mehdi1443/cinema-booking-system/internal/presentation/middleware"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/handler"
 )
 
@@ -12,11 +10,8 @@ func SetUpUserRouter(
 	rg *gin.RouterGroup,
 	userHandler *handler.UserHandler,
 	walletHandler *handler.WalletHandler,
-	limiter *middleware.RedisLimiter,
-	limiterConfig *bootstrap.Limiter,
 ) {
 	users := rg.Group("/users")
-	users.Use(limiter.PerMinute(limiterConfig.HighRate))
 	{
 		users.PATCH("/:id/password", userHandler.UpdatePassword)
 		users.GET("/:id/profile", userHandler.GetProfile)

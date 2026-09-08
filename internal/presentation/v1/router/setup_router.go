@@ -32,6 +32,7 @@ type Handlers struct {
 	Rating    handler.RatingHandler
 	Search    handler.SearchHandler
 	Booking   handler.BookingHandler
+	Payment   handler.PaymentHandler
 }
 
 type Repositories struct {
@@ -75,6 +76,7 @@ func SetUpRouter(
 	captchaMiddleware := middleware.NewCaptchaSolving(services.CaptchaService, &config.Environment.DebugModeOptions, appLogger)
 
 	v1 := r.Group("/v1")
+	v1.Use(limiter.PerMinute(config.Environment.Limiter.HighRate))
 	v1.Use(middleware.RouteAuthorization(
 		services.TokenService,
 		repositories.RBACRepo,
@@ -91,23 +93,17 @@ func SetUpRouter(
 		v1,
 		&handler.User,
 		&handler.Wallet,
-		limiter,
-		&config.Environment.Limiter,
 	)
 
 	SetUpAuthRouter(
 		v1,
 		&handler.Auth,
-		limiter,
-		&config.Environment.Limiter,
 		captchaMiddleware,
 	)
 
 	SetUpRBACRouter(
 		v1,
 		&handler.RBAC,
-		limiter,
-		&config.Environment.Limiter,
 	)
 
 	SetUpGenreRouter(v1, &handler.Genre)
@@ -128,11 +124,16 @@ func SetUpRouter(
 
 	SetUpRatingRouter(v1, &handler.Rating)
 
-	SetUpCaptchaRouter(v1, &handler.Captcha, limiter, &config.Environment.Limiter, appLogger)
+	SetUpCaptchaRouter(v1, &handler.Captcha)
 
 	SetUpSearchRouter(v1, &handler.Search)
 
 	SetUpBookingRouter(v1, &handler.Booking)
+
+	SetUpPaymentRouter(v1, &handler.Payment)
+	if err := middleware.ValidateRoutePolicies(r.Routes()); err != nil {
+		panic(err)
+	}
 
 	return r
 }
