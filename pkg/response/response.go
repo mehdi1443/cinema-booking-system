@@ -27,12 +27,18 @@ func (sr *StandardResponse) SendResponse(c *gin.Context) {
 }
 
 func Error(c *gin.Context, statusCode int, message string, errorsList ...error) {
+	if statusCode == 0 {
+		statusCode = http.StatusBadRequest
+	}
 	ErrorWithCode(c, statusCode, defaultErrorCode(statusCode), message, errorsList...)
 }
 
 func ErrorWithCode(c *gin.Context, statusCode int, code, message string, errorsList ...error) {
 	if statusCode == 0 {
 		statusCode = http.StatusBadRequest
+	}
+	if code == "" {
+		code = defaultErrorCode(statusCode)
 	}
 	res := &StandardResponse{
 		Success:    false,

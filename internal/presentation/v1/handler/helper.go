@@ -4,7 +4,9 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/enum"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
+	domainjwt "github.com/mehdi1443/cinema-booking-system/internal/domain/jwt"
 	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 )
 
@@ -15,6 +17,23 @@ func parseParamID(c *gin.Context, paramName string) (int64, bool) {
 		return 0, false
 	}
 	return id, true
+}
+
+func hasPermission(c *gin.Context, required enum.PermissionType) bool {
+	value, exists := c.Get(domainjwt.CtxPermissionsKey)
+	if !exists {
+		return false
+	}
+	permissions, ok := value.([]string)
+	if !ok {
+		return false
+	}
+	for _, permission := range permissions {
+		if permission == required.String() || permission == enum.PermissionAll.String() {
+			return true
+		}
+	}
+	return false
 }
 
 func getAuthUserID(c *gin.Context, log domainlogger.Logger) (int64, bool) {
