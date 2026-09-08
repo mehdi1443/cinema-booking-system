@@ -88,6 +88,11 @@ const (
 	ReservationsCancel    PermissionType = "reservations:cancel"
 	ReservationsReadAny   PermissionType = "reservations:read_any"
 	ReservationsCancelAny PermissionType = "reservations:cancel_any"
+	PaymentsCreate        PermissionType = "payments:create"
+	PaymentsRead          PermissionType = "payments:read"
+	PaymentsVerify        PermissionType = "payments:verify"
+	PaymentsReadAny       PermissionType = "payments:read_any"
+	PaymentsVerifyAny     PermissionType = "payments:verify_any"
 
 	FavoritesAddMovie     PermissionType = "favorites:add_movie"
 	FavoritesRemoveMovie  PermissionType = "favorites:remove_movie"
@@ -126,6 +131,7 @@ var allPermissionTypes = []PermissionType{
 	HallsCreate, HallsUpdate, HallsDelete, HallsManageSeats,
 	ShowtimesCreate, ShowtimesUpdate, ShowtimesDelete, ShowtimesManagePrices,
 	ReservationsCreate, ReservationsRead, ReservationsCancel, ReservationsReadAny, ReservationsCancelAny,
+	PaymentsCreate, PaymentsRead, PaymentsVerify, PaymentsReadAny, PaymentsVerifyAny,
 	FavoritesAddMovie, FavoritesRemoveMovie, FavoritesAddCinema, FavoritesRemoveCinema, FavoritesRead,
 	CommentsCreate, CommentsUpdate, CommentsDelete, CommentsVote, CommentsRemoveVote, CommentsManageStatus, CommentsAdminRead,
 	RatingsSubmit, RatingsReadSelf, RatingsDelete,
@@ -145,7 +151,7 @@ func (permission PermissionType) Category() PermissionCategory {
 		return CategoryMovie
 	case "cinemas", "facilities":
 		return CategoryCinema
-	case "halls", "showtimes", "reservations":
+	case "halls", "showtimes", "reservations", "payments":
 		return CategoryBooking
 	case "favorites", "comments", "ratings":
 		return CategoryInteraction
@@ -193,6 +199,7 @@ func GetUserPermissionTypes() []PermissionType {
 		CommentsCreate, CommentsUpdate, CommentsDelete, CommentsVote, CommentsRemoveVote,
 		RatingsSubmit, RatingsReadSelf, RatingsDelete,
 		ReservationsCreate, ReservationsRead, ReservationsCancel,
+		PaymentsCreate, PaymentsRead, PaymentsVerify,
 	}
 }
 
@@ -207,5 +214,5 @@ func GetCinemaOwnerPermissionTypes() []PermissionType {
 
 func GetSupportPermissionTypes() []PermissionType {
 	permissions := GetUserPermissionTypes()
-	return append(permissions, UsersList, UsersReadProfileAny, UsersReadRolesAny, UsersReadPermissionsAny, CommentsManageStatus, CommentsAdminRead, ReservationsReadAny, ReservationsCancelAny)
+	return append(permissions, UsersList, UsersReadProfileAny, UsersReadRolesAny, UsersReadPermissionsAny, CommentsManageStatus, CommentsAdminRead, ReservationsReadAny, ReservationsCancelAny, PaymentsReadAny)
 }

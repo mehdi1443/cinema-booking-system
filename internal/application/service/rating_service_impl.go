@@ -136,7 +136,7 @@ func (s *ratingService) Delete(ctx context.Context, userID int64, ratingID int64
 	}
 
 	if rating.UserID != userID {
-		return exception.ErrNoteAccessible
+		return exception.ErrNotAccessible
 	}
 
 	if err := s.ratingRepo.Delete(ctx, ratingID); err != nil {

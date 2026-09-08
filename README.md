@@ -2,6 +2,12 @@
 
 A Go/Gin backend for a cinema booking platform, organized with Clean Architecture.
 
+## API response contract
+
+All handlers and middleware use one response envelope. Successful responses contain `success`,
+`statusCode`, `message`, and optional `data`/`meta`. Error responses also contain a stable,
+machine-readable `code` such as `INVALID_INPUT`, `FORBIDDEN`, or `SEAT_UNAVAILABLE`.
+
 ## Authentication
 
 Authentication is phone-based and has two entry endpoints:
@@ -69,10 +75,23 @@ manage only halls, seats, showtimes, and prices belonging to their own cinema. R
 cancellations are owner-scoped for normal users, while support/admin access is permission-based.
 Public showtime endpoints return only published, upcoming showtimes from active cinemas and halls.
 
+## Mock payments
+
+Payments are intentionally backed by a mock gateway until a real provider is configured:
+
+- `POST /v1/reservations/:id/payments` creates a payment and requires an `Idempotency-Key` header.
+- `POST /v1/payments/:id/verify` accepts `{ "success": true }` or `{ "success": false }`.
+- `GET /v1/payments/:id` and `GET /v1/reservations/:id/payments` return payment details/history.
+
+The amount always comes from the reservation and cannot be supplied by the client. Successful
+verification atomically changes the payment to `SUCCEEDED`, the reservation to `PAID`, and all held
+seats to `SOLD`. A failed mock verification changes only the payment attempt to `FAILED`, allowing a
+new attempt with a new idempotency key. Reusing the same key returns the original payment.
+
 ## Database changes
 
 Run the Goose migrations before starting the application. The latest migrations rename the legacy
-`customer` role to `user`, add `cinemas.owner_user_id`, and create the booking schema. Cinema and
+`customer` role to `user`, add `cinemas.owner_user_id`, and create the booking/payment schemas. Cinema and
 movie records use soft deletion so historical showtime and reservation references remain intact.
 
 ## Verification

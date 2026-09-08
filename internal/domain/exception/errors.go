@@ -82,6 +82,10 @@ const (
 	CodeReservationExpired    ErrorCode = "RESERVATION_EXPIRED"
 	CodeSeatUnavailable       ErrorCode = "SEAT_UNAVAILABLE"
 	CodeInvalidSeatSelection  ErrorCode = "INVALID_SEAT_SELECTION"
+	CodePaymentNotFound       ErrorCode = "PAYMENT_NOT_FOUND"
+	CodePaymentInProgress     ErrorCode = "PAYMENT_IN_PROGRESS"
+	CodeIdempotencyConflict   ErrorCode = "IDEMPOTENCY_CONFLICT"
+	CodeReservationNotPayable ErrorCode = "RESERVATION_NOT_PAYABLE"
 
 	// Location Domain
 	CodeCityNotFound          ErrorCode = "CITY_NOT_FOUND"
@@ -200,7 +204,7 @@ var ErrInvalidStatus = &AppError{Code: CodeInvalidStatus, Kind: KindValidation, 
 // -----------------------------------------------------------------------------
 
 var ErrUnauthorized = &AppError{Code: CodeUnauthorized, Kind: KindAuth, Message: "unauthorized"}
-var ErrNoteAccessible = &AppError{Code: CodeForbidden, Kind: KindForbidden, Message: "insufficient access permissions"}
+var ErrNotAccessible = &AppError{Code: CodeForbidden, Kind: KindForbidden, Message: "insufficient access permissions"}
 var ErrInvalidCredentials = &AppError{Code: CodeInvalidCredentials, Kind: KindAuth, Message: "invalid user credentials"}
 
 // -----------------------------------------------------------------------------
@@ -294,6 +298,10 @@ var ErrReservationNotFound = &AppError{Code: CodeReservationNotFound, Kind: Kind
 var ErrReservationExpired = &AppError{Code: CodeReservationExpired, Kind: KindConflict, Message: "reservation has expired"}
 var ErrSeatUnavailable = &AppError{Code: CodeSeatUnavailable, Kind: KindConflict, Message: "one or more selected seats are unavailable"}
 var ErrInvalidSeatSelection = &AppError{Code: CodeInvalidSeatSelection, Kind: KindValidation, Message: "invalid or duplicate seat selection"}
+var ErrPaymentNotFound = &AppError{Code: CodePaymentNotFound, Kind: KindNotFound, Message: "payment not found"}
+var ErrPaymentInProgress = &AppError{Code: CodePaymentInProgress, Kind: KindConflict, Message: "another payment is already pending for this reservation"}
+var ErrIdempotencyConflict = &AppError{Code: CodeIdempotencyConflict, Kind: KindConflict, Message: "idempotency key was already used for another request"}
+var ErrReservationNotPayable = &AppError{Code: CodeReservationNotPayable, Kind: KindConflict, Message: "reservation is not payable"}
 var ErrCityNotFound = &AppError{Code: CodeCityNotFound, Kind: KindNotFound, Message: "city not found"}
 var ErrCityAlreadyExists = &AppError{Code: CodeCityAlreadyExists, Kind: KindConflict, Message: "city already exists"}
 var ErrProvinceNotFound = &AppError{Code: CodeProvinceNotFound, Kind: KindNotFound, Message: "province not found"}

@@ -178,7 +178,7 @@ func (s *commentService) Update(ctx context.Context, userID int64, commentID int
 	}
 
 	if comment.UserID != userID {
-		return nil, exception.ErrNoteAccessible
+		return nil, exception.ErrNotAccessible
 	}
 
 	comment.Body = trimmedBody
@@ -218,7 +218,7 @@ func (s *commentService) Delete(ctx context.Context, userID int64, commentID int
 	}
 
 	if comment.UserID != userID {
-		return exception.ErrNoteAccessible
+		return exception.ErrNotAccessible
 	}
 
 	if err := s.commentRepo.Delete(ctx, commentID); err != nil {

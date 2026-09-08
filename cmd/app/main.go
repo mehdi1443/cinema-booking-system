@@ -142,6 +142,7 @@ func main() {
 	commentRepo := postgres_repo.NewCommentRepository(pgDB)
 	ratingRepo := postgres_repo.NewRatingRepository(pgDB)
 	bookingRepo := postgres_repo.NewBookingRepository(pgDB)
+	paymentRepo := postgres_repo.NewPaymentRepository(pgDB)
 
 	repositories := router.Repositories{
 		UserRepo:                userRepo,
@@ -195,6 +196,7 @@ func main() {
 	hallSrv := service.NewHallService(bookingRepo, cinemaRepo, appLogger)
 	showtimeSrv := service.NewShowtimeService(bookingRepo, bookingRepo, movieRepo, bookingRepo, appLogger)
 	reservationSrv := service.NewReservationService(bookingRepo, &config.Environment.Reservation, appLogger)
+	paymentSrv := service.NewPaymentService(paymentRepo, bookingRepo, broker.NewMockPaymentGateway(), appLogger)
 
 	services := router.Services{
 		TokenService:        jwtSrv,
@@ -221,6 +223,7 @@ func main() {
 	ratingHandler := *handler.NewRatingHandler(ratingSrv, appLogger)
 	searchHandler := *handler.NewSearchHandler(searchSrv, appLogger)
 	bookingHandler := *handler.NewBookingHandler(hallSrv, showtimeSrv, reservationSrv, appLogger)
+	paymentHandler := *handler.NewPaymentHandler(paymentSrv, appLogger)
 
 	handlers := router.Handlers{
 		Auth:      authHandler,
@@ -239,6 +242,7 @@ func main() {
 		Rating:    ratingHandler,
 		Search:    searchHandler,
 		Booking:   bookingHandler,
+		Payment:   paymentHandler,
 	}
 
 	limiter := middleware.NewRedisLimiter(redisClient, appLogger)
