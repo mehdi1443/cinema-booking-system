@@ -9,5 +9,6 @@ func SetUpTicketRouter(r *gin.RouterGroup, h *handler.TicketHandler) {
 	r.GET("/tickets", h.ListMine)
 	r.GET("/tickets/:id", h.Get)
 	r.GET("/tickets/:id/qr", h.QRCode)
+	r.GET("/tickets/:id/pdf", h.PDF)
 	r.POST("/tickets/validate", h.Validate)
 }

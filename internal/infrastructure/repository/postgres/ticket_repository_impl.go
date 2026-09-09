@@ -41,6 +41,18 @@ func (r *ticketRepository) GetTicket(ctx context.Context, id int64) (*entity.Tic
 	return &ticket, nil
 }
 
+func (r *ticketRepository) GetTicketByPaymentID(ctx context.Context, paymentID int64) (*entity.Ticket, error) {
+	var ticket entity.Ticket
+	err := ticketDetails(r.db.GetDB().WithContext(ctx)).Where("tickets.payment_id = ?", paymentID).First(&ticket).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, exception.ErrTicketNotFound
+	}
+	if err != nil {
+		return nil, handlePaymentDBError(err)
+	}
+	return &ticket, nil
+}
+
 func (r *ticketRepository) ListUserTickets(ctx context.Context, userID int64) ([]entity.Ticket, error) {
 	var tickets []entity.Ticket
 	err := ticketDetails(r.db.GetDB().WithContext(ctx)).Where("tickets.user_id = ?", userID).Order("tickets.created_at DESC").Find(&tickets).Error
@@ -48,6 +60,19 @@ func (r *ticketRepository) ListUserTickets(ctx context.Context, userID int64) ([
 		return nil, handlePaymentDBError(err)
 	}
 	return tickets, nil
+}
+
+func (r *ticketRepository) SetTicketPDF(ctx context.Context, id int64, url, objectKey string, generatedAt time.Time) (*entity.Ticket, error) {
+	result := r.db.GetDB().WithContext(ctx).Model(&entity.Ticket{}).Where("id = ?", id).Updates(map[string]any{
+		"pdf_url": url, "pdf_object_key": objectKey, "pdf_generated_at": generatedAt, "updated_at": generatedAt,
+	})
+	if result.Error != nil {
+		return nil, handlePaymentDBError(result.Error)
+	}
+	if result.RowsAffected != 1 {
+		return nil, exception.ErrTicketNotFound
+	}
+	return r.GetTicket(ctx, id)
 }
 
 func (r *ticketRepository) ConsumeTicket(ctx context.Context, code string, validatorUserID int64, allowAny bool, now time.Time) (*entity.Ticket, error) {

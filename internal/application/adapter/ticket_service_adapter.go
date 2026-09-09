@@ -10,5 +10,11 @@ type TicketServiceInterface interface {
 	Get(ctx context.Context, id, userID int64, allowAny bool) (*dto.TicketResponse, error)
 	ListMine(ctx context.Context, userID int64) ([]*dto.TicketResponse, error)
 	QRCode(ctx context.Context, id, userID int64, allowAny bool) ([]byte, error)
+	PDF(ctx context.Context, id, userID int64, allowAny bool) (*dto.TicketPDFResponse, error)
+	EnsurePDFForPayment(ctx context.Context, paymentID int64) error
 	Validate(ctx context.Context, code string, validatorUserID int64, allowAny bool) (*dto.TicketResponse, error)
+}
+
+type TicketDocumentIssuer interface {
+	EnsurePDFForPayment(ctx context.Context, paymentID int64) error
 }

@@ -68,6 +68,24 @@ func (h *TicketHandler) QRCode(c *gin.Context) {
 	c.Data(http.StatusOK, "image/png", png)
 }
 
+func (h *TicketHandler) PDF(c *gin.Context) {
+	id, ok := parseParamID(c, "id")
+	if !ok {
+		return
+	}
+	userID, ok := getAuthUserID(c, h.log)
+	if !ok {
+		return
+	}
+	result, err := h.tickets.PDF(c.Request.Context(), id, userID, hasPermission(c, enum.TicketsReadAny))
+	if err != nil {
+		Handle(c, err, h.log)
+		return
+	}
+	c.Header("Cache-Control", "private, no-store")
+	response.Success(c, http.StatusOK, "Ticket PDF URL generated successfully", result)
+}
+
 func (h *TicketHandler) Validate(c *gin.Context) {
 	userID, ok := getAuthUserID(c, h.log)
 	if !ok {
