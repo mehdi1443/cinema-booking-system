@@ -4,10 +4,10 @@
 ALTER TYPE payment_status ADD VALUE IF NOT EXISTS 'REFUNDED';
 
 ALTER TABLE payments
-    ADD COLUMN refund_reference_id VARCHAR(100),
-    ADD COLUMN refunded_at TIMESTAMPTZ;
+    ADD COLUMN IF NOT EXISTS refund_reference_id VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS refunded_at TIMESTAMPTZ;
 
-ALTER TABLE payments DROP CONSTRAINT chk_payments_final_fields;
+ALTER TABLE payments DROP CONSTRAINT IF EXISTS chk_payments_final_fields;
 ALTER TABLE payments ADD CONSTRAINT chk_payments_final_fields CHECK (
     (status = 'PENDING' AND paid_at IS NULL AND reference_id IS NULL AND failure_reason IS NULL AND refunded_at IS NULL AND refund_reference_id IS NULL)
     OR (status = 'SUCCEEDED' AND paid_at IS NOT NULL AND reference_id IS NOT NULL AND failure_reason IS NULL AND refunded_at IS NULL AND refund_reference_id IS NULL)
@@ -15,7 +15,7 @@ ALTER TABLE payments ADD CONSTRAINT chk_payments_final_fields CHECK (
     OR (status = 'REFUNDED' AND paid_at IS NOT NULL AND reference_id IS NOT NULL AND failure_reason IS NULL AND refunded_at IS NOT NULL AND refund_reference_id IS NOT NULL)
 );
 
-CREATE UNIQUE INDEX uq_payments_refund_reference_id
+CREATE UNIQUE INDEX IF NOT EXISTS uq_payments_refund_reference_id
     ON payments(refund_reference_id)
     WHERE refund_reference_id IS NOT NULL;
 

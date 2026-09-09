@@ -89,8 +89,17 @@ func currentGooseVersion(ctx context.Context, conn *sql.Conn) (int64, error) {
 func applyFile(ctx context.Context, conn *sql.Conn, file migrationFile) error {
 	insert := "INSERT INTO app_schema_migrations(version, filename, applied_at) VALUES($1,$2,$3)"
 	if file.noTransaction {
-		if _, err := conn.ExecContext(ctx, file.upSQL); err != nil {
-			return fmt.Errorf("apply migration %s: %w", file.name, err)
+		statements, err := splitSQLStatements(file.upSQL)
+		if err != nil {
+			return fmt.Errorf("parse non-transactional migration %s: %w", file.name, err)
+		}
+		for index, statement := range statements {
+			// Each call must be a separate autocommit transaction. PostgreSQL enum
+			// values added by one statement cannot safely be referenced until that
+			// statement has committed.
+			if _, err := conn.ExecContext(ctx, statement); err != nil {
+				return fmt.Errorf("apply migration %s statement %d: %w", file.name, index+1, err)
+			}
 		}
 		if _, err := conn.ExecContext(ctx, insert, file.version, file.name, time.Now()); err != nil {
 			return fmt.Errorf("record migration %s: %w", file.name, err)
@@ -112,6 +121,116 @@ func applyFile(ctx context.Context, conn *sql.Conn, file migrationFile) error {
 		return fmt.Errorf("commit migration %s: %w", file.name, err)
 	}
 	return nil
+}
+
+// splitSQLStatements separates top-level SQL statements while preserving
+// semicolons inside quoted strings, comments, identifiers, and dollar-quoted
+// PostgreSQL function bodies.
+func splitSQLStatements(source string) ([]string, error) {
+	statements := make([]string, 0)
+	start := 0
+	inSingleQuote := false
+	inDoubleQuote := false
+	inLineComment := false
+	blockCommentDepth := 0
+	dollarTag := ""
+
+	for index := 0; index < len(source); index++ {
+		if inLineComment {
+			if source[index] == '\n' {
+				inLineComment = false
+			}
+			continue
+		}
+		if blockCommentDepth > 0 {
+			if index+1 < len(source) && source[index:index+2] == "/*" {
+				blockCommentDepth++
+				index++
+			} else if index+1 < len(source) && source[index:index+2] == "*/" {
+				blockCommentDepth--
+				index++
+			}
+			continue
+		}
+		if dollarTag != "" {
+			if strings.HasPrefix(source[index:], dollarTag) {
+				index += len(dollarTag) - 1
+				dollarTag = ""
+			}
+			continue
+		}
+		if inSingleQuote {
+			if source[index] == '\'' {
+				if index+1 < len(source) && source[index+1] == '\'' {
+					index++
+				} else {
+					inSingleQuote = false
+				}
+			}
+			continue
+		}
+		if inDoubleQuote {
+			if source[index] == '"' {
+				if index+1 < len(source) && source[index+1] == '"' {
+					index++
+				} else {
+					inDoubleQuote = false
+				}
+			}
+			continue
+		}
+
+		switch {
+		case index+1 < len(source) && source[index:index+2] == "--":
+			inLineComment = true
+			index++
+		case index+1 < len(source) && source[index:index+2] == "/*":
+			blockCommentDepth = 1
+			index++
+		case source[index] == '\'':
+			inSingleQuote = true
+		case source[index] == '"':
+			inDoubleQuote = true
+		case source[index] == '$':
+			if tag := readDollarTag(source[index:]); tag != "" {
+				dollarTag = tag
+				index += len(tag) - 1
+			}
+		case source[index] == ';':
+			if statement := strings.TrimSpace(source[start:index]); statement != "" {
+				statements = append(statements, statement)
+			}
+			start = index + 1
+		}
+	}
+
+	if inSingleQuote || inDoubleQuote || dollarTag != "" || blockCommentDepth > 0 {
+		return nil, fmt.Errorf("unterminated SQL quote or comment")
+	}
+	if statement := strings.TrimSpace(source[start:]); statement != "" {
+		statements = append(statements, statement)
+	}
+	if len(statements) == 0 {
+		return nil, fmt.Errorf("migration contains no executable statements")
+	}
+	return statements, nil
+}
+
+func readDollarTag(source string) string {
+	if len(source) < 2 || source[0] != '$' {
+		return ""
+	}
+	for index := 1; index < len(source); index++ {
+		switch character := source[index]; {
+		case character == '$':
+			return source[:index+1]
+		case character == '_' || character >= 'a' && character <= 'z' || character >= 'A' && character <= 'Z' || index > 1 && character >= '0' && character <= '9':
+			continue
+		default:
+			return ""
+		}
+	}
+	return ""
 }
 
 func loadFiles() ([]migrationFile, error) {
