@@ -101,8 +101,8 @@ func (r *ticketMemoryRepository) GetTicketByPaymentID(_ context.Context, payment
 	return r.ticket, nil
 }
 
-func (r *ticketMemoryRepository) ListUserTickets(context.Context, int64) ([]entity.Ticket, error) {
-	return []entity.Ticket{*r.ticket}, nil
+func (r *ticketMemoryRepository) ListUserTickets(context.Context, int64, int, int) ([]entity.Ticket, int64, error) {
+	return []entity.Ticket{*r.ticket}, 1, nil
 }
 
 func (r *ticketMemoryRepository) SetTicketPDF(_ context.Context, _ int64, url, objectKey string, generatedAt time.Time) (*entity.Ticket, error) {

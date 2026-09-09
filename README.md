@@ -8,7 +8,9 @@ All handlers and middleware use one response envelope. Successful responses cont
 `statusCode`, `message`, and optional `data`/`meta`. Error responses also contain a stable,
 machine-readable `code` such as `INVALID_INPUT`, `FORBIDDEN`, or `SEAT_UNAVAILABLE`.
 Unknown routes, unsupported methods, and recovered panics use the same JSON contract. Liveness is
-available at `GET /health/live`; Prometheus metrics are exposed at `GET /metrics`.
+available at `GET /health/live`; dependency readiness is available at `GET /health/ready` and
+checks PostgreSQL, Redis, MinIO, RabbitMQ, and Elasticsearch. Prometheus metrics are exposed at
+`GET /metrics`.
 
 ## Authentication
 
@@ -40,6 +42,10 @@ Session endpoints:
 
 - `POST /v1/auth/refresh`
 - `POST /v1/auth/logout` (Bearer access token required)
+
+Users may add an email through `PUT /v1/users/:id/profile`, then verify it using the authenticated
+`POST /v1/auth/email/otp/send` and `POST /v1/auth/email/otp/verify` endpoints. In debug mode email
+is appended to `SEND_EMAIL.txt`; otherwise the configured SMTP provider is used.
 
 ## Roles
 
@@ -87,6 +93,9 @@ Payments are intentionally backed by a mock gateway until a real provider is con
 - `POST /v1/payments/:id/refund` performs an idempotent mock refund before the configured cutoff.
 - `GET /v1/payments/:id` and `GET /v1/reservations/:id/payments` return payment details/history.
 
+Reservation, reservation-payment, and ticket list endpoints accept `page` and `limit` (maximum
+100) and return the standard pagination metadata.
+
 The amount always comes from the reservation and cannot be supplied by the client. Successful
 verification atomically changes the payment to `SUCCEEDED`, the reservation to `PAID`, and all held
 seats to `SOLD`. A failed mock verification changes only the payment attempt to `FAILED`, allowing a
@@ -104,21 +113,38 @@ A successful payment issues exactly one ticket in the same database transaction.
 their tickets through `GET /v1/tickets`, `GET /v1/tickets/:id`, and the PNG QR endpoint
 `GET /v1/tickets/:id/qr`. The QR payload uses the form `cinema-ticket:<ticket-code>`.
 
-Each successful payment also generates a PDF admission ticket, uploads it to the private MinIO
+Each successful payment queues generation of a PDF admission ticket, uploads it to the private MinIO
 bucket configured by `S3_TICKET_PDF_BUCKET`, and stores its object URL/key in PostgreSQL. The
 authorized owner (or a user with `tickets:read:any`) can call `GET /v1/tickets/:id/pdf` to receive a
 15-minute presigned download URL. Repeating payment verification repairs a missing PDF without
 issuing a duplicate ticket.
 
+PDF generation and verified-email notifications for payment success/refund use a transactional
+PostgreSQL outbox. Events are committed in the same transaction as the payment state and processed
+with bounded retries, so a temporary SMTP or MinIO outage does not lose the work.
+
 Cinema owners validate tickets for their own cinemas with `POST /v1/tickets/validate`; support and
 admin users may validate across cinemas. Validation opens one hour before the showtime and closes at
 its end time. A successful scan marks the ticket `USED` atomically, so subsequent scans are rejected.
 
+## Reports, settlements, and audit
+
+- `GET /v1/cinemas/:id/reports/sales?from=<RFC3339>&to=<RFC3339>` returns gross, refunded, and net sales.
+- `GET /v1/cinemas/:id/settlements` is available to the cinema owner and administrators.
+- `POST /v1/cinemas/:id/settlements` snapshots completed-showtime payments exactly once; only an
+  administrator may create it.
+- `PATCH /v1/settlements/:id/paid` idempotently marks the settlement paid.
+- `GET /v1/audit-logs` provides an administrator-only, paginated mutation audit trail.
+
+Settlement items have a unique payment constraint. Only successful payments for showtimes that
+have ended are eligible, preventing refundable future sales and duplicate payouts.
+
 ## Database changes
 
-Run the Goose migrations before starting the application. The latest migrations rename the legacy
-`customer` role to `user`, add `cinemas.owner_user_id`, and create the booking/payment schemas. Cinema and
-movie records use soft deletion so historical showtime and reservation references remain intact.
+Migrations are embedded in the binary and applied automatically before repositories/workers start
+when `AUTO_MIGRATE=true` (the default). The runner imports an existing Goose migration ledger and
+uses a PostgreSQL advisory lock so concurrent replicas cannot migrate simultaneously. For a
+migration-only deployment step, set `DATABASE_DSN` and run `go run ./cmd/migrate`.
 
 ## Runtime configuration
 
@@ -126,12 +152,25 @@ Copy `.env.example` to `.env` and set the database, Redis, storage, RabbitMQ, JW
 administrator values before starting the application. `SUPER_ADMIN_PHONE` and
 `SUPER_ADMIN_PASSWORD` are required for the first startup; later starts may omit them once an active
 administrator exists. Credentials are deliberately not stored in source code. The
-local Docker Compose file exposes RabbitMQ on port `5672` (management UI: `15672`).
+local Docker Compose file includes the API image plus PostgreSQL, Redis, RabbitMQ, MinIO,
+Elasticsearch and monitoring services. Start the API and its required dependencies with:
+
+```bash
+docker compose up -d --build api
+```
 
 ## Verification
 
 ```bash
 CGO_ENABLED=0 go test ./...
+```
+
+The GitHub Actions workflow runs tests, vet, build, container build, PostgreSQL/MinIO integration
+tests, and the tagged HTTP flow from OTP login through reservation, mock payment, ticket PDF,
+reporting, refund, and audit. To run that HTTP test against a running local API:
+
+```bash
+go test -tags=e2e ./tests/e2e -v
 ```
 
 Image decoding and JPEG encoding use pure-Go packages, so the project no longer requires a local C

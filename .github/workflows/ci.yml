@@ -1,0 +1,49 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      PAYMENT_INTEGRATION_DSN: host=127.0.0.1 user=cinema password=cinema-test-password dbname=cinema_test port=15432 sslmode=disable TimeZone=UTC
+      MIGRATION_INTEGRATION_DSN: host=127.0.0.1 user=cinema password=cinema-test-password dbname=cinema_test port=15432 sslmode=disable TimeZone=UTC
+      TICKET_INTEGRATION_MINIO_ENDPOINT: http://127.0.0.1:19000
+      TICKET_INTEGRATION_MINIO_ACCESS_KEY: cinema
+      TICKET_INTEGRATION_MINIO_SECRET_KEY: cinema-test-secret
+      E2E_BASE_URL: http://127.0.0.1:8080
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Start application stack
+        run: cp .github/ci.env .env && docker compose up -d --build api
+      - name: Wait for readiness
+        run: |
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:8080/health/ready && exit 0
+            sleep 2
+          done
+          docker compose logs api
+          exit 1
+      - name: Test
+        run: go test -race -coverprofile=coverage.out ./...
+      - name: HTTP end-to-end booking flow
+        run: go test -tags=e2e ./tests/e2e -v
+      - name: Vet
+        run: go vet ./...
+      - name: Build
+        run: go build ./cmd/app
+      - name: Build container
+        run: docker build -t cinema-api:ci .
+      - name: Stop application stack
+        if: always()
+        run: docker compose down -v

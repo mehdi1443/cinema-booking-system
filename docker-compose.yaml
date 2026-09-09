@@ -1,7 +1,56 @@
 services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ${API_CONTAINER:-cinema_api}
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      HTTP_DOMAIN: 0.0.0.0
+      HTTP_PORT: 8080
+      GIN_MODE: release
+      AUTO_MIGRATE: "true"
+      PDB_HOST: db
+      PDB_PORT: 5432
+      RDB_HOST: redis
+      RDB_PORT: 6379
+      S3_ENDPOINT: http://minio:9000
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      PRIVATE_ACCESS_PEM_PATH: /app/keys/private-access.pem
+      PUBLIC_ACCESS_PEM_PATH: /app/keys/public-access.pem
+      PRIVATE_REFRESH_PEM_PATH: /app/keys/private-refresh.pem
+      PUBLIC_REFRESH_PEM_PATH: /app/keys/public-refresh.pem
+    ports:
+      - "${API_PORT:-8080}:8080"
+    volumes:
+      - api_keys:/app/keys
+      - api_logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    networks:
+      - cinema_network
+
   db:
     image: postgres:15-alpine
-    pull_policy: never
+    pull_policy: missing
     container_name: ${POSTGRES_CONTAINER:-cinema_postgres_db}
     restart: always
     environment:
@@ -24,7 +73,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    pull_policy: never
+    pull_policy: missing
     container_name: ${REDIS_CONTAINER:-cinema_redis_cache}
     restart: always
     command: redis-server --requirepass ${RDB_PASSWORD}
@@ -65,7 +114,7 @@ services:
 
   pgadmin:
     image: dpage/pgadmin4:latest
-    pull_policy: never
+    pull_policy: missing
     container_name: ${PGADMIN_CONTAINER:-cinema_pgadmin}
     restart: always
     environment:
@@ -84,7 +133,7 @@ services:
 
   minio:
     image: minio/minio:latest
-    pull_policy: never
+    pull_policy: missing
     container_name: ${MINIO_CONTAINER:-cinema_minio}
     restart: always
     environment:
@@ -100,13 +149,18 @@ services:
       - cinema_network
     env_file:
       - .env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
 
   # ===================================
   # ELK Stack Services
   # ===================================
   elasticsearch:
     image: elasticsearch:8.11.1
-    pull_policy: never
+    pull_policy: missing
     container_name: ${ELASTICSEARCH_CONTAINER:-cinema_elasticsearch}
     restart: always
     environment:
@@ -121,10 +175,15 @@ services:
       - cinema_network
     env_file:
       - .env
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
 
   kibana:
     image: elastic/kibana:8.11.1
-    pull_policy: never
+    pull_policy: missing
     container_name: ${KIBANA_CONTAINER:-cinema_kibana}
     restart: always
     environment:
@@ -140,14 +199,14 @@ services:
 
   filebeat:
     image: elastic/filebeat:8.11.1
-    pull_policy: never
+    pull_policy: missing
     container_name: ${FILEBEAT_CONTAINER:-cinema_filebeat}
     restart: always
     user: root
     command: [ "filebeat", "-e", "--strict.perms=false" ]
     volumes:
       - ./filebeat.yaml:/usr/share/filebeat/filebeat.yml:ro
-      - ./logs:/var/log/cinema:ro
+      - api_logs:/var/log/cinema:ro
     environment:
       - STRICT_PERMS=false
     depends_on:
@@ -162,7 +221,7 @@ services:
   # ===================================
   prometheus:
     image: prom/prometheus:v2.48.1
-    pull_policy: never
+    pull_policy: missing
     container_name: ${PROMETHEUS_CONTAINER:-cinema_prometheus}
     restart: always
     extra_hosts:
@@ -186,7 +245,7 @@ services:
 
   alertmanager:
     image: prom/alertmanager:v0.26.0
-    pull_policy: never
+    pull_policy: missing
     container_name: ${ALERTMANAGER_CONTAINER:-cinema_alertmanager}
     restart: always
     volumes:
@@ -200,7 +259,7 @@ services:
 
   grafana:
     image: grafana/grafana:10.2.3
-    pull_policy: never
+    pull_policy: missing
     container_name: ${GRAFANA_CONTAINER:-cinema_grafana}
     restart: always
     environment:
@@ -221,7 +280,7 @@ services:
 
   node-exporter:
     image: prom/node-exporter:v1.7.0
-    pull_policy: never
+    pull_policy: missing
     container_name: ${NODE_EXPORTER_CONTAINER:-cinema_node_exporter}
     restart: always
     volumes:
@@ -239,7 +298,7 @@ services:
 
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:v0.15.0
-    pull_policy: never
+    pull_policy: missing
     container_name: ${POSTGRES_EXPORTER_CONTAINER:-cinema_postgres_exporter}
     restart: always
     environment:
@@ -260,6 +319,8 @@ volumes:
   prometheus_data:
   grafana_data:
   rabbitmq_data:
+  api_keys:
+  api_logs:
 
 networks:
   cinema_network:

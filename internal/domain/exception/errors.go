@@ -92,6 +92,8 @@ const (
 	CodeTicketNotYetValid     ErrorCode = "TICKET_NOT_YET_VALID"
 	CodeTicketExpired         ErrorCode = "TICKET_EXPIRED"
 	CodeTicketInvalid         ErrorCode = "TICKET_INVALID"
+	CodeSettlementNotFound    ErrorCode = "SETTLEMENT_NOT_FOUND"
+	CodeNoSettlementPayments  ErrorCode = "NO_SETTLEMENT_PAYMENTS"
 
 	// Location Domain
 	CodeCityNotFound          ErrorCode = "CITY_NOT_FOUND"
@@ -336,6 +338,8 @@ var ErrRatingAlreadyExists = &AppError{Code: CodeRatingAlreadyExists, Kind: Kind
 
 var ErrDuplicateKey = &AppError{Code: CodeDuplicateKey, Kind: KindConflict, Message: "record already exists"}
 var ErrResourceInUse = &AppError{Code: CodeResourceInUse, Kind: KindConflict, Message: "resource is in use and cannot be modified or deleted"}
+var ErrSettlementNotFound = &AppError{Code: CodeSettlementNotFound, Kind: KindNotFound, Message: "settlement not found"}
+var ErrNoSettlementPayments = &AppError{Code: CodeNoSettlementPayments, Kind: KindValidation, Message: "no unsettled successful payments exist in this period"}
 var ErrInvalidFileType = &AppError{Code: CodeInvalidFileType, Kind: KindValidation, Message: "invalid file type provided"}
 var ErrFileSizeTooLarge = &AppError{Code: CodeFileSizeTooLarge, Kind: KindValidation, Message: "file size exceeds maximum allowed limit"}
 var ErrDatabase = &AppError{Code: CodeDatabase, Kind: KindDatabase, Message: "database operation failed"}

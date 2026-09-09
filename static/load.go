@@ -1,15 +1,19 @@
 package static
 
 import (
+	"embed"
 	"html/template"
 )
+
+//go:embed otp.html
+var files embed.FS
 
 type StaticFiles struct {
 	otpHTMLTemplate *template.Template
 }
 
 func InitStaticFiles() (*StaticFiles, error) {
-	otpHTMLTemplate, err := template.ParseFiles("static/otp.html")
+	otpHTMLTemplate, err := template.ParseFS(files, "otp.html")
 	if err != nil {
 		return nil, err
 	}

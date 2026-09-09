@@ -1,0 +1,10 @@
+.git
+.github
+.gocache
+.idea
+bin
+logs
+output
+*.pem
+.env
+SEND_*.txt

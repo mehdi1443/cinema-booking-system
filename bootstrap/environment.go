@@ -26,6 +26,7 @@ type Environment struct {
 	Elasticsearch       ElasticsearchConfig `mapstructure:",squash" json:"elasticsearch"`
 	RabbitMQ            RabbitMQConfig      `mapstructure:",squash" json:"rabbitmq"`
 	Reservation         ReservationConfig   `mapstructure:",squash" json:"reservation"`
+	AutoMigrate         bool                `mapstructure:"AUTO_MIGRATE" json:"auto_migrate"`
 	CORSAllowedOrigins  string              `mapstructure:"CORS_ALLOWED_ORIGINS" json:"cors_allowed_origins"`
 	SuperAdminPhone     string              `mapstructure:"SUPER_ADMIN_PHONE" json:"-"`
 	SuperAdminEmail     string              `mapstructure:"SUPER_ADMIN_EMAIL" json:"-"`
@@ -184,6 +185,7 @@ func NewEnvironment() *Environment {
 	v := viper.New()
 	v.SetDefault("RESERVATION_HOLD_SECONDS", 600)
 	v.SetDefault("REFUND_CUTOFF_MINUTES", 120)
+	v.SetDefault("AUTO_MIGRATE", true)
 	for _, key := range []string{
 		"DEBUG_MODE_ENABLE", "HTTP_DOMAIN", "HTTP_PORT",
 		"PDB_HOST", "PDB_PORT", "PDB_USER", "PDB_PASSWORD", "PDB_DB_NAME", "PDB_SSL_MODE",
@@ -197,7 +199,7 @@ func NewEnvironment() *Environment {
 		"USER_PERMISSION_CACHE_EXPIRE_MINUTES", "LOGGER_FILE_PATH", "LOGGER_ENCODING", "LOGGER_LEVEL", "LOGGER_NAME",
 		"CINEMA_TICKET_EMAIL", "CINEMA_TICKET_EMAIL_APP_PASSWORD", "SMTP_HOST", "SMTP_HOST_PORT",
 		"CAPTCHA_TTL_IN_SECONDS", "CAPTCHA_TYPE", "ELASTICSEARCH_URL", "RABBITMQ_URL",
-		"RESERVATION_HOLD_SECONDS", "REFUND_CUTOFF_MINUTES", "CORS_ALLOWED_ORIGINS",
+		"RESERVATION_HOLD_SECONDS", "REFUND_CUTOFF_MINUTES", "CORS_ALLOWED_ORIGINS", "AUTO_MIGRATE",
 		"SUPER_ADMIN_PHONE", "SUPER_ADMIN_EMAIL", "SUPER_ADMIN_PASSWORD",
 		"SUPER_ADMIN_FIRST_NAME", "SUPER_ADMIN_LAST_NAME", "SUPER_ADMIN_WALLET",
 	} {

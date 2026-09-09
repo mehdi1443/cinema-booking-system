@@ -20,6 +20,7 @@ import (
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/database"
 	infralogger "github.com/mehdi1443/cinema-booking-system/internal/infrastructure/logger"
 	infralmetrics "github.com/mehdi1443/cinema-booking-system/internal/infrastructure/metrics"
+	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/migration"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/repository/MinIO"
 	"github.com/mehdi1443/cinema-booking-system/internal/infrastructure/repository/elasticsearch"
 	postgres_repo "github.com/mehdi1443/cinema-booking-system/internal/infrastructure/repository/postgres"
@@ -52,6 +53,18 @@ func main() {
 	appLogger.Info(ctx, "starting application bootstrapping")
 
 	pgDB := database.NewPostgresDatabase(&config.Environment.DataBase, &config.Constant.Database, appLogger)
+	if config.Environment.AutoMigrate {
+		sqlDB, err := pgDB.GetDB().DB()
+		if err != nil {
+			appLogger.Error(ctx, "failed to access SQL database for migrations", domainlogger.Error(err))
+			os.Exit(1)
+		}
+		if err := migration.Up(ctx, sqlDB); err != nil {
+			appLogger.Error(ctx, "database migration failed", domainlogger.Error(err))
+			os.Exit(1)
+		}
+		appLogger.Info(ctx, "database migrations applied successfully")
+	}
 	redisClient := database.NewRedisDatabase(&config.Environment.Redis, &config.Constant.Redis)
 	storage, err := MinIO.NewS3Storage(config.Environment)
 	if err != nil {
@@ -156,6 +169,8 @@ func main() {
 	bookingRepo := postgres_repo.NewBookingRepository(pgDB)
 	paymentRepo := postgres_repo.NewPaymentRepository(pgDB)
 	ticketRepo := postgres_repo.NewTicketRepository(pgDB)
+	outboxRepo := postgres_repo.NewOutboxRepository(pgDB)
+	operationsRepo := postgres_repo.NewOperationsRepository(pgDB)
 
 	repositories := router.Repositories{
 		UserRepo:                userRepo,
@@ -163,6 +178,7 @@ func main() {
 		UserPermissionCacheRepo: userpermissionRepo,
 		CinemaRepo:              cinemaRepo,
 		BookingRepo:             bookingRepo,
+		OperationsRepo:          operationsRepo,
 	}
 
 	seeder := seed.NewRoleSeeder(config.Constant.User, userRepo, rbacRepo, pgDB, bcryptHasher)
@@ -214,6 +230,9 @@ func main() {
 	reservationSrv := service.NewReservationService(bookingRepo, &config.Environment.Reservation, appLogger)
 	ticketSrv := service.NewTicketService(ticketRepo, storage, appLogger)
 	paymentSrv := service.NewPaymentService(paymentRepo, bookingRepo, broker.NewMockPaymentGateway(), ticketSrv, config.Environment.Reservation.RefundCutoff(), appLogger)
+	outboxWorker := service.NewOutboxWorker(outboxRepo, userRepo, paymentRepo, ticketRepo, ticketSrv, emailSrv, appLogger)
+	operationsSrv := service.NewOperationsService(operationsRepo)
+	go outboxWorker.Start(ctx)
 
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
@@ -257,26 +276,28 @@ func main() {
 	bookingHandler := *handler.NewBookingHandler(hallSrv, showtimeSrv, reservationSrv, appLogger)
 	paymentHandler := *handler.NewPaymentHandler(paymentSrv, appLogger)
 	ticketHandler := *handler.NewTicketHandler(ticketSrv, appLogger)
+	operationsHandler := *handler.NewOperationsHandler(operationsSrv, appLogger)
 
 	handlers := router.Handlers{
-		Auth:      authHandler,
-		User:      userHandler,
-		RBAC:      rbacHandler,
-		Wallet:    walletHandler,
-		Genre:     genreHandler,
-		Person:    personHandler,
-		Movie:     movieHandler,
-		Captcha:   captchaHandler,
-		Address:   addressHandler,
-		Facilitie: facilitiesHandler,
-		Cinema:    cinemaHandler,
-		Favorite:  favoriteHandler,
-		Comment:   commentHandler,
-		Rating:    ratingHandler,
-		Search:    searchHandler,
-		Booking:   bookingHandler,
-		Payment:   paymentHandler,
-		Ticket:    ticketHandler,
+		Auth:       authHandler,
+		User:       userHandler,
+		RBAC:       rbacHandler,
+		Wallet:     walletHandler,
+		Genre:      genreHandler,
+		Person:     personHandler,
+		Movie:      movieHandler,
+		Captcha:    captchaHandler,
+		Address:    addressHandler,
+		Facilitie:  facilitiesHandler,
+		Cinema:     cinemaHandler,
+		Favorite:   favoriteHandler,
+		Comment:    commentHandler,
+		Rating:     ratingHandler,
+		Search:     searchHandler,
+		Booking:    bookingHandler,
+		Payment:    paymentHandler,
+		Ticket:     ticketHandler,
+		Operations: operationsHandler,
 	}
 
 	limiter := middleware.NewRedisLimiter(redisClient, appLogger)
@@ -284,7 +305,38 @@ func main() {
 	promClient := infralmetrics.NewPrometheusMetrics()
 	promMiddleware := middleware.NewPrometheusMiddleware(promClient)
 
-	Engine := router.SetUpRouter(&handlers, &services, &repositories, config, limiter, appLogger, promMiddleware)
+	readiness := router.ReadinessChecks{
+		"postgres": func(checkCtx context.Context) error {
+			sqlDB, err := pgDB.GetDB().DB()
+			if err != nil {
+				return err
+			}
+			return sqlDB.PingContext(checkCtx)
+		},
+		"redis": func(checkCtx context.Context) error {
+			return redisClient.GetRDB().Ping(checkCtx).Err()
+		},
+		"object_storage": storage.Ping,
+		"rabbitmq": func(context.Context) error {
+			if rabbitConn.IsClosed() {
+				return errors.New("RabbitMQ connection is closed")
+			}
+			return nil
+		},
+		"elasticsearch": func(checkCtx context.Context) error {
+			res, err := esClient.Info(esClient.Info.WithContext(checkCtx))
+			if err != nil {
+				return err
+			}
+			defer res.Body.Close()
+			if res.IsError() {
+				return fmt.Errorf("Elasticsearch health check returned %s", res.Status())
+			}
+			return nil
+		},
+	}
+
+	Engine := router.SetUpRouter(&handlers, &services, &repositories, config, limiter, appLogger, promMiddleware, readiness)
 
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("iranian-phone", validation.ValidateIranianPhone)

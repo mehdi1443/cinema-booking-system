@@ -99,6 +99,10 @@ const (
 	TicketsReadAny        PermissionType = "tickets:read_any"
 	TicketsValidate       PermissionType = "tickets:validate"
 	TicketsValidateAny    PermissionType = "tickets:validate_any"
+	ReportsReadCinema     PermissionType = "reports:read_cinema"
+	SettlementsReadCinema PermissionType = "settlements:read_cinema"
+	SettlementsManage     PermissionType = "settlements:manage"
+	AuditLogsRead         PermissionType = "audit_logs:read"
 
 	FavoritesAddMovie     PermissionType = "favorites:add_movie"
 	FavoritesRemoveMovie  PermissionType = "favorites:remove_movie"
@@ -139,6 +143,7 @@ var allPermissionTypes = []PermissionType{
 	ReservationsCreate, ReservationsRead, ReservationsCancel, ReservationsReadAny, ReservationsCancelAny,
 	PaymentsCreate, PaymentsRead, PaymentsVerify, PaymentsReadAny, PaymentsVerifyAny, PaymentsRefund, PaymentsRefundAny,
 	TicketsRead, TicketsReadAny, TicketsValidate, TicketsValidateAny,
+	ReportsReadCinema, SettlementsReadCinema, SettlementsManage, AuditLogsRead,
 	FavoritesAddMovie, FavoritesRemoveMovie, FavoritesAddCinema, FavoritesRemoveCinema, FavoritesRead,
 	CommentsCreate, CommentsUpdate, CommentsDelete, CommentsVote, CommentsRemoveVote, CommentsManageStatus, CommentsAdminRead,
 	RatingsSubmit, RatingsReadSelf, RatingsDelete,
@@ -158,7 +163,7 @@ func (permission PermissionType) Category() PermissionCategory {
 		return CategoryMovie
 	case "cinemas", "facilities":
 		return CategoryCinema
-	case "halls", "showtimes", "reservations", "payments", "tickets":
+	case "halls", "showtimes", "reservations", "payments", "tickets", "reports", "settlements":
 		return CategoryBooking
 	case "favorites", "comments", "ratings":
 		return CategoryInteraction
@@ -217,7 +222,7 @@ func GetCinemaOwnerPermissionTypes() []PermissionType {
 		CinemasCreate, CinemasUpdate, CinemasDelete, CinemasManageImage,
 		HallsCreate, HallsUpdate, HallsDelete, HallsManageSeats,
 		ShowtimesCreate, ShowtimesUpdate, ShowtimesDelete, ShowtimesManagePrices,
-		TicketsValidate,
+		TicketsValidate, ReportsReadCinema, SettlementsReadCinema,
 	)
 }
 
