@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
+	"sync"
 	"time"
 
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
@@ -11,24 +13,34 @@ import (
 )
 
 type smsService struct {
+	filePath string
 }
+
+var mockSMSFileMu sync.Mutex
 
 func NewSMSService() service_contract.SMSServiceProviderInterface {
-	return &smsService{}
+	return NewMockSMSService("./SEND_SMS.txt")
 }
 
-//TODO: Send OTP via SMS provider logic here...
+func NewMockSMSService(filePath string) service_contract.SMSServiceProviderInterface {
+	return &smsService{filePath: filePath}
+}
 
 func (s *smsService) SendSMS(req dto.SendSMSRequest) (*bool, error) {
-	Text := fmt.Sprintf("[%s] Phone:%s - Text:%s\n", time.Now().String(), req.Phone, req.Text)
+	if s == nil || strings.TrimSpace(s.filePath) == "" || strings.TrimSpace(req.Phone) == "" || strings.TrimSpace(req.Text) == "" {
+		return nil, fmt.Errorf("invalid mock SMS request")
+	}
+	text := fmt.Sprintf("[%s] Phone:%s - Text:%s\n", time.Now().Format(time.RFC3339), req.Phone, req.Text)
 
-	ffile, err := os.OpenFile("./SEND_SMS.txt", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	mockSMSFileMu.Lock()
+	defer mockSMSFileMu.Unlock()
+	ffile, err := os.OpenFile(s.filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
-		log.Println("Fail:Send SMS:%w", err)
+		log.Printf("mock SMS file open failed: %v", err)
 		return nil, err
 	}
 	defer ffile.Close()
-	_, err = ffile.WriteString(Text)
+	_, err = ffile.WriteString(text)
 	if err != nil {
 		return nil, err
 	}

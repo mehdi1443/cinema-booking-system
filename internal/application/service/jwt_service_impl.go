@@ -76,12 +76,17 @@ func (s *jwtService) GenerateRefreshToken(ctx context.Context, req dto.GenerateT
 }
 
 func (s *jwtService) ValidateToken(ctx context.Context, signedToken string, tokenType string) (*domainjwt.TokenPayload, error) {
+	requestedType := domainjwt.TokenType(tokenType)
+	if requestedType != domainjwt.AccessTokenTag && requestedType != domainjwt.RefreshTokenTag {
+		return nil, exception.ErrInvalidToken
+	}
+
 	parsedToken, err := jwt.Parse(signedToken, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
 
-		if tokenType == "access" {
+		if requestedType == domainjwt.AccessTokenTag {
 			return s.accessRSAKeys.GetPublicKey(), nil
 		}
 
@@ -105,7 +110,14 @@ func (s *jwtService) ValidateToken(ctx context.Context, signedToken string, toke
 		return nil, exception.ErrInvalidToken
 	}
 
-	return s.parseClaimsToPayload(claims)
+	payload, err := s.parseClaimsToPayload(claims)
+	if err != nil {
+		return nil, err
+	}
+	if payload.TokenType != requestedType {
+		return nil, exception.ErrInvalidToken
+	}
+	return payload, nil
 }
 
 func (s *jwtService) generateToken(ctx context.Context, payload domainjwt.TokenPayload) (string, error) {
@@ -125,7 +137,7 @@ func (s *jwtService) generateToken(ctx context.Context, payload domainjwt.TokenP
 		signedToken, err = token.SignedString(s.refreshRSAKeys.GetPrivateKey())
 	} else {
 		s.logger.Error(ctx, "unknown token type provided for signing", domainlogger.String("type", string(payload.TokenType)))
-		panic("generateToken:WTF")
+		return "", fmt.Errorf("unsupported token type %q", payload.TokenType)
 	}
 
 	if err != nil {

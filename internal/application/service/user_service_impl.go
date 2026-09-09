@@ -85,6 +85,12 @@ func (s *userService) UpdateProfile(ctx context.Context, ctxToken *dto.TokenInCo
 }
 
 func (s *userService) ChangeStatus(ctx context.Context, ctxToken *dto.TokenInContext, userID int64, status enum.UserStatus) (*dto.UserResponse, error) {
+	if userID <= 0 {
+		return nil, exception.ErrInvalidInput
+	}
+	if !status.IsValid() {
+		return nil, exception.ErrInvalidStatus
+	}
 	user, err := s.userRepo.FindUserByID(ctx, userID)
 	if err != nil {
 		return nil, err

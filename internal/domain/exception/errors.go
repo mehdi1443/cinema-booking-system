@@ -86,6 +86,7 @@ const (
 	CodePaymentInProgress     ErrorCode = "PAYMENT_IN_PROGRESS"
 	CodeIdempotencyConflict   ErrorCode = "IDEMPOTENCY_CONFLICT"
 	CodeReservationNotPayable ErrorCode = "RESERVATION_NOT_PAYABLE"
+	CodeRefundNotAllowed      ErrorCode = "REFUND_NOT_ALLOWED"
 	CodeTicketNotFound        ErrorCode = "TICKET_NOT_FOUND"
 	CodeTicketAlreadyUsed     ErrorCode = "TICKET_ALREADY_USED"
 	CodeTicketNotYetValid     ErrorCode = "TICKET_NOT_YET_VALID"
@@ -270,7 +271,7 @@ var ErrAssociationFailed = &AppError{Code: CodeAssociationFailed, Kind: KindInte
 
 var ErrInvalidAmount = &AppError{Code: CodeInvalidAmount, Kind: KindValidation, Message: "invalid transaction amount"}
 var ErrInsufficientBalance = &AppError{Code: CodeInsufficientBalance, Kind: KindValidation, Message: "insufficient wallet balance"}
-var ErrReachManBalance = &AppError{Code: CodeReachMaxBalance, Kind: KindValidation, Message: "are you reach or something?!"}
+var ErrReachManBalance = &AppError{Code: CodeReachMaxBalance, Kind: KindValidation, Message: "wallet balance exceeds the maximum allowed amount"}
 
 // -----------------------------------------------------------------------------
 // Movies & Entities
@@ -307,6 +308,7 @@ var ErrPaymentNotFound = &AppError{Code: CodePaymentNotFound, Kind: KindNotFound
 var ErrPaymentInProgress = &AppError{Code: CodePaymentInProgress, Kind: KindConflict, Message: "another payment is already pending for this reservation"}
 var ErrIdempotencyConflict = &AppError{Code: CodeIdempotencyConflict, Kind: KindConflict, Message: "idempotency key was already used for another request"}
 var ErrReservationNotPayable = &AppError{Code: CodeReservationNotPayable, Kind: KindConflict, Message: "reservation is not payable"}
+var ErrRefundNotAllowed = &AppError{Code: CodeRefundNotAllowed, Kind: KindConflict, Message: "payment is not eligible for refund"}
 var ErrTicketNotFound = &AppError{Code: CodeTicketNotFound, Kind: KindNotFound, Message: "ticket not found"}
 var ErrTicketAlreadyUsed = &AppError{Code: CodeTicketAlreadyUsed, Kind: KindConflict, Message: "ticket has already been used"}
 var ErrTicketNotYetValid = &AppError{Code: CodeTicketNotYetValid, Kind: KindConflict, Message: "ticket is not valid yet"}

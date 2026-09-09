@@ -9,6 +9,7 @@ const (
 	MovieTrailer BucketType = "movieTrailer"
 	ActorPhoto   BucketType = "actorPhoto"
 	CinemaPhoto  BucketType = "cinemaPhoto"
+	TicketPDF    BucketType = "ticketPDF"
 )
 
 func (bt BucketType) String() string {
@@ -21,6 +22,7 @@ func AllBucketTypes() []BucketType {
 		MovieTrailer,
 		ActorPhoto,
 		CinemaPhoto,
+		TicketPDF,
 	}
 }
 

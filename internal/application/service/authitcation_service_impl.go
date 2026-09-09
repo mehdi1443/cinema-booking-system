@@ -30,6 +30,7 @@ type authService struct {
 	randomService *random.RandomGeneratorEngine
 	otpConfig     *bootstrap.OTP
 	jwtConfig     *bootstrap.JWT
+	debugConfig   *bootstrap.DebugModeOptions
 	smsProvider   service_contract.SMSServiceProviderInterface
 	emailProvider service_contract.EmailServiceProviderInterface
 	hasher        *hash.BcryptHasher
@@ -49,10 +50,44 @@ func NewAuthService(
 	hasher *hash.BcryptHasher,
 	log domainlogger.Logger,
 ) service_contract.AuthenticationServiceInterface {
+	return newAuthService(userRepo, otpRepo, refreshRepo, tokenService, randomService, otpConfig, jwtConfig, nil, smsProvider, emailProvider, hasher, log)
+}
+
+func NewAuthServiceWithDebug(
+	userRepo repository_contract.UserInterface,
+	otpRepo cache_repository_contract.OTPInterface,
+	refreshRepo cache_repository_contract.RefreshTokenInterface,
+	tokenService service_contract.JWTServiceInterface,
+	randomService *random.RandomGeneratorEngine,
+	otpConfig *bootstrap.OTP,
+	jwtConfig *bootstrap.JWT,
+	debugConfig *bootstrap.DebugModeOptions,
+	smsProvider service_contract.SMSServiceProviderInterface,
+	emailProvider service_contract.EmailServiceProviderInterface,
+	hasher *hash.BcryptHasher,
+	log domainlogger.Logger,
+) service_contract.AuthenticationServiceInterface {
+	return newAuthService(userRepo, otpRepo, refreshRepo, tokenService, randomService, otpConfig, jwtConfig, debugConfig, smsProvider, emailProvider, hasher, log)
+}
+
+func newAuthService(
+	userRepo repository_contract.UserInterface,
+	otpRepo cache_repository_contract.OTPInterface,
+	refreshRepo cache_repository_contract.RefreshTokenInterface,
+	tokenService service_contract.JWTServiceInterface,
+	randomService *random.RandomGeneratorEngine,
+	otpConfig *bootstrap.OTP,
+	jwtConfig *bootstrap.JWT,
+	debugConfig *bootstrap.DebugModeOptions,
+	smsProvider service_contract.SMSServiceProviderInterface,
+	emailProvider service_contract.EmailServiceProviderInterface,
+	hasher *hash.BcryptHasher,
+	log domainlogger.Logger,
+) service_contract.AuthenticationServiceInterface {
 	return &authService{
 		userRepo: userRepo, otpRepo: otpRepo, refreshRepo: refreshRepo,
 		tokenService: tokenService, randomService: randomService,
-		otpConfig: otpConfig, jwtConfig: jwtConfig, smsProvider: smsProvider,
+		otpConfig: otpConfig, jwtConfig: jwtConfig, debugConfig: debugConfig, smsProvider: smsProvider,
 		emailProvider: emailProvider, hasher: hasher, logger: log,
 	}
 }
@@ -89,10 +124,16 @@ func (s *authService) SendOTP(ctx context.Context, rawPhone string) (*dto.SendOT
 		_ = s.otpRepo.DeleteOTP(ctx, phone)
 		return nil, fmt.Errorf("failed to send OTP: %w", err)
 	}
-	return &dto.SendOTPResponse{
-		Phone: phone, OTPCode: code,
+	response := &dto.SendOTPResponse{
+		Phone:            phone,
 		ExpiresInSeconds: int64(s.otpConfig.ExpirationDuration().Seconds()),
-	}, nil
+	}
+	// The OTP is returned only for the local development flow. A real SMS
+	// provider must never expose the authentication secret in the API response.
+	if s.debugConfig != nil && s.debugConfig.Enable {
+		response.OTPCode = code
+	}
+	return response, nil
 }
 
 func (s *authService) VerifyOTP(ctx context.Context, rawPhone string, code string) (*dto.StartAuthResponse, error) {
@@ -163,7 +204,10 @@ func (s *authService) RefreshToken(ctx context.Context, request *dto.RefreshToke
 	}
 	claims, err := s.tokenService.ValidateToken(ctx, request.RefreshToken, string(domainjwt.RefreshTokenTag))
 	if err != nil {
-		return nil, exception.ErrTokenExpired
+		if errors.Is(err, exception.ErrTokenExpired) {
+			return nil, exception.ErrTokenExpired
+		}
+		return nil, exception.ErrInvalidToken
 	}
 	storedToken, err := s.refreshRepo.GetRefreshToken(ctx, strconv.FormatInt(claims.UserID, 10))
 	if err != nil || storedToken != request.RefreshToken {

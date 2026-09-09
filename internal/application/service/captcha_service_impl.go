@@ -37,7 +37,8 @@ func NewCaptchaService(
 
 func (cs *captchaService) Save(ctx context.Context, captchaId string, code string) error {
 	if err := cs.captchaRepo.Save(ctx, captchaId, code, cs.captchaConfig.TTLInSeconds()); err != nil {
-		cs.logger.Error(ctx, "failed to save captcha to repository", domainlogger.Error(err), domainlogger.String("captcha_id", captchaId), domainlogger.String("code", code))
+		// Never write the captcha answer to logs; it is a short-lived authentication secret.
+		cs.logger.Error(ctx, "failed to save captcha to repository", domainlogger.Error(err), domainlogger.String("captcha_id", captchaId))
 		return fmt.Errorf("failed to save captcha: %w", err)
 	}
 	return nil
@@ -80,7 +81,7 @@ func (cs *captchaService) Verify(ctx context.Context, captchaId string, claim st
 	}
 
 	if expected != claim {
-		cs.logger.Warn(ctx, "code mismatch", domainlogger.String("captcha_id", captchaId), domainlogger.String("expected", expected), domainlogger.String("claim", claim))
+		cs.logger.Warn(ctx, "captcha code mismatch", domainlogger.String("captcha_id", captchaId))
 
 		isValid := false
 		return &isValid, nil
@@ -91,7 +92,7 @@ func (cs *captchaService) Verify(ctx context.Context, captchaId string, claim st
 		return nil, err
 	}
 
-	cs.logger.Info(ctx, "captcha verified successfully", domainlogger.String("captcha_id", captchaId), domainlogger.String("expected", expected), domainlogger.String("claim", claim))
+	cs.logger.Info(ctx, "captcha verified successfully", domainlogger.String("captcha_id", captchaId))
 
 	isValid := true
 	return &isValid, nil
@@ -127,5 +128,5 @@ func (cs *captchaService) GenerateAndSave(ctx context.Context) (*dto.GenerateCap
 			ExpireAt:  time.Time.Add(time.Now(), cs.captchaConfig.TTLInSeconds()),
 		}, nil
 	}
-	panic("WTF")
+	return nil, fmt.Errorf("unsupported captcha type %q", cs.captchaConfig.Type)
 }

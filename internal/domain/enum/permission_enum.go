@@ -93,6 +93,8 @@ const (
 	PaymentsVerify        PermissionType = "payments:verify"
 	PaymentsReadAny       PermissionType = "payments:read_any"
 	PaymentsVerifyAny     PermissionType = "payments:verify_any"
+	PaymentsRefund        PermissionType = "payments:refund"
+	PaymentsRefundAny     PermissionType = "payments:refund_any"
 	TicketsRead           PermissionType = "tickets:read"
 	TicketsReadAny        PermissionType = "tickets:read_any"
 	TicketsValidate       PermissionType = "tickets:validate"
@@ -135,7 +137,7 @@ var allPermissionTypes = []PermissionType{
 	HallsCreate, HallsUpdate, HallsDelete, HallsManageSeats,
 	ShowtimesCreate, ShowtimesUpdate, ShowtimesDelete, ShowtimesManagePrices,
 	ReservationsCreate, ReservationsRead, ReservationsCancel, ReservationsReadAny, ReservationsCancelAny,
-	PaymentsCreate, PaymentsRead, PaymentsVerify, PaymentsReadAny, PaymentsVerifyAny,
+	PaymentsCreate, PaymentsRead, PaymentsVerify, PaymentsReadAny, PaymentsVerifyAny, PaymentsRefund, PaymentsRefundAny,
 	TicketsRead, TicketsReadAny, TicketsValidate, TicketsValidateAny,
 	FavoritesAddMovie, FavoritesRemoveMovie, FavoritesAddCinema, FavoritesRemoveCinema, FavoritesRead,
 	CommentsCreate, CommentsUpdate, CommentsDelete, CommentsVote, CommentsRemoveVote, CommentsManageStatus, CommentsAdminRead,
@@ -204,7 +206,7 @@ func GetUserPermissionTypes() []PermissionType {
 		CommentsCreate, CommentsUpdate, CommentsDelete, CommentsVote, CommentsRemoveVote,
 		RatingsSubmit, RatingsReadSelf, RatingsDelete,
 		ReservationsCreate, ReservationsRead, ReservationsCancel,
-		PaymentsCreate, PaymentsRead, PaymentsVerify,
+		PaymentsCreate, PaymentsRead, PaymentsVerify, PaymentsRefund,
 		TicketsRead,
 	}
 }
@@ -221,5 +223,5 @@ func GetCinemaOwnerPermissionTypes() []PermissionType {
 
 func GetSupportPermissionTypes() []PermissionType {
 	permissions := GetUserPermissionTypes()
-	return append(permissions, UsersList, UsersReadProfileAny, UsersReadRolesAny, UsersReadPermissionsAny, CommentsManageStatus, CommentsAdminRead, ReservationsReadAny, ReservationsCancelAny, PaymentsReadAny, TicketsReadAny, TicketsValidate, TicketsValidateAny)
+	return append(permissions, UsersList, UsersReadProfileAny, UsersReadRolesAny, UsersReadPermissionsAny, CommentsManageStatus, CommentsAdminRead, ReservationsReadAny, ReservationsCancelAny, PaymentsReadAny, PaymentsRefundAny, TicketsReadAny, TicketsValidate, TicketsValidateAny)
 }

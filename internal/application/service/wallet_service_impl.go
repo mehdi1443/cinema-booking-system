@@ -47,9 +47,15 @@ func (s *walletService) ChangeBalance(ctx context.Context, tokenData *dto.TokenI
 		return 0, err
 	}
 
-	if currentBalance+amount < 0 || currentBalance+amount > entity.MaxWalletBalance {
+	// Check the bounds before adding so a malicious int64 amount cannot wrap
+	// around and bypass the wallet limit.
+	if currentBalance < 0 || currentBalance > entity.MaxWalletBalance ||
+		(amount < 0 && amount < -currentBalance) {
 		s.logger.Warn(ctx, "invalid balance adjustment request", domainlogger.Error(exception.ErrInsufficientBalance))
 		return 0, exception.ErrInsufficientBalance
+	}
+	if amount > 0 && amount > entity.MaxWalletBalance-currentBalance {
+		return 0, exception.ErrReachManBalance
 	}
 
 	return s.walletRepo.AddAmountToBalance(ctx, userID, amount)
