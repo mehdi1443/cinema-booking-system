@@ -53,8 +53,14 @@ func TestCriticalEndpointPolicies(t *testing.T) {
 	if protectedEndpointPolicies["POST /v1/payments/:id/verify"].permission != enum.PaymentsVerify.String() {
 		t.Fatal("payment verification permission mismatch")
 	}
+	if protectedEndpointPolicies["POST /v1/payments/:id/refund"].permission != enum.PaymentsRefund.String() {
+		t.Fatal("payment refund permission mismatch")
+	}
 	if protectedEndpointPolicies["GET /v1/tickets/:id/qr"].permission != enum.TicketsRead.String() {
 		t.Fatal("ticket QR permission mismatch")
+	}
+	if protectedEndpointPolicies["GET /v1/tickets/:id/pdf"].permission != enum.TicketsRead.String() {
+		t.Fatal("ticket PDF permission mismatch")
 	}
 	if protectedEndpointPolicies["POST /v1/tickets/validate"].permission != enum.TicketsValidate.String() {
 		t.Fatal("ticket validation permission mismatch")

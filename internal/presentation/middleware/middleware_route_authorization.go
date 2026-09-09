@@ -133,8 +133,10 @@ var protectedEndpointPolicies = map[string]endpointPolicy{
 	"GET /v1/reservations/:id": permissionPolicy(enum.ReservationsRead), "DELETE /v1/reservations/:id": permissionPolicy(enum.ReservationsCancel),
 	"POST /v1/reservations/:id/payments": permissionPolicy(enum.PaymentsCreate), "GET /v1/reservations/:id/payments": permissionPolicy(enum.PaymentsRead),
 	"GET /v1/payments/:id": permissionPolicy(enum.PaymentsRead), "POST /v1/payments/:id/verify": permissionPolicy(enum.PaymentsVerify),
-	"GET /v1/tickets": permissionPolicy(enum.TicketsRead), "GET /v1/tickets/:id": permissionPolicy(enum.TicketsRead),
-	"GET /v1/tickets/:id/qr": permissionPolicy(enum.TicketsRead), "POST /v1/tickets/validate": permissionPolicy(enum.TicketsValidate),
+	"POST /v1/payments/:id/refund": permissionPolicy(enum.PaymentsRefund),
+	"GET /v1/tickets":              permissionPolicy(enum.TicketsRead), "GET /v1/tickets/:id": permissionPolicy(enum.TicketsRead),
+	"GET /v1/tickets/:id/qr": permissionPolicy(enum.TicketsRead), "GET /v1/tickets/:id/pdf": permissionPolicy(enum.TicketsRead),
+	"POST /v1/tickets/validate": permissionPolicy(enum.TicketsValidate),
 }
 
 // ValidateRoutePolicies makes authorization configuration fail fast when a

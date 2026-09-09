@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -9,7 +10,10 @@ import (
 func SecureCORSMiddleware(allowedOrigins []string) gin.HandlerFunc {
 	originMap := make(map[string]bool, len(allowedOrigins))
 	for _, origin := range allowedOrigins {
-		originMap[origin] = true
+		origin = strings.TrimRight(strings.TrimSpace(origin), "/")
+		if origin != "" {
+			originMap[origin] = true
+		}
 	}
 
 	return func(c *gin.Context) {
@@ -17,9 +21,10 @@ func SecureCORSMiddleware(allowedOrigins []string) gin.HandlerFunc {
 
 		if originMap[origin] {
 			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+			c.Writer.Header().Add("Vary", "Origin")
 			c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 			c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-			c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+			c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, Idempotency-Key, X-Captcha-ID, X-Captcha-Code, accept, origin, Cache-Control, X-Requested-With")
 			c.Writer.Header().Set("Access-Control-Max-Age", "86400")
 		}
 
