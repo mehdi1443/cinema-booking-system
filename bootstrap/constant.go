@@ -2,10 +2,8 @@ package bootstrap
 
 import (
 	"encoding/json"
-	"fmt"
 	"time"
 )
-
 
 type Constant struct {
 	Database DBConst    `json:"database"`
@@ -30,7 +28,7 @@ type RedisConst struct {
 type SuperUser struct {
 	Phone     string `json:"phone"`
 	Email     string `json:"email"`
-	Password  string `json:"password"`
+	Password  string `json:"-"`
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
 	Wallet    int64  `json:"wallet"`
@@ -44,12 +42,8 @@ func NewConstant() *Constant {
 			MaxDbLifeTime: 5 * time.Minute,
 		},
 		User: SuperUser{
-			Phone:     "09118991443",
-			Email:     "mehdi1384sharifipoor@gmail.com",
-			Wallet:    2_500_000,
-			Password:  "123456",
-			FirstName: "Mehdi",
-			LastName:  "Sharifipour",
+			// Bootstrap credentials are supplied through SUPER_ADMIN_* environment
+			// variables; never keep deployable credentials in source code.
 		},
 		Redis: RedisConst{
 			PhoneEmailOtpSignature:  "otp:phone_email:",
@@ -68,8 +62,7 @@ func (c *Constant) String() string {
 
 	data, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
-		return fmt.Sprintf("Constant{Database:%+v, User:%+v, Redis:%+v}",
-			c.Database, c.User, c.Redis)
+		return "Constant{redacted: true}"
 	}
 
 	return string(data)

@@ -49,3 +49,4 @@ logs/*.log
 
 # Build output
 bin/
+output/

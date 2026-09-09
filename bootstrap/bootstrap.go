@@ -10,9 +10,19 @@ type Config struct {
 }
 
 func Run() *Config {
+	environment := NewEnvironment()
+	constant := NewConstant()
+	constant.User = SuperUser{
+		Phone:     environment.SuperAdminPhone,
+		Email:     environment.SuperAdminEmail,
+		Password:  environment.SuperAdminPassword,
+		FirstName: environment.SuperAdminFirstName,
+		LastName:  environment.SuperAdminLastName,
+		Wallet:    environment.SuperAdminWallet,
+	}
 	return &Config{
-		Constant:    NewConstant(),
-		Environment: NewEnvironment(),
+		Constant:    constant,
+		Environment: environment,
 	}
 }
 

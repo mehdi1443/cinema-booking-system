@@ -7,6 +7,8 @@ A Go/Gin backend for a cinema booking platform, organized with Clean Architectur
 All handlers and middleware use one response envelope. Successful responses contain `success`,
 `statusCode`, `message`, and optional `data`/`meta`. Error responses also contain a stable,
 machine-readable `code` such as `INVALID_INPUT`, `FORBIDDEN`, or `SEAT_UNAVAILABLE`.
+Unknown routes, unsupported methods, and recovered panics use the same JSON contract. Liveness is
+available at `GET /health/live`; Prometheus metrics are exposed at `GET /metrics`.
 
 ## Authentication
 
@@ -18,9 +20,10 @@ Authentication is phone-based and has two entry endpoints:
    { "phone": "09123456789" }
    ```
 
-   The development SMS provider appends the OTP to `SEND_SMS.txt`. The response also contains
-   `otp_code` and `expires_in_seconds`. Returning OTP codes is intended for development only and
-   must be disabled when a production SMS provider is introduced.
+   The development SMS provider appends the OTP to `SEND_SMS.txt`. The response contains
+   `expires_in_seconds`; `otp_code` is included only when `DEBUG_MODE_ENABLE=true`. Returning OTP
+   codes is intended for development only and must be disabled when a production SMS provider is
+   introduced.
 
 2. `POST /v1/auth/otp/verify`
 
@@ -81,6 +84,7 @@ Payments are intentionally backed by a mock gateway until a real provider is con
 
 - `POST /v1/reservations/:id/payments` creates a payment and requires an `Idempotency-Key` header.
 - `POST /v1/payments/:id/verify` accepts `{ "success": true }` or `{ "success": false }`.
+- `POST /v1/payments/:id/refund` performs an idempotent mock refund before the configured cutoff.
 - `GET /v1/payments/:id` and `GET /v1/reservations/:id/payments` return payment details/history.
 
 The amount always comes from the reservation and cannot be supplied by the client. Successful
@@ -88,11 +92,23 @@ verification atomically changes the payment to `SUCCEEDED`, the reservation to `
 seats to `SOLD`. A failed mock verification changes only the payment attempt to `FAILED`, allowing a
 new attempt with a new idempotency key. Reusing the same key returns the original payment.
 
+A successful refund atomically marks the payment `REFUNDED`, cancels its reservation and active
+ticket, and releases the sold seats. Refunds are accepted only before
+`REFUND_CUTOFF_MINUTES` (default: 120) ahead of showtime, and a used ticket cannot be refunded.
+Cancelling an entire showtime automatically mock-refunds its successful payments, cancels active
+tickets and reservations, and releases seats in the same database transaction.
+
 ## Tickets and admission
 
 A successful payment issues exactly one ticket in the same database transaction. Users can access
 their tickets through `GET /v1/tickets`, `GET /v1/tickets/:id`, and the PNG QR endpoint
 `GET /v1/tickets/:id/qr`. The QR payload uses the form `cinema-ticket:<ticket-code>`.
+
+Each successful payment also generates a PDF admission ticket, uploads it to the private MinIO
+bucket configured by `S3_TICKET_PDF_BUCKET`, and stores its object URL/key in PostgreSQL. The
+authorized owner (or a user with `tickets:read:any`) can call `GET /v1/tickets/:id/pdf` to receive a
+15-minute presigned download URL. Repeating payment verification repairs a missing PDF without
+issuing a duplicate ticket.
 
 Cinema owners validate tickets for their own cinemas with `POST /v1/tickets/validate`; support and
 admin users may validate across cinemas. Validation opens one hour before the showtime and closes at
@@ -103,6 +119,14 @@ its end time. A successful scan marks the ticket `USED` atomically, so subsequen
 Run the Goose migrations before starting the application. The latest migrations rename the legacy
 `customer` role to `user`, add `cinemas.owner_user_id`, and create the booking/payment schemas. Cinema and
 movie records use soft deletion so historical showtime and reservation references remain intact.
+
+## Runtime configuration
+
+Copy `.env.example` to `.env` and set the database, Redis, storage, RabbitMQ, JWT, and bootstrap
+administrator values before starting the application. `SUPER_ADMIN_PHONE` and
+`SUPER_ADMIN_PASSWORD` are required for the first startup; later starts may omit them once an active
+administrator exists. Credentials are deliberately not stored in source code. The
+local Docker Compose file exposes RabbitMQ on port `5672` (management UI: `15672`).
 
 ## Verification
 

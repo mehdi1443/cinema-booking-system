@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -25,6 +26,13 @@ type Environment struct {
 	Elasticsearch       ElasticsearchConfig `mapstructure:",squash" json:"elasticsearch"`
 	RabbitMQ            RabbitMQConfig      `mapstructure:",squash" json:"rabbitmq"`
 	Reservation         ReservationConfig   `mapstructure:",squash" json:"reservation"`
+	CORSAllowedOrigins  string              `mapstructure:"CORS_ALLOWED_ORIGINS" json:"cors_allowed_origins"`
+	SuperAdminPhone     string              `mapstructure:"SUPER_ADMIN_PHONE" json:"-"`
+	SuperAdminEmail     string              `mapstructure:"SUPER_ADMIN_EMAIL" json:"-"`
+	SuperAdminPassword  string              `mapstructure:"SUPER_ADMIN_PASSWORD" json:"-"`
+	SuperAdminFirstName string              `mapstructure:"SUPER_ADMIN_FIRST_NAME" json:"-"`
+	SuperAdminLastName  string              `mapstructure:"SUPER_ADMIN_LAST_NAME" json:"-"`
+	SuperAdminWallet    int64               `mapstructure:"SUPER_ADMIN_WALLET" json:"-"`
 }
 
 type DebugModeOptions struct {
@@ -40,7 +48,7 @@ type DataBase struct {
 	Host     string `mapstructure:"PDB_HOST"     json:"host"`
 	Port     string `mapstructure:"PDB_PORT"     json:"port"`
 	User     string `mapstructure:"PDB_USER"     json:"user"`
-	Password string `mapstructure:"PDB_PASSWORD" json:"password"`
+	Password string `mapstructure:"PDB_PASSWORD" json:"-"`
 	Name     string `mapstructure:"PDB_DB_NAME"  json:"name"`
 	SSLMode  string `mapstructure:"PDB_SSL_MODE" json:"ssl_mode"`
 }
@@ -48,7 +56,7 @@ type DataBase struct {
 type Redis struct {
 	Host      string `mapstructure:"RDB_HOST"      json:"host"`
 	Port      string `mapstructure:"RDB_PORT"      json:"port"`
-	Password  string `mapstructure:"RDB_PASSWORD"  json:"password"`
+	Password  string `mapstructure:"RDB_PASSWORD"  json:"-"`
 	RDBNumber string `mapstructure:"RDB_DB_NUMBER" json:"db"`
 }
 
@@ -65,8 +73,8 @@ type JWT struct {
 }
 
 type Storage struct {
-	AccessKey string     `mapstructure:"S3_ACCESS_KEY" json:"access_key"`
-	SecretKey string     `mapstructure:"S3_SECRET_KEY" json:"secret_key"`
+	AccessKey string     `mapstructure:"S3_ACCESS_KEY" json:"-"`
+	SecretKey string     `mapstructure:"S3_SECRET_KEY" json:"-"`
 	Region    string     `mapstructure:"S3_REGION"     json:"region"`
 	Endpoint  string     `mapstructure:"S3_ENDPOINT"   json:"endpoint"`
 	Buckets   BucketName `mapstructure:",squash"       json:"buckets"`
@@ -77,6 +85,7 @@ type BucketName struct {
 	MovieTrailer string `mapstructure:"S3_MOVIE_TRAILER_BUCKET" json:"movie_trailer_bucket"`
 	ActorPhoto   string `mapstructure:"S3_ACTOR_PHOTO_BUCKET"   json:"actor_photo_bucket"`
 	CinemaPhoto  string `mapstructure:"S3_CINEMA_PHOTO_BUCKET"  json:"cinema_photo_bucket"`
+	TicketPDF    string `mapstructure:"S3_TICKET_PDF_BUCKET"    json:"ticket_pdf_bucket"`
 }
 
 type Limiter struct {
@@ -101,7 +110,7 @@ type LoggerConfig struct {
 
 type EmailConfig struct {
 	CinemaTicketEmail            string `mapstructure:"CINEMA_TICKET_EMAIL"              json:"cinema_ticket_email"`
-	CinemaTicketEmailAppPassword string `mapstructure:"CINEMA_TICKET_EMAIL_APP_PASSWORD" json:"cinema_ticket_email_app_password"`
+	CinemaTicketEmailAppPassword string `mapstructure:"CINEMA_TICKET_EMAIL_APP_PASSWORD" json:"-"`
 	SMTPHost                     string `mapstructure:"SMTP_HOST"                        json:"smtp_host"`
 	SMTPPort                     string `mapstructure:"SMTP_HOST_PORT"                   json:"smtp_host_port"`
 }
@@ -120,11 +129,20 @@ type ElasticsearchConfig struct {
 }
 
 type RabbitMQConfig struct {
-	URL string `mapstructure:"RABBITMQ_URL" json:"url"`
+	URL string `mapstructure:"RABBITMQ_URL" json:"-"`
 }
 
 type ReservationConfig struct {
-	HoldSeconds int `mapstructure:"RESERVATION_HOLD_SECONDS" json:"hold_seconds"`
+	HoldSeconds         int `mapstructure:"RESERVATION_HOLD_SECONDS" json:"hold_seconds"`
+	RefundCutoffMinutes int `mapstructure:"REFUND_CUTOFF_MINUTES" json:"refund_cutoff_minutes"`
+}
+
+func (r *ReservationConfig) RefundCutoff() time.Duration {
+	minutes := r.RefundCutoffMinutes
+	if minutes <= 0 {
+		minutes = 120
+	}
+	return time.Duration(minutes) * time.Minute
 }
 
 func (r *ReservationConfig) HoldDuration() time.Duration {
@@ -165,6 +183,26 @@ func (cc *CaptchaConfig) TTLInSeconds() time.Duration {
 func NewEnvironment() *Environment {
 	v := viper.New()
 	v.SetDefault("RESERVATION_HOLD_SECONDS", 600)
+	v.SetDefault("REFUND_CUTOFF_MINUTES", 120)
+	for _, key := range []string{
+		"DEBUG_MODE_ENABLE", "HTTP_DOMAIN", "HTTP_PORT",
+		"PDB_HOST", "PDB_PORT", "PDB_USER", "PDB_PASSWORD", "PDB_DB_NAME", "PDB_SSL_MODE",
+		"RDB_HOST", "RDB_PORT", "RDB_PASSWORD", "RDB_DB_NUMBER",
+		"JWT_ACCESS_EXPIRE_MINUTES", "JWT_REFRESH_EXPIRE_DAYS",
+		"S3_ACCESS_KEY", "S3_SECRET_KEY", "S3_REGION", "S3_ENDPOINT",
+		"S3_MOVIE_POSTER_BUCKET", "S3_MOVIE_TRAILER_BUCKET", "S3_ACTOR_PHOTO_BUCKET", "S3_CINEMA_PHOTO_BUCKET", "S3_TICKET_PDF_BUCKET",
+		"LIMITER_HIGH_RATE", "LIMITER_MEDIUM_RATE", "LIMITER_SMALL_RATE", "LIMITER_TINY_RATE",
+		"OTP_DIGIT_NUMBER", "OTP_EXPIRE_MINUTES", "OTP_VERIFY_EXPIRE_MINUTES",
+		"PRIVATE_ACCESS_PEM_PATH", "PRIVATE_REFRESH_PEM_PATH", "PUBLIC_ACCESS_PEM_PATH", "PUBLIC_REFRESH_PEM_PATH",
+		"USER_PERMISSION_CACHE_EXPIRE_MINUTES", "LOGGER_FILE_PATH", "LOGGER_ENCODING", "LOGGER_LEVEL", "LOGGER_NAME",
+		"CINEMA_TICKET_EMAIL", "CINEMA_TICKET_EMAIL_APP_PASSWORD", "SMTP_HOST", "SMTP_HOST_PORT",
+		"CAPTCHA_TTL_IN_SECONDS", "CAPTCHA_TYPE", "ELASTICSEARCH_URL", "RABBITMQ_URL",
+		"RESERVATION_HOLD_SECONDS", "REFUND_CUTOFF_MINUTES", "CORS_ALLOWED_ORIGINS",
+		"SUPER_ADMIN_PHONE", "SUPER_ADMIN_EMAIL", "SUPER_ADMIN_PASSWORD",
+		"SUPER_ADMIN_FIRST_NAME", "SUPER_ADMIN_LAST_NAME", "SUPER_ADMIN_WALLET",
+	} {
+		_ = v.BindEnv(key)
+	}
 
 	v.AddConfigPath(".")
 	v.AddConfigPath("..")
@@ -176,7 +214,10 @@ func NewEnvironment() *Environment {
 	v.AutomaticEnv()
 
 	if err := v.ReadInConfig(); err != nil {
-		panic(fmt.Errorf("failed to read config file: %w", err))
+		var notFound viper.ConfigFileNotFoundError
+		if !errors.As(err, &notFound) {
+			panic(fmt.Errorf("failed to read config file: %w", err))
+		}
 	}
 
 	var env Environment
@@ -194,8 +235,7 @@ func (e *Environment) String() string {
 
 	data, err := json.MarshalIndent(e, "", "  ")
 	if err != nil {
-		return fmt.Sprintf("Environment{DataBase:%+v, Redis:%+v, HttpServer:%+v, JWT:%+v, Storage:%+v, Limiter:%+v, OTP:%+v, Email:%+v, Elasticsearch:%+v, RabbitMQ:%+v}",
-			e.DataBase, e.Redis, e.HttpServer, e.JWT, e.Storage, e.Limiter, e.OTP, e.Email, e.Elasticsearch, e.RabbitMQ)
+		return "Environment{redacted: true}"
 	}
 
 	return string(data)

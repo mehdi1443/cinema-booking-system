@@ -30,7 +30,9 @@ func (r *UserPermissionCacheRepository) SaveUserPermissions(ctx context.Context,
 	if err := r.client.GetRDB().SAdd(ctx, key, permissions).Err(); err != nil {
 		return fmt.Errorf("redis save user permissions error: %w", err)
 	}
-	r.client.GetRDB().Expire(ctx, key, ttl)
+	if err := r.client.GetRDB().Expire(ctx, key, ttl).Err(); err != nil {
+		return fmt.Errorf("redis set user permissions expiration error: %w", err)
+	}
 
 	return nil
 }

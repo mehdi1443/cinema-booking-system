@@ -163,9 +163,17 @@ func (r *userRepositoryPostgres) UpdateUser(
 	res := r.db.
 		GetDB().
 		WithContext(ctx).
-		Model(user).
-		Where("id = ?", user.ID).
-		Updates(user)
+		Model(&entity.User{}).
+		Where("id = ? AND deleted_at IS NULL", user.ID).
+		// This method is used for profile/status updates. Updating the whole
+		// loaded entity would overwrite a concurrently changed wallet balance,
+		// password, roles, or verification state with stale values.
+		Updates(map[string]any{
+			"first_name": user.FirstName,
+			"last_name":  user.LastName,
+			"status":     user.Status,
+			"updated_at": time.Now(),
+		})
 
 	if res.Error != nil {
 		if errors.Is(res.Error, gorm.ErrDuplicatedKey) {

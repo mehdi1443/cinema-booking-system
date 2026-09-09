@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
@@ -123,6 +124,18 @@ func (s *RoleSeeder) seedRolesWithPermissions(
 }
 
 func (s *RoleSeeder) seedSuperAdmin(ctx context.Context, adminRole *entity.Role) error {
+	if strings.TrimSpace(s.superAdmin.Phone) == "" || strings.TrimSpace(s.superAdmin.Password) == "" {
+		admins, err := s.rbacRepo.GetUsersByRoleNames(ctx, []string{enum.RoleAdmin.String()})
+		if err != nil {
+			return err
+		}
+		for _, admin := range admins {
+			if admin != nil && admin.Status == enum.UserActive {
+				return nil
+			}
+		}
+		return errors.New("SUPER_ADMIN_PHONE and SUPER_ADMIN_PASSWORD must be configured when no active administrator exists")
+	}
 	user, err := s.userRepo.FindUserByPhone(ctx, s.superAdmin.Phone)
 	if err != nil && !errors.Is(err, exception.ErrUserNotFound) {
 		return err

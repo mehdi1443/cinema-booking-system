@@ -1,18 +1,21 @@
 package router
 
 import (
-	"fmt"
+	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp" // ایمپورت برای اندپوینت متریک
 
 	"github.com/mehdi1443/cinema-booking-system/bootstrap"
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
+	"github.com/mehdi1443/cinema-booking-system/internal/domain/exception"
 	domainlogger "github.com/mehdi1443/cinema-booking-system/internal/domain/logger"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/DB"
 	"github.com/mehdi1443/cinema-booking-system/internal/domain/repository/cache"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/middleware"
 	"github.com/mehdi1443/cinema-booking-system/internal/presentation/v1/handler"
+	"github.com/mehdi1443/cinema-booking-system/pkg/response"
 )
 
 type Handlers struct {
@@ -62,17 +65,35 @@ func SetUpRouter(
 	promMiddleware *middleware.PrometheusMiddleware,
 ) *gin.Engine {
 	r := gin.New()
+	r.HandleMethodNotAllowed = true
 
 	r.Use(middleware.GinLoggerMiddleware(appLogger))
-	r.Use(gin.Recovery())
+	r.Use(middleware.Recovery(appLogger))
 
 	r.Use(promMiddleware.Handle())
 
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	r.GET("/health/live", func(c *gin.Context) {
+		response.Success(c, http.StatusOK, "Service is live", gin.H{"status": "UP"})
+	})
+	r.NoRoute(func(c *gin.Context) {
+		response.ErrorWithCode(c, http.StatusNotFound, string(exception.CodeNotFound), "Route not found")
+	})
+	r.NoMethod(func(c *gin.Context) {
+		response.ErrorWithCode(c, http.StatusMethodNotAllowed, string(exception.CodeInvalidInput), "Method not allowed")
+	})
 
-	r.Use(middleware.SecureCORSMiddleware([]string{
-		fmt.Sprintf("%s:%s", config.Environment.HttpServer.Domain, config.Environment.HttpServer.Port),
-	}))
+	allowedOrigins := make([]string, 0)
+	for _, origin := range strings.Split(config.Environment.CORSAllowedOrigins, ",") {
+		origin = strings.TrimSpace(origin)
+		if origin != "" {
+			allowedOrigins = append(allowedOrigins, origin)
+		}
+	}
+	if len(allowedOrigins) == 0 {
+		allowedOrigins = []string{"http://localhost:3000", "http://127.0.0.1:3000"}
+	}
+	r.Use(middleware.SecureCORSMiddleware(allowedOrigins))
 
 	captchaMiddleware := middleware.NewCaptchaSolving(services.CaptchaService, &config.Environment.DebugModeOptions, appLogger)
 

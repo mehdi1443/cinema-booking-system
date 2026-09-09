@@ -2,9 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
@@ -34,7 +38,8 @@ import (
 )
 
 func main() {
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 	config := bootstrap.Run()
 
 	appLogger := infralogger.New(infralogger.Config{
@@ -68,20 +73,27 @@ func main() {
 	}
 	defer rabbitConn.Close()
 
-	rabbitCh, err := rabbitConn.Channel()
+	rabbitPubCh, err := rabbitConn.Channel()
 	if err != nil {
-		appLogger.Error(ctx, "failed to open RabbitMQ channel", domainlogger.Error(err))
+		appLogger.Error(ctx, "failed to open RabbitMQ publisher channel", domainlogger.Error(err))
 		os.Exit(1)
 	}
-	defer rabbitCh.Close()
+	defer rabbitPubCh.Close()
 
-	searchPub, err := broker.NewSearchEventPublisher(rabbitCh)
+	searchPub, err := broker.NewSearchEventPublisher(rabbitPubCh)
 	if err != nil {
 		appLogger.Error(ctx, "failed to create search event publisher", domainlogger.Error(err))
 		os.Exit(1)
 	}
 
-	searchWorker, err := broker.NewSearchWorker(rabbitCh, searchRepo, appLogger)
+	rabbitWorkerCh, err := rabbitConn.Channel()
+	if err != nil {
+		appLogger.Error(ctx, "failed to open RabbitMQ worker channel", domainlogger.Error(err))
+		os.Exit(1)
+	}
+	defer rabbitWorkerCh.Close()
+
+	searchWorker, err := broker.NewSearchWorker(rabbitWorkerCh, searchRepo, appLogger)
 	if err != nil {
 		appLogger.Error(ctx, "failed to create search worker", domainlogger.Error(err))
 		os.Exit(1)
@@ -155,7 +167,10 @@ func main() {
 
 	seeder := seed.NewRoleSeeder(config.Constant.User, userRepo, rbacRepo, pgDB, bcryptHasher)
 	if err := seeder.Seed(ctx); err != nil {
-		appLogger.Warn(ctx, "role seeder finished with potential existing entries or non-fatal errors", domainlogger.Error(err))
+		// RBAC and the bootstrap administrator are required for a usable API.
+		// Starting without them would leave every protected endpoint unusable.
+		appLogger.Error(ctx, "failed to initialize roles and bootstrap administrator", domainlogger.Error(err))
+		os.Exit(1)
 	} else {
 		appLogger.Info(ctx, "database roles seeded successfully")
 	}
@@ -178,7 +193,7 @@ func main() {
 	smsSrv := service.NewSMSService()
 	emailSrv := service.NewEmailService(emailSender, &config.Environment.DebugModeOptions, statics, appLogger)
 	userSrv := service.NewUserService(userRepo, bcryptHasher, appLogger)
-	authSrv := service.NewAuthService(userRepo, otpRepo, refreshtokenRepo, jwtSrv, random.NewRandomGeneratorEngine(), &config.Environment.OTP, &config.Environment.JWT, smsSrv, emailSrv, hash.NewBcryptHasher(), appLogger)
+	authSrv := service.NewAuthServiceWithDebug(userRepo, otpRepo, refreshtokenRepo, jwtSrv, random.NewRandomGeneratorEngine(), &config.Environment.OTP, &config.Environment.JWT, &config.Environment.DebugModeOptions, smsSrv, emailSrv, hash.NewBcryptHasher(), appLogger)
 	walletSrv := service.NewWalletService(userRepo, walletRepo, appLogger)
 	rbacSrv := service.NewRBACService(rbacRepo, userRepo, userpermissionRepo, &config.Environment.UserPermissionCache, appLogger)
 	contextokenSrv := service.NewContextTokenService()
@@ -197,8 +212,23 @@ func main() {
 	hallSrv := service.NewHallService(bookingRepo, cinemaRepo, appLogger)
 	showtimeSrv := service.NewShowtimeService(bookingRepo, bookingRepo, movieRepo, bookingRepo, appLogger)
 	reservationSrv := service.NewReservationService(bookingRepo, &config.Environment.Reservation, appLogger)
-	paymentSrv := service.NewPaymentService(paymentRepo, bookingRepo, broker.NewMockPaymentGateway(), appLogger)
-	ticketSrv := service.NewTicketService(ticketRepo, appLogger)
+	ticketSrv := service.NewTicketService(ticketRepo, storage, appLogger)
+	paymentSrv := service.NewPaymentService(paymentRepo, bookingRepo, broker.NewMockPaymentGateway(), ticketSrv, config.Environment.Reservation.RefundCutoff(), appLogger)
+
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case now := <-ticker.C:
+				if err := reservationSrv.ExpirePending(ctx, now); err != nil {
+					appLogger.Error(ctx, "failed to expire pending reservations", domainlogger.Error(err))
+				}
+			}
+		}
+	}()
 
 	services := router.Services{
 		TokenService:        jwtSrv,
@@ -267,8 +297,31 @@ func main() {
 	serverAddr := fmt.Sprintf("%s:%s", config.Environment.HttpServer.Domain, config.Environment.HttpServer.Port)
 	appLogger.Info(ctx, fmt.Sprintf("HTTP server starting on %s", serverAddr))
 
-	if err := http.ListenAndServe(serverAddr, Engine); err != nil {
-		appLogger.Error(ctx, "HTTP server failed to listen and serve", domainlogger.Error(err))
-		os.Exit(1)
+	server := &http.Server{
+		Addr:              serverAddr,
+		Handler:           Engine,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- server.ListenAndServe()
+	}()
+
+	select {
+	case err := <-serverErr:
+		if !errors.Is(err, http.ErrServerClosed) {
+			appLogger.Error(ctx, "HTTP server failed to listen and serve", domainlogger.Error(err))
+			os.Exit(1)
+		}
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			appLogger.Error(context.Background(), "HTTP server graceful shutdown failed", domainlogger.Error(err))
+			os.Exit(1)
+		}
 	}
 }

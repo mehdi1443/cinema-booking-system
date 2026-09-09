@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -39,6 +40,19 @@ func NewS3Storage(env *bootstrap.Environment) (*S3Storage, error) {
 	buckets[enum.MovieTrailer] = env.Storage.Buckets.MovieTrailer
 	buckets[enum.ActorPhoto] = env.Storage.Buckets.ActorPhoto
 	buckets[enum.CinemaPhoto] = env.Storage.Buckets.CinemaPhoto
+	buckets[enum.TicketPDF] = env.Storage.Buckets.TicketPDF
+	seenBuckets := make(map[string]enum.BucketType, len(buckets))
+	for bucketType, bucketName := range buckets {
+		bucketName = strings.TrimSpace(bucketName)
+		if bucketName == "" {
+			return nil, fmt.Errorf("bucket name for type %q is not configured", bucketType)
+		}
+		if existingType, duplicate := seenBuckets[bucketName]; duplicate {
+			return nil, fmt.Errorf("bucket %q is configured for both %q and %q", bucketName, existingType, bucketType)
+		}
+		buckets[bucketType] = bucketName
+		seenBuckets[bucketName] = bucketType
+	}
 
 	storage := &S3Storage{
 		env:      env,
@@ -47,15 +61,15 @@ func NewS3Storage(env *bootstrap.Environment) (*S3Storage, error) {
 		buckets:  buckets,
 	}
 
-	if err := storage.EnsurePublicBuckets(context.Background()); err != nil {
-		return nil, fmt.Errorf("failed to ensure public bucket policies: %w", err)
+	if err := storage.EnsureBuckets(context.Background()); err != nil {
+		return nil, fmt.Errorf("failed to ensure storage buckets: %w", err)
 	}
 
 	return storage, nil
 }
 
-func (s *S3Storage) EnsurePublicBuckets(ctx context.Context) error {
-	for _, bucketName := range s.buckets {
+func (s *S3Storage) EnsureBuckets(ctx context.Context) error {
+	for bucketType, bucketName := range s.buckets {
 		if bucketName == "" {
 			continue
 		}
@@ -71,6 +85,12 @@ func (s *S3Storage) EnsurePublicBuckets(ctx context.Context) error {
 			if createErr != nil {
 				return fmt.Errorf("failed to create bucket %q: %w", bucketName, createErr)
 			}
+		}
+
+		// Ticket PDFs carry the admission QR credential. Keep their bucket
+		// private and issue short-lived presigned URLs after authorization.
+		if bucketType == enum.TicketPDF {
+			continue
 		}
 
 		policy := fmt.Sprintf(`{

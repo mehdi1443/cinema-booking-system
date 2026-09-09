@@ -50,9 +50,11 @@ func (r *walletRepositoryPostgres) AddAmountToBalance(
 				return handleDBError(err)
 			}
 
-			if user.WalletBalance+amount < 0 {
+			if user.WalletBalance < 0 || user.WalletBalance > entity.MaxWalletBalance ||
+				(amount < 0 && amount < -user.WalletBalance) {
 				return exception.ErrInsufficientBalance
-			} else if user.WalletBalance+amount > entity.MaxWalletBalance {
+			}
+			if amount > 0 && amount > entity.MaxWalletBalance-user.WalletBalance {
 				return exception.ErrReachManBalance
 			}
 

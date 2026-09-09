@@ -130,7 +130,14 @@ func isSensitiveKey(key string) bool {
 	}
 
 	for _, sensitive := range sensitiveKeys {
-		if key == sensitive {
+		if key == sensitive || strings.HasSuffix(key, "_"+sensitive) {
+			return true
+		}
+	}
+	// Cover common application-specific variants such as otp_code,
+	// password_hash, and idempotency_key without maintaining an unbounded list.
+	for _, suffix := range []string{"_otp", "_code", "_password", "_secret", "_token", "_key"} {
+		if strings.HasSuffix(key, suffix) {
 			return true
 		}
 	}
