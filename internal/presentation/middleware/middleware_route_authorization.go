@@ -79,7 +79,9 @@ var publicEndpointPolicies = map[string]struct{}{
 }
 
 var protectedEndpointPolicies = map[string]endpointPolicy{
-	"POST /v1/auth/logout": permissionPolicy(enum.AuthLogout),
+	"POST /v1/auth/logout":           permissionPolicy(enum.AuthLogout),
+	"POST /v1/auth/email/otp/send":   permissionPolicy(enum.UsersUpdateProfile),
+	"POST /v1/auth/email/otp/verify": permissionPolicy(enum.UsersUpdateProfile),
 
 	"PATCH /v1/users/:id/password":      selfPolicy(enum.UsersUpdatePassword, enum.PermissionAll),
 	"GET /v1/users/:id/profile":         selfPolicy(enum.UsersReadProfile, enum.UsersReadProfileAny),
@@ -136,7 +138,12 @@ var protectedEndpointPolicies = map[string]endpointPolicy{
 	"POST /v1/payments/:id/refund": permissionPolicy(enum.PaymentsRefund),
 	"GET /v1/tickets":              permissionPolicy(enum.TicketsRead), "GET /v1/tickets/:id": permissionPolicy(enum.TicketsRead),
 	"GET /v1/tickets/:id/qr": permissionPolicy(enum.TicketsRead), "GET /v1/tickets/:id/pdf": permissionPolicy(enum.TicketsRead),
-	"POST /v1/tickets/validate": permissionPolicy(enum.TicketsValidate),
+	"POST /v1/tickets/validate":         permissionPolicy(enum.TicketsValidate),
+	"GET /v1/cinemas/:id/reports/sales": ownedCinemaPolicy(enum.ReportsReadCinema),
+	"GET /v1/cinemas/:id/settlements":   ownedCinemaPolicy(enum.SettlementsReadCinema),
+	"POST /v1/cinemas/:id/settlements":  permissionPolicy(enum.SettlementsManage),
+	"PATCH /v1/settlements/:id/paid":    permissionPolicy(enum.SettlementsManage),
+	"GET /v1/audit-logs":                permissionPolicy(enum.AuditLogsRead),
 }
 
 // ValidateRoutePolicies makes authorization configuration fail fast when a

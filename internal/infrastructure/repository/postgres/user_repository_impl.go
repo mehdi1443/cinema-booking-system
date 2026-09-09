@@ -169,10 +169,13 @@ func (r *userRepositoryPostgres) UpdateUser(
 		// loaded entity would overwrite a concurrently changed wallet balance,
 		// password, roles, or verification state with stale values.
 		Updates(map[string]any{
-			"first_name": user.FirstName,
-			"last_name":  user.LastName,
-			"status":     user.Status,
-			"updated_at": time.Now(),
+			"first_name":        user.FirstName,
+			"last_name":         user.LastName,
+			"email":             user.Email,
+			"is_email_verified": user.IsEmailVerified,
+			"email_verified_at": user.EmailVerifiedAt,
+			"status":            user.Status,
+			"updated_at":        time.Now(),
 		})
 
 	if res.Error != nil {

@@ -75,12 +75,13 @@ func (h *PaymentHandler) ListForReservation(c *gin.Context) {
 	if !ok {
 		return
 	}
-	result, err := h.payments.ListForReservation(c.Request.Context(), reservationID, userID, hasPermission(c, enum.PaymentsReadAny))
+	page, limit := parsePagination(c)
+	result, total, err := h.payments.ListForReservation(c.Request.Context(), reservationID, userID, hasPermission(c, enum.PaymentsReadAny), page, limit)
 	if err != nil {
 		Handle(c, err, h.log)
 		return
 	}
-	response.Success(c, http.StatusOK, "Payments retrieved successfully", result)
+	response.SuccessWithMeta(c, http.StatusOK, "Payments retrieved successfully", result, response.Meta{Page: page, Limit: limit, Total: int(total)})
 }
 
 func (h *PaymentHandler) Verify(c *gin.Context) {

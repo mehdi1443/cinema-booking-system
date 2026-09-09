@@ -414,6 +414,12 @@ func (r *bookingRepository) UpdateShowtime(ctx context.Context, showtime *entity
 		if showtime.Status == enum.ShowtimeStatusCancelled {
 			paidReservations := tx.Model(&entity.Reservation{}).
 				Select("id").Where("showtime_id = ? AND status = ?", showtime.ID, enum.ReservationPaid)
+			var refundedPaymentIDs []int64
+			if err := tx.Model(&entity.Payment{}).
+				Where("reservation_id IN (?) AND status = ?", paidReservations, enum.PaymentSucceeded).
+				Pluck("id", &refundedPaymentIDs).Error; err != nil {
+				return handleBookingDBError(err)
+			}
 			if err := tx.Model(&entity.Payment{}).
 				Where("reservation_id IN (?) AND status = ?", paidReservations, enum.PaymentSucceeded).
 				Updates(map[string]any{
@@ -437,6 +443,11 @@ func (r *bookingRepository) UpdateShowtime(ctx context.Context, showtime *entity
 				Where("showtime_id = ? AND status = ?", showtime.ID, enum.ReservationPaid).
 				Updates(map[string]any{"status": enum.ReservationCancelled, "updated_at": now}).Error; err != nil {
 				return handleBookingDBError(err)
+			}
+			for _, paymentID := range refundedPaymentIDs {
+				if err := enqueueOutbox(tx, entity.OutboxEmailPaymentRefunded, "payment", paymentID, map[string]int64{"payment_id": paymentID}); err != nil {
+					return handleBookingDBError(err)
+				}
 			}
 		}
 		if showtime.Status == enum.ShowtimeStatusCompleted {
@@ -613,13 +624,18 @@ func (r *bookingRepository) GetReservation(ctx context.Context, id int64) (*enti
 	return &reservation, nil
 }
 
-func (r *bookingRepository) ListUserReservations(ctx context.Context, userID int64) ([]entity.Reservation, error) {
+func (r *bookingRepository) ListUserReservations(ctx context.Context, userID int64, limit, offset int) ([]entity.Reservation, int64, error) {
 	var reservations []entity.Reservation
-	err := r.db.GetDB().WithContext(ctx).Where("user_id = ?", userID).Preload("Showtime.Hall.Cinema").Preload("Showtime.Movie").Preload("Items.ShowtimeSeat").Order("created_at DESC").Find(&reservations).Error
-	if err != nil {
-		return nil, handleBookingDBError(err)
+	query := r.db.GetDB().WithContext(ctx).Model(&entity.Reservation{}).Where("user_id = ?", userID)
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, handleBookingDBError(err)
 	}
-	return reservations, nil
+	err := query.Preload("Showtime.Hall.Cinema").Preload("Showtime.Movie").Preload("Items.ShowtimeSeat").Order("created_at DESC").Limit(limit).Offset(offset).Find(&reservations).Error
+	if err != nil {
+		return nil, 0, handleBookingDBError(err)
+	}
+	return reservations, total, nil
 }
 
 func (r *bookingRepository) CancelReservation(ctx context.Context, id int64) (*entity.Reservation, error) {

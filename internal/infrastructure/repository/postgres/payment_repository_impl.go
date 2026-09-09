@@ -181,12 +181,17 @@ func (r *paymentRepository) GetPayment(ctx context.Context, id int64) (*entity.P
 	return &payment, nil
 }
 
-func (r *paymentRepository) ListReservationPayments(ctx context.Context, reservationID int64) ([]entity.Payment, error) {
+func (r *paymentRepository) ListReservationPayments(ctx context.Context, reservationID int64, limit, offset int) ([]entity.Payment, int64, error) {
 	var payments []entity.Payment
-	if err := r.db.GetDB().WithContext(ctx).Where("reservation_id = ?", reservationID).Order("created_at DESC").Find(&payments).Error; err != nil {
-		return nil, handlePaymentDBError(err)
+	query := r.db.GetDB().WithContext(ctx).Model(&entity.Payment{}).Where("reservation_id = ?", reservationID)
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, handlePaymentDBError(err)
 	}
-	return payments, nil
+	if err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&payments).Error; err != nil {
+		return nil, 0, handlePaymentDBError(err)
+	}
+	return payments, total, nil
 }
 
 func (r *paymentRepository) FinalizePayment(ctx context.Context, id, userID int64, allowAny, succeeded bool, referenceID, failureReason string, now time.Time) (*entity.Payment, error) {
@@ -283,6 +288,13 @@ func (r *paymentRepository) FinalizePayment(ctx context.Context, id, userID int6
 			Status:        enum.TicketActive,
 		}
 		if err := tx.Create(&ticket).Error; err != nil {
+			return handlePaymentDBError(err)
+		}
+		payload := map[string]int64{"payment_id": payment.ID}
+		if err := enqueueOutbox(tx, entity.OutboxTicketPDFGenerate, "payment", payment.ID, payload); err != nil {
+			return handlePaymentDBError(err)
+		}
+		if err := enqueueOutbox(tx, entity.OutboxEmailPaymentSucceeded, "payment", payment.ID, payload); err != nil {
 			return handlePaymentDBError(err)
 		}
 		return nil
@@ -406,6 +418,9 @@ func (r *paymentRepository) RefundPayment(ctx context.Context, id, userID int64,
 		payment.RefundReferenceID = &referenceID
 		payment.RefundedAt = &now
 		payment.UpdatedAt = now
+		if err := enqueueOutbox(tx, entity.OutboxEmailPaymentRefunded, "payment", payment.ID, map[string]int64{"payment_id": payment.ID}); err != nil {
+			return handlePaymentDBError(err)
+		}
 		return nil
 	})
 	if err != nil {

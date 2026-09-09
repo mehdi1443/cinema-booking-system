@@ -1,8 +1,10 @@
 package router
 
 import (
+	"context"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp" // ایمپورت برای اندپوینت متریک
@@ -19,24 +21,25 @@ import (
 )
 
 type Handlers struct {
-	Auth      handler.AuthHandler
-	User      handler.UserHandler
-	RBAC      handler.RBACHandler
-	Wallet    handler.WalletHandler
-	Genre     handler.GenreHandler
-	Person    handler.PersonHandler
-	Movie     handler.MovieHandler
-	Captcha   handler.CaptchaHandler
-	Address   handler.AddressHandler
-	Facilitie handler.FacilityHandler
-	Cinema    handler.CinemaHandler
-	Favorite  handler.FavoriteHandler
-	Comment   handler.CommentHandler
-	Rating    handler.RatingHandler
-	Search    handler.SearchHandler
-	Booking   handler.BookingHandler
-	Payment   handler.PaymentHandler
-	Ticket    handler.TicketHandler
+	Auth       handler.AuthHandler
+	User       handler.UserHandler
+	RBAC       handler.RBACHandler
+	Wallet     handler.WalletHandler
+	Genre      handler.GenreHandler
+	Person     handler.PersonHandler
+	Movie      handler.MovieHandler
+	Captcha    handler.CaptchaHandler
+	Address    handler.AddressHandler
+	Facilitie  handler.FacilityHandler
+	Cinema     handler.CinemaHandler
+	Favorite   handler.FavoriteHandler
+	Comment    handler.CommentHandler
+	Rating     handler.RatingHandler
+	Search     handler.SearchHandler
+	Booking    handler.BookingHandler
+	Payment    handler.PaymentHandler
+	Ticket     handler.TicketHandler
+	Operations handler.OperationsHandler
 }
 
 type Repositories struct {
@@ -45,6 +48,7 @@ type Repositories struct {
 	UserPermissionCacheRepo cache.UserPermissionCacheInterface
 	CinemaRepo              DB.CinemaInterface
 	BookingRepo             DB.BookingRepositoryInterface
+	OperationsRepo          DB.OperationsRepositoryInterface
 }
 
 type Services struct {
@@ -55,6 +59,8 @@ type Services struct {
 	CaptchaService      service_contract.CaptchaServiceInterface
 }
 
+type ReadinessChecks map[string]func(context.Context) error
+
 func SetUpRouter(
 	handler *Handlers,
 	services *Services,
@@ -63,18 +69,47 @@ func SetUpRouter(
 	limiter *middleware.RedisLimiter,
 	appLogger domainlogger.Logger,
 	promMiddleware *middleware.PrometheusMiddleware,
+	readiness ReadinessChecks,
 ) *gin.Engine {
 	r := gin.New()
 	r.HandleMethodNotAllowed = true
 
 	r.Use(middleware.GinLoggerMiddleware(appLogger))
 	r.Use(middleware.Recovery(appLogger))
+	r.Use(middleware.Audit(repositories.OperationsRepo, appLogger))
 
 	r.Use(promMiddleware.Handle())
 
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 	r.GET("/health/live", func(c *gin.Context) {
 		response.Success(c, http.StatusOK, "Service is live", gin.H{"status": "UP"})
+	})
+	r.GET("/health/ready", func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
+		defer cancel()
+		checks := make(map[string]string, len(readiness))
+		ready := true
+		for name, check := range readiness {
+			if check == nil {
+				checks[name] = "DOWN"
+				ready = false
+				continue
+			}
+			if err := check(ctx); err != nil {
+				checks[name] = "DOWN"
+				ready = false
+				appLogger.Warn(ctx, "readiness dependency check failed", domainlogger.String("dependency", name), domainlogger.Error(err))
+			} else {
+				checks[name] = "UP"
+			}
+		}
+		data := gin.H{"status": "UP", "checks": checks}
+		if ready {
+			response.Success(c, http.StatusOK, "Service is ready", data)
+			return
+		}
+		data["status"] = "DOWN"
+		(&response.StandardResponse{Success: false, StatusCode: http.StatusServiceUnavailable, Code: "SERVICE_NOT_READY", Message: "Service dependencies are not ready", Data: data}).SendResponse(c)
 	})
 	r.NoRoute(func(c *gin.Context) {
 		response.ErrorWithCode(c, http.StatusNotFound, string(exception.CodeNotFound), "Route not found")
@@ -155,6 +190,7 @@ func SetUpRouter(
 	SetUpPaymentRouter(v1, &handler.Payment)
 
 	SetUpTicketRouter(v1, &handler.Ticket)
+	SetUpOperationsRouter(v1, &handler.Operations)
 	if err := middleware.ValidateRoutePolicies(r.Routes()); err != nil {
 		panic(err)
 	}

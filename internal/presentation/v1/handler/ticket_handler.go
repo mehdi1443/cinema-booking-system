@@ -25,12 +25,13 @@ func (h *TicketHandler) ListMine(c *gin.Context) {
 	if !ok {
 		return
 	}
-	result, err := h.tickets.ListMine(c.Request.Context(), userID)
+	page, limit := parsePagination(c)
+	result, total, err := h.tickets.ListMine(c.Request.Context(), userID, page, limit)
 	if err != nil {
 		Handle(c, err, h.log)
 		return
 	}
-	response.Success(c, http.StatusOK, "Tickets retrieved successfully", result)
+	response.SuccessWithMeta(c, http.StatusOK, "Tickets retrieved successfully", result, response.Meta{Page: page, Limit: limit, Total: int(total)})
 }
 
 func (h *TicketHandler) Get(c *gin.Context) {

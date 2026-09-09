@@ -302,12 +302,13 @@ func (h *BookingHandler) ListMyReservations(c *gin.Context) {
 	if !ok {
 		return
 	}
-	result, err := h.reservations.ListMine(c.Request.Context(), userID)
+	page, limit := parsePagination(c)
+	result, total, err := h.reservations.ListMine(c.Request.Context(), userID, page, limit)
 	if err != nil {
 		Handle(c, err, h.log)
 		return
 	}
-	response.Success(c, http.StatusOK, "Reservations retrieved successfully", result)
+	response.SuccessWithMeta(c, http.StatusOK, "Reservations retrieved successfully", result, response.Meta{Page: page, Limit: limit, Total: int(total)})
 }
 
 func (h *BookingHandler) CancelReservation(c *gin.Context) {

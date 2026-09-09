@@ -53,13 +53,18 @@ func (r *ticketRepository) GetTicketByPaymentID(ctx context.Context, paymentID i
 	return &ticket, nil
 }
 
-func (r *ticketRepository) ListUserTickets(ctx context.Context, userID int64) ([]entity.Ticket, error) {
+func (r *ticketRepository) ListUserTickets(ctx context.Context, userID int64, limit, offset int) ([]entity.Ticket, int64, error) {
 	var tickets []entity.Ticket
-	err := ticketDetails(r.db.GetDB().WithContext(ctx)).Where("tickets.user_id = ?", userID).Order("tickets.created_at DESC").Find(&tickets).Error
-	if err != nil {
-		return nil, handlePaymentDBError(err)
+	query := r.db.GetDB().WithContext(ctx).Model(&entity.Ticket{}).Where("tickets.user_id = ?", userID)
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, handlePaymentDBError(err)
 	}
-	return tickets, nil
+	err := ticketDetails(query).Order("tickets.created_at DESC").Limit(limit).Offset(offset).Find(&tickets).Error
+	if err != nil {
+		return nil, 0, handlePaymentDBError(err)
+	}
+	return tickets, total, nil
 }
 
 func (r *ticketRepository) SetTicketPDF(ctx context.Context, id int64, url, objectKey string, generatedAt time.Time) (*entity.Ticket, error) {

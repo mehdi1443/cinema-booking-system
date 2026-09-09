@@ -16,6 +16,8 @@ func SetUpAuthRouter(
 	{
 		auth.POST("/otp/send", captchaMiddleware.CaptchaSolvingMiddleware(), authHandler.SendOTP)
 		auth.POST("/otp/verify", authHandler.VerifyOTP)
+		auth.POST("/email/otp/send", authHandler.SendEmailOTP)
+		auth.POST("/email/otp/verify", authHandler.VerifyEmailOTP)
 		auth.POST("/refresh", authHandler.Refresh)
 		auth.POST("/logout", authHandler.Logout)
 	}

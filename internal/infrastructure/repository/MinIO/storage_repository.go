@@ -116,6 +116,16 @@ func (s *S3Storage) EnsureBuckets(ctx context.Context) error {
 	return nil
 }
 
+// Ping verifies that the object-storage API is reachable without exposing
+// bucket contents.
+func (s *S3Storage) Ping(ctx context.Context) error {
+	_, err := s.client.ListBucketsWithContext(ctx, &s3.ListBucketsInput{})
+	if err != nil {
+		return fmt.Errorf("object storage health check failed: %w", err)
+	}
+	return nil
+}
+
 func (s *S3Storage) validateBucket(bucketType enum.BucketType) (string, error) {
 	// تغییر مهم: استفاده مستقیم از متد IsValid به جای پکیج slices
 	if !bucketType.IsValid() {
