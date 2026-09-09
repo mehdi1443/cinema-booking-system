@@ -11,4 +11,5 @@ type PaymentServiceInterface interface {
 	Get(ctx context.Context, id, userID int64, allowAny bool) (*dto.PaymentResponse, error)
 	ListForReservation(ctx context.Context, reservationID, userID int64, allowAny bool) ([]*dto.PaymentResponse, error)
 	Verify(ctx context.Context, id, userID int64, allowAny bool, req *dto.VerifyMockPaymentRequest) (*dto.PaymentResponse, error)
+	Refund(ctx context.Context, id, userID int64, allowAny bool) (*dto.PaymentResponse, error)
 }

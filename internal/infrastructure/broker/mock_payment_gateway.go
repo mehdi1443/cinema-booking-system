@@ -23,3 +23,7 @@ func (g *MockPaymentGateway) Verify(_ context.Context, _ string, succeed bool) (
 	}
 	return &domainbroker.PaymentGatewayResult{Succeeded: true, ReferenceID: fmt.Sprintf("mock-ref-%s", uuid.NewString())}, nil
 }
+
+func (g *MockPaymentGateway) Refund(_ context.Context, _ string, _ int64) (string, error) {
+	return fmt.Sprintf("mock-refund-%s", uuid.NewString()), nil
+}

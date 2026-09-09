@@ -10,4 +10,5 @@ func SetUpPaymentRouter(r *gin.RouterGroup, h *handler.PaymentHandler) {
 	r.GET("/reservations/:id/payments", h.ListForReservation)
 	r.GET("/payments/:id", h.Get)
 	r.POST("/payments/:id/verify", h.Verify)
+	r.POST("/payments/:id/refund", h.Refund)
 }

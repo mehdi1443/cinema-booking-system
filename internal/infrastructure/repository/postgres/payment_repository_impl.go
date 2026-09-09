@@ -78,6 +78,23 @@ func (r *paymentRepository) CreatePayment(ctx context.Context, payment *entity.P
 			return handlePaymentDBError(err)
 		}
 
+		// Read the relation first, then lock showtime and reservation in that
+		// order. Showtime cancellation uses the same order, preventing a
+		// payment/finalization deadlock under concurrent checkout and admin edits.
+		var reservationRef entity.Reservation
+		if err := tx.Select("id, user_id, showtime_id").First(&reservationRef, payment.ReservationID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return exception.ErrReservationNotFound
+			}
+			return handlePaymentDBError(err)
+		}
+		var showtime entity.Showtime
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&showtime, reservationRef.ShowtimeID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return exception.ErrShowtimeNotFound
+			}
+			return handlePaymentDBError(err)
+		}
 		var reservation entity.Reservation
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&reservation, payment.ReservationID).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -87,6 +104,9 @@ func (r *paymentRepository) CreatePayment(ctx context.Context, payment *entity.P
 		}
 		if reservation.UserID != payment.UserID {
 			return exception.ErrNotAccessible
+		}
+		if showtime.Status != enum.ShowtimeStatusPublished || !showtime.StartsAt.After(now) {
+			return exception.ErrShowtimeNotBookable
 		}
 		// The reservation lock serializes concurrent checkout requests. Rechecking the
 		// key here makes simultaneous retries idempotent as well as sequential ones.
@@ -189,12 +209,29 @@ func (r *paymentRepository) FinalizePayment(ctx context.Context, id, userID int6
 			return nil
 		}
 
+		var reservationRef entity.Reservation
+		if err := tx.Select("id, showtime_id").First(&reservationRef, payment.ReservationID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return exception.ErrReservationNotFound
+			}
+			return handlePaymentDBError(err)
+		}
+		var showtime entity.Showtime
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&showtime, reservationRef.ShowtimeID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return exception.ErrShowtimeNotFound
+			}
+			return handlePaymentDBError(err)
+		}
 		var reservation entity.Reservation
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&reservation, payment.ReservationID).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return exception.ErrReservationNotFound
 			}
 			return handlePaymentDBError(err)
+		}
+		if showtime.Status != enum.ShowtimeStatusPublished || !showtime.StartsAt.After(now) {
+			return failPayment(tx, &payment, "SHOWTIME_NOT_BOOKABLE", now)
 		}
 
 		if reservation.Status == enum.ReservationExpired || !reservation.ExpiresAt.After(now) {
@@ -248,6 +285,127 @@ func (r *paymentRepository) FinalizePayment(ctx context.Context, id, userID int6
 		if err := tx.Create(&ticket).Error; err != nil {
 			return handlePaymentDBError(err)
 		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &payment, nil
+}
+
+func (r *paymentRepository) RefundPayment(ctx context.Context, id, userID int64, allowAny bool, referenceID string, now time.Time, cutoff time.Duration) (*entity.Payment, error) {
+	if id <= 0 || userID <= 0 || strings.TrimSpace(referenceID) == "" || cutoff < 0 {
+		return nil, exception.ErrInvalidInput
+	}
+	var payment entity.Payment
+	err := r.db.WithTransaction(func(txDB database.Database) error {
+		tx := txDB.GetDB().WithContext(ctx)
+
+		var paymentRef entity.Payment
+		if err := tx.Select("id, reservation_id").First(&paymentRef, id).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return exception.ErrPaymentNotFound
+			}
+			return handlePaymentDBError(err)
+		}
+		var reservationRef entity.Reservation
+		if err := tx.Select("id, showtime_id").First(&reservationRef, paymentRef.ReservationID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return exception.ErrReservationNotFound
+			}
+			return handlePaymentDBError(err)
+		}
+		var showtime entity.Showtime
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&showtime, reservationRef.ShowtimeID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return exception.ErrShowtimeNotFound
+			}
+			return handlePaymentDBError(err)
+		}
+		var reservation entity.Reservation
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&reservation, paymentRef.ReservationID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return exception.ErrReservationNotFound
+			}
+			return handlePaymentDBError(err)
+		}
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&payment, id).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return exception.ErrPaymentNotFound
+			}
+			return handlePaymentDBError(err)
+		}
+		if !allowAny && payment.UserID != userID {
+			return exception.ErrNotAccessible
+		}
+		if payment.Status == enum.PaymentRefunded {
+			return nil
+		}
+		if payment.Status != enum.PaymentSucceeded || reservation.Status != enum.ReservationPaid {
+			return exception.ErrRefundNotAllowed
+		}
+		if !now.Before(showtime.StartsAt.Add(-cutoff)) {
+			return exception.ErrRefundNotAllowed
+		}
+
+		var ticket entity.Ticket
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("payment_id = ?", payment.ID).First(&ticket).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return exception.ErrTicketNotFound
+			}
+			return handlePaymentDBError(err)
+		}
+		if ticket.Status != enum.TicketActive {
+			return exception.ErrRefundNotAllowed
+		}
+
+		var itemCount int64
+		if err := tx.Model(&entity.ReservationItem{}).Where("reservation_id = ?", reservation.ID).Count(&itemCount).Error; err != nil {
+			return handlePaymentDBError(err)
+		}
+		seatResult := tx.Model(&entity.ShowtimeSeat{}).
+			Where("reservation_id = ? AND status = ?", reservation.ID, enum.ShowtimeSeatSold).
+			Updates(map[string]any{"status": enum.ShowtimeSeatAvailable, "reservation_id": nil, "held_until": nil, "updated_at": now})
+		if seatResult.Error != nil {
+			return handlePaymentDBError(seatResult.Error)
+		}
+		if itemCount == 0 || seatResult.RowsAffected != itemCount {
+			return exception.ErrRefundNotAllowed
+		}
+		reservationResult := tx.Model(&entity.Reservation{}).
+			Where("id = ? AND status = ?", reservation.ID, enum.ReservationPaid).
+			Updates(map[string]any{"status": enum.ReservationCancelled, "updated_at": now})
+		if reservationResult.Error != nil {
+			return handlePaymentDBError(reservationResult.Error)
+		}
+		if reservationResult.RowsAffected != 1 {
+			return exception.ErrRefundNotAllowed
+		}
+		ticketResult := tx.Model(&entity.Ticket{}).
+			Where("id = ? AND status = ?", ticket.ID, enum.TicketActive).
+			Updates(map[string]any{"status": enum.TicketCancelled, "updated_at": now})
+		if ticketResult.Error != nil {
+			return handlePaymentDBError(ticketResult.Error)
+		}
+		if ticketResult.RowsAffected != 1 {
+			return exception.ErrRefundNotAllowed
+		}
+		paymentResult := tx.Model(&entity.Payment{}).
+			Where("id = ? AND status = ?", payment.ID, enum.PaymentSucceeded).
+			Updates(map[string]any{
+				"status": enum.PaymentRefunded, "refund_reference_id": referenceID,
+				"refunded_at": now, "updated_at": now,
+			})
+		if paymentResult.Error != nil {
+			return handlePaymentDBError(paymentResult.Error)
+		}
+		if paymentResult.RowsAffected != 1 {
+			return exception.ErrRefundNotAllowed
+		}
+		payment.Status = enum.PaymentRefunded
+		payment.RefundReferenceID = &referenceID
+		payment.RefundedAt = &now
+		payment.UpdatedAt = now
 		return nil
 	})
 	if err != nil {

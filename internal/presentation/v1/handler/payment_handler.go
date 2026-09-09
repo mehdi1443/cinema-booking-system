@@ -104,3 +104,20 @@ func (h *PaymentHandler) Verify(c *gin.Context) {
 	}
 	response.Success(c, http.StatusOK, "Mock payment processed successfully", result)
 }
+
+func (h *PaymentHandler) Refund(c *gin.Context) {
+	id, ok := parseParamID(c, "id")
+	if !ok {
+		return
+	}
+	userID, ok := getAuthUserID(c, h.log)
+	if !ok {
+		return
+	}
+	result, err := h.payments.Refund(c.Request.Context(), id, userID, hasPermission(c, enum.PaymentsRefundAny))
+	if err != nil {
+		Handle(c, err, h.log)
+		return
+	}
+	response.Success(c, http.StatusOK, "Mock payment refunded successfully", result)
+}

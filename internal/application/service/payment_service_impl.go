@@ -21,11 +21,13 @@ type paymentService struct {
 	repo            DB.PaymentRepositoryInterface
 	reservationRepo DB.ReservationRepositoryInterface
 	gateway         broker.PaymentGateway
+	ticketIssuer    service_contract.TicketDocumentIssuer
+	refundCutoff    time.Duration
 	log             domainlogger.Logger
 }
 
-func NewPaymentService(repo DB.PaymentRepositoryInterface, reservationRepo DB.ReservationRepositoryInterface, gateway broker.PaymentGateway, log domainlogger.Logger) service_contract.PaymentServiceInterface {
-	return &paymentService{repo: repo, reservationRepo: reservationRepo, gateway: gateway, log: log}
+func NewPaymentService(repo DB.PaymentRepositoryInterface, reservationRepo DB.ReservationRepositoryInterface, gateway broker.PaymentGateway, ticketIssuer service_contract.TicketDocumentIssuer, refundCutoff time.Duration, log domainlogger.Logger) service_contract.PaymentServiceInterface {
+	return &paymentService{repo: repo, reservationRepo: reservationRepo, gateway: gateway, ticketIssuer: ticketIssuer, refundCutoff: refundCutoff, log: log}
 }
 
 func (s *paymentService) Create(ctx context.Context, reservationID, userID int64, idempotencyKey string) (*dto.PaymentResponse, bool, error) {
@@ -112,6 +114,11 @@ func (s *paymentService) Verify(ctx context.Context, id, userID int64, allowAny 
 		return nil, exception.ErrNotAccessible
 	}
 	if payment.Status != enum.PaymentPending {
+		if payment.Status == enum.PaymentSucceeded {
+			if err := s.ticketIssuer.EnsurePDFForPayment(ctx, payment.ID); err != nil {
+				return nil, err
+			}
+		}
 		return dto.ToPaymentResponse(payment), nil
 	}
 
@@ -130,6 +137,11 @@ func (s *paymentService) Verify(ctx context.Context, id, userID int64, allowAny 
 	if err != nil {
 		return nil, err
 	}
+	if finalized.Status == enum.PaymentSucceeded {
+		if err := s.ticketIssuer.EnsurePDFForPayment(ctx, finalized.ID); err != nil {
+			return nil, err
+		}
+	}
 	s.log.Info(ctx, "Payment finalized successfully",
 		domainlogger.Int64("payment_id", finalized.ID),
 		domainlogger.Int64("reservation_id", finalized.ReservationID),
@@ -137,4 +149,40 @@ func (s *paymentService) Verify(ctx context.Context, id, userID int64, allowAny 
 		domainlogger.String("status", string(finalized.Status)),
 	)
 	return dto.ToPaymentResponse(finalized), nil
+}
+
+func (s *paymentService) Refund(ctx context.Context, id, userID int64, allowAny bool) (*dto.PaymentResponse, error) {
+	if id <= 0 || userID <= 0 {
+		return nil, exception.ErrInvalidInput
+	}
+	payment, err := s.repo.GetPayment(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if !allowAny && payment.UserID != userID {
+		return nil, exception.ErrNotAccessible
+	}
+	if payment.Status == enum.PaymentRefunded {
+		return dto.ToPaymentResponse(payment), nil
+	}
+	if payment.Status != enum.PaymentSucceeded {
+		return nil, exception.ErrRefundNotAllowed
+	}
+	referenceID, err := s.gateway.Refund(ctx, payment.Authority, payment.Amount)
+	if err != nil {
+		return nil, exception.Wrap(exception.ErrInternal, "mock payment refund failed", err)
+	}
+	if strings.TrimSpace(referenceID) == "" {
+		return nil, exception.Wrap(exception.ErrInternal, "mock payment gateway returned an invalid refund", errors.New("empty refund reference ID"))
+	}
+	refunded, err := s.repo.RefundPayment(ctx, id, userID, allowAny, referenceID, time.Now(), s.refundCutoff)
+	if err != nil {
+		return nil, err
+	}
+	s.log.Info(ctx, "Payment refunded successfully",
+		domainlogger.Int64("payment_id", refunded.ID),
+		domainlogger.Int64("reservation_id", refunded.ReservationID),
+		domainlogger.Int64("user_id", userID),
+	)
+	return dto.ToPaymentResponse(refunded), nil
 }

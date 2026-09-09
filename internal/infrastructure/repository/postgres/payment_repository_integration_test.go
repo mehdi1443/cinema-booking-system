@@ -120,6 +120,80 @@ func TestPaymentLifecycleIntegration(t *testing.T) {
 		t.Fatalf("reservation expiry did not fail payment: payment=%#v err=%v", expiredPayment, err)
 	}
 	assertReservationAndSeatStatus(t, tx, expiringReservationID, enum.ReservationExpired, enum.ShowtimeSeatAvailable)
+
+	refundUserID, refundOtherUserID, refundReservationID := createPaymentFixture(t, tx)
+	refundablePayment, _, err := repo.CreatePayment(ctx, &entity.Payment{
+		ReservationID: refundReservationID, UserID: refundUserID, Authority: "mock_refund_" + fmt.Sprint(time.Now().UnixNano()), IdempotencyKey: "checkout-refund",
+	})
+	if err != nil {
+		t.Fatalf("create refundable payment: %v", err)
+	}
+	if _, err := repo.FinalizePayment(ctx, refundablePayment.ID, refundUserID, false, true, "mock-reference-refund", "", time.Now()); err != nil {
+		t.Fatalf("finalize refundable payment: %v", err)
+	}
+	if _, err := repo.RefundPayment(ctx, refundablePayment.ID, refundOtherUserID, false, "unauthorized-refund", time.Now(), 0); !errors.Is(err, exception.ErrNotAccessible) {
+		t.Fatalf("another user refunded payment: %v", err)
+	}
+	refunded, err := repo.RefundPayment(ctx, refundablePayment.ID, refundUserID, false, "mock-refund-reference", time.Now(), 0)
+	if err != nil || refunded.Status != enum.PaymentRefunded || refunded.RefundedAt == nil || refunded.RefundReferenceID == nil {
+		t.Fatalf("refund failed: payment=%#v err=%v", refunded, err)
+	}
+	assertReservationAndSeatStatus(t, tx, refundReservationID, enum.ReservationCancelled, enum.ShowtimeSeatAvailable)
+	var cancelledTicket entity.Ticket
+	if err := tx.Where("payment_id = ?", refundablePayment.ID).First(&cancelledTicket).Error; err != nil || cancelledTicket.Status != enum.TicketCancelled {
+		t.Fatalf("refund did not cancel ticket: ticket=%#v err=%v", cancelledTicket, err)
+	}
+	replayedRefund, err := repo.RefundPayment(ctx, refundablePayment.ID, refundUserID, false, "different-refund-reference", time.Now(), 0)
+	if err != nil || replayedRefund.RefundReferenceID == nil || *replayedRefund.RefundReferenceID != "mock-refund-reference" {
+		t.Fatalf("refund replay was not idempotent: payment=%#v err=%v", replayedRefund, err)
+	}
+
+	lateUserID, _, lateReservationID := createPaymentFixture(t, tx)
+	latePayment, _, err := repo.CreatePayment(ctx, &entity.Payment{
+		ReservationID: lateReservationID, UserID: lateUserID, Authority: "mock_late_refund_" + fmt.Sprint(time.Now().UnixNano()), IdempotencyKey: "checkout-late-refund",
+	})
+	if err != nil {
+		t.Fatalf("create late refund payment: %v", err)
+	}
+	if _, err := repo.FinalizePayment(ctx, latePayment.ID, lateUserID, false, true, "mock-reference-late-refund", "", time.Now()); err != nil {
+		t.Fatalf("finalize late refund payment: %v", err)
+	}
+	if _, err := repo.RefundPayment(ctx, latePayment.ID, lateUserID, false, "mock-late-refund", time.Now(), 2*time.Hour); !errors.Is(err, exception.ErrRefundNotAllowed) {
+		t.Fatalf("late refund was accepted: %v", err)
+	}
+	assertReservationAndSeatStatus(t, tx, lateReservationID, enum.ReservationPaid, enum.ShowtimeSeatSold)
+
+	cancelledUserID, _, cancelledReservationID := createPaymentFixture(t, tx)
+	cancelledPayment, _, err := repo.CreatePayment(ctx, &entity.Payment{
+		ReservationID: cancelledReservationID, UserID: cancelledUserID, Authority: "mock_showtime_cancel_" + fmt.Sprint(time.Now().UnixNano()), IdempotencyKey: "checkout-showtime-cancel",
+	})
+	if err != nil {
+		t.Fatalf("create showtime cancellation payment: %v", err)
+	}
+	if _, err := repo.FinalizePayment(ctx, cancelledPayment.ID, cancelledUserID, false, true, "mock-reference-showtime-cancel", "", time.Now()); err != nil {
+		t.Fatalf("finalize showtime cancellation payment: %v", err)
+	}
+	var cancelledReservation entity.Reservation
+	if err := tx.First(&cancelledReservation, cancelledReservationID).Error; err != nil {
+		t.Fatal(err)
+	}
+	showtime, err := bookingRepo.GetShowtime(ctx, cancelledReservation.ShowtimeID)
+	if err != nil {
+		t.Fatalf("get showtime for cancellation: %v", err)
+	}
+	showtime.Status = enum.ShowtimeStatusCancelled
+	if _, err := bookingRepo.UpdateShowtime(ctx, showtime); err != nil {
+		t.Fatalf("cancel paid showtime: %v", err)
+	}
+	automaticRefund, err := repo.GetPayment(ctx, cancelledPayment.ID)
+	if err != nil || automaticRefund.Status != enum.PaymentRefunded || automaticRefund.RefundedAt == nil || automaticRefund.RefundReferenceID == nil {
+		t.Fatalf("showtime cancellation did not refund payment: payment=%#v err=%v", automaticRefund, err)
+	}
+	assertReservationAndSeatStatus(t, tx, cancelledReservationID, enum.ReservationCancelled, enum.ShowtimeSeatAvailable)
+	var automaticallyCancelledTicket entity.Ticket
+	if err := tx.Where("payment_id = ?", cancelledPayment.ID).First(&automaticallyCancelledTicket).Error; err != nil || automaticallyCancelledTicket.Status != enum.TicketCancelled {
+		t.Fatalf("showtime cancellation did not cancel ticket: ticket=%#v err=%v", automaticallyCancelledTicket, err)
+	}
 }
 
 func createPaymentFixture(t *testing.T, tx *gorm.DB) (int64, int64, int64) {

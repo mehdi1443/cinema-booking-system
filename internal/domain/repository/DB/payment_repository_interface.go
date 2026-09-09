@@ -12,4 +12,5 @@ type PaymentRepositoryInterface interface {
 	GetPayment(ctx context.Context, id int64) (*entity.Payment, error)
 	ListReservationPayments(ctx context.Context, reservationID int64) ([]entity.Payment, error)
 	FinalizePayment(ctx context.Context, id, userID int64, allowAny, succeeded bool, referenceID, failureReason string, now time.Time) (*entity.Payment, error)
+	RefundPayment(ctx context.Context, id, userID int64, allowAny bool, referenceID string, now time.Time, cutoff time.Duration) (*entity.Payment, error)
 }

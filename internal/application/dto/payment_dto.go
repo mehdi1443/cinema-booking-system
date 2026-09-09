@@ -15,20 +15,22 @@ type VerifyMockPaymentRequest struct {
 }
 
 type PaymentResponse struct {
-	ID             int64                `json:"id"`
-	ReservationID  int64                `json:"reservation_id"`
-	UserID         int64                `json:"user_id"`
-	Amount         int64                `json:"amount"`
-	Provider       enum.PaymentProvider `json:"provider"`
-	Status         enum.PaymentStatus   `json:"status"`
-	Authority      string               `json:"authority"`
-	PaymentURL     string               `json:"payment_url,omitempty"`
-	VerifyEndpoint string               `json:"verify_endpoint,omitempty"`
-	ReferenceID    *string              `json:"reference_id,omitempty"`
-	FailureReason  *string              `json:"failure_reason,omitempty"`
-	PaidAt         *time.Time           `json:"paid_at,omitempty"`
-	CreatedAt      *time.Time           `json:"created_at,omitempty"`
-	UpdatedAt      *time.Time           `json:"updated_at,omitempty"`
+	ID                int64                `json:"id"`
+	ReservationID     int64                `json:"reservation_id"`
+	UserID            int64                `json:"user_id"`
+	Amount            int64                `json:"amount"`
+	Provider          enum.PaymentProvider `json:"provider"`
+	Status            enum.PaymentStatus   `json:"status"`
+	Authority         string               `json:"authority"`
+	PaymentURL        string               `json:"payment_url,omitempty"`
+	VerifyEndpoint    string               `json:"verify_endpoint,omitempty"`
+	ReferenceID       *string              `json:"reference_id,omitempty"`
+	FailureReason     *string              `json:"failure_reason,omitempty"`
+	PaidAt            *time.Time           `json:"paid_at,omitempty"`
+	RefundReferenceID *string              `json:"refund_reference_id,omitempty"`
+	RefundedAt        *time.Time           `json:"refunded_at,omitempty"`
+	CreatedAt         *time.Time           `json:"created_at,omitempty"`
+	UpdatedAt         *time.Time           `json:"updated_at,omitempty"`
 }
 
 func ToPaymentResponse(payment *entity.Payment) *PaymentResponse {
@@ -40,6 +42,7 @@ func ToPaymentResponse(payment *entity.Payment) *PaymentResponse {
 		Amount: payment.Amount, Provider: payment.Provider, Status: payment.Status,
 		Authority: payment.Authority, ReferenceID: payment.ReferenceID,
 		FailureReason: payment.FailureReason, PaidAt: payment.PaidAt,
+		RefundReferenceID: payment.RefundReferenceID, RefundedAt: payment.RefundedAt,
 		CreatedAt: helper.TimeToPtr(payment.CreatedAt), UpdatedAt: helper.TimeToPtr(payment.UpdatedAt),
 	}
 	if payment.Status == enum.PaymentPending {

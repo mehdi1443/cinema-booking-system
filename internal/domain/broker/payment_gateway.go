@@ -11,4 +11,5 @@ type PaymentGatewayResult struct {
 type PaymentGateway interface {
 	Create(ctx context.Context, paymentID, amount int64) (authority, paymentURL string, err error)
 	Verify(ctx context.Context, authority string, succeed bool) (*PaymentGatewayResult, error)
+	Refund(ctx context.Context, authority string, amount int64) (referenceID string, err error)
 }
