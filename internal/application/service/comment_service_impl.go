@@ -276,6 +276,9 @@ func normalizePagination(page, limit int) (int, int, int) {
 	if limit <= 0 {
 		limit = 10
 	}
+	if limit > 100 {
+		limit = 100
+	}
 	offset := (page - 1) * limit
 	return page, limit, offset
 }

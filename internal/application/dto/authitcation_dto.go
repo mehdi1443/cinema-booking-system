@@ -32,6 +32,16 @@ type SendOTPResponse struct {
 	ExpiresInSeconds int64  `json:"expires_in_seconds"`
 }
 
+type SendEmailOTPResponse struct {
+	Email            string `json:"email"`
+	OTPCode          string `json:"otp_code,omitempty"`
+	ExpiresInSeconds int64  `json:"expires_in_seconds"`
+}
+
+type VerifyEmailOTPRequest struct {
+	Code string `json:"code" binding:"required,otp-code"`
+}
+
 type RegisterRequest struct {
 	Phone    string `json:"phone" binding:"required,iranian-phone"`
 	Email    string `json:"email" binding:"required,email"`

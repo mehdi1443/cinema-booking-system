@@ -48,19 +48,20 @@ func (s *ticketService) Get(ctx context.Context, id, userID int64, allowAny bool
 	return dto.ToTicketResponse(ticket), nil
 }
 
-func (s *ticketService) ListMine(ctx context.Context, userID int64) ([]*dto.TicketResponse, error) {
+func (s *ticketService) ListMine(ctx context.Context, userID int64, page, limit int) ([]*dto.TicketResponse, int64, error) {
 	if userID <= 0 {
-		return nil, exception.ErrInvalidInput
+		return nil, 0, exception.ErrInvalidInput
 	}
-	tickets, err := s.repo.ListUserTickets(ctx, userID)
+	_, limit, offset := normalizePagination(page, limit)
+	tickets, total, err := s.repo.ListUserTickets(ctx, userID, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	result := make([]*dto.TicketResponse, 0, len(tickets))
 	for i := range tickets {
 		result = append(result, dto.ToTicketResponse(&tickets[i]))
 	}
-	return result, nil
+	return result, total, nil
 }
 
 func (s *ticketService) QRCode(ctx context.Context, id, userID int64, allowAny bool) ([]byte, error) {

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	service_contract "github.com/mehdi1443/cinema-booking-system/internal/application/adapter"
 	"github.com/mehdi1443/cinema-booking-system/internal/application/dto"
@@ -73,6 +74,14 @@ func (s *userService) UpdateProfile(ctx context.Context, ctxToken *dto.TokenInCo
 
 	user.FirstName = req.FirstName
 	user.LastName = req.LastName
+	if req.Email != nil {
+		email := strings.ToLower(strings.TrimSpace(*req.Email))
+		if user.Email == nil || !strings.EqualFold(*user.Email, email) {
+			user.Email = &email
+			user.IsEmailVerified = false
+			user.EmailVerifiedAt = nil
+		}
+	}
 
 	updatedUser, err := s.userRepo.UpdateUser(ctx, user)
 	if err != nil {

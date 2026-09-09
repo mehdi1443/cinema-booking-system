@@ -32,7 +32,7 @@ type ShowtimeServiceInterface interface {
 type ReservationServiceInterface interface {
 	Create(ctx context.Context, userID int64, req *dto.CreateReservationRequest) (*dto.ReservationResponse, error)
 	Get(ctx context.Context, id, userID int64, allowAny bool) (*dto.ReservationResponse, error)
-	ListMine(ctx context.Context, userID int64) ([]*dto.ReservationResponse, error)
+	ListMine(ctx context.Context, userID int64, page, limit int) ([]*dto.ReservationResponse, int64, error)
 	Cancel(ctx context.Context, id, userID int64, allowAny bool) (*dto.ReservationResponse, error)
 	ExpirePending(ctx context.Context, now time.Time) error
 }

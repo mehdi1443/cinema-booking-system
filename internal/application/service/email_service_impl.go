@@ -40,7 +40,7 @@ func (s *emailService) SendEmail(ctx context.Context, req dto.SendEmailRequest) 
 
 	if s.debugModeConfig != nil && s.debugModeConfig.Enable {
 		debugText := fmt.Sprintf("[%s] To: %s | Subject: %s\nText: %s\n-------------------------------------------------------------------------------\n",
-			time.Now().Format(time.RFC3339), req.To, req.Subject, req.TextBody)
+			time.Now().Format(time.RFC3339), fmt.Sprint(req.To), req.Subject, req.TextBody)
 
 		emailFile, err := os.OpenFile("./SEND_EMAIL.txt", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 		if err != nil {

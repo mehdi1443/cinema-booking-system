@@ -177,6 +177,52 @@ func (s *authService) VerifyOTP(ctx context.Context, rawPhone string, code strin
 	return s.issueSession(ctx, user, isNewUser)
 }
 
+func (s *authService) SendEmailOTP(ctx context.Context, userID int64) (*dto.SendEmailOTPResponse, error) {
+	if userID <= 0 {
+		return nil, exception.ErrInvalidInput
+	}
+	user, err := s.userRepo.FindUserByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if user.Email == nil || strings.TrimSpace(*user.Email) == "" {
+		return nil, exception.ErrInvalidInput
+	}
+	email := strings.ToLower(strings.TrimSpace(*user.Email))
+	code := strconv.Itoa(s.randomService.GenerateRandomNumber(int(s.otpConfig.Digit)))
+	key := "email:" + email
+	if err := s.otpRepo.SaveOTP(ctx, key, code, s.otpConfig.ExpirationDuration()); err != nil {
+		return nil, fmt.Errorf("failed to save email OTP: %w", err)
+	}
+	if _, err := s.emailProvider.SendOTPEmail(ctx, dto.SendOTPEmailRequest{To: []string{email}, OTPCode: code, OTPExpireMinutes: s.otpConfig.ExpirationDurationInMinutes()}); err != nil {
+		_ = s.otpRepo.DeleteOTP(ctx, key)
+		return nil, fmt.Errorf("failed to send email OTP: %w", err)
+	}
+	result := &dto.SendEmailOTPResponse{Email: email, ExpiresInSeconds: int64(s.otpConfig.ExpirationDuration().Seconds())}
+	if s.debugConfig != nil && s.debugConfig.Enable {
+		result.OTPCode = code
+	}
+	return result, nil
+}
+
+func (s *authService) VerifyEmailOTP(ctx context.Context, userID int64, code string) error {
+	if userID <= 0 || strings.TrimSpace(code) == "" {
+		return exception.ErrInvalidInput
+	}
+	user, err := s.userRepo.FindUserByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if user.Email == nil || strings.TrimSpace(*user.Email) == "" {
+		return exception.ErrInvalidInput
+	}
+	email := strings.ToLower(strings.TrimSpace(*user.Email))
+	if err := s.otpRepo.ConsumeOTP(ctx, "email:"+email, code); err != nil {
+		return err
+	}
+	return s.userRepo.VerifyUserEmail(ctx, email)
+}
+
 func (s *authService) issueSession(ctx context.Context, user *entity.User, isNewUser bool) (*dto.StartAuthResponse, error) {
 	access, refresh, err := s.tokenService.GenerateTokens(ctx, dto.GenerateTokenRequest{UserID: user.ID})
 	if err != nil {

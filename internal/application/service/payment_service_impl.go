@@ -80,26 +80,27 @@ func (s *paymentService) Get(ctx context.Context, id, userID int64, allowAny boo
 	return dto.ToPaymentResponse(payment), nil
 }
 
-func (s *paymentService) ListForReservation(ctx context.Context, reservationID, userID int64, allowAny bool) ([]*dto.PaymentResponse, error) {
+func (s *paymentService) ListForReservation(ctx context.Context, reservationID, userID int64, allowAny bool, page, limit int) ([]*dto.PaymentResponse, int64, error) {
 	if reservationID <= 0 || userID <= 0 {
-		return nil, exception.ErrInvalidInput
+		return nil, 0, exception.ErrInvalidInput
 	}
+	_, limit, offset := normalizePagination(page, limit)
 	reservation, err := s.reservationRepo.GetReservation(ctx, reservationID)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	if !allowAny && reservation.UserID != userID {
-		return nil, exception.ErrNotAccessible
+		return nil, 0, exception.ErrNotAccessible
 	}
-	payments, err := s.repo.ListReservationPayments(ctx, reservationID)
+	payments, total, err := s.repo.ListReservationPayments(ctx, reservationID, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	result := make([]*dto.PaymentResponse, 0, len(payments))
 	for i := range payments {
 		result = append(result, dto.ToPaymentResponse(&payments[i]))
 	}
-	return result, nil
+	return result, total, nil
 }
 
 func (s *paymentService) Verify(ctx context.Context, id, userID int64, allowAny bool, req *dto.VerifyMockPaymentRequest) (*dto.PaymentResponse, error) {
@@ -136,11 +137,6 @@ func (s *paymentService) Verify(ctx context.Context, id, userID int64, allowAny 
 	finalized, err := s.repo.FinalizePayment(ctx, id, userID, allowAny, result.Succeeded, result.ReferenceID, failureReason, time.Now())
 	if err != nil {
 		return nil, err
-	}
-	if finalized.Status == enum.PaymentSucceeded {
-		if err := s.ticketIssuer.EnsurePDFForPayment(ctx, finalized.ID); err != nil {
-			return nil, err
-		}
 	}
 	s.log.Info(ctx, "Payment finalized successfully",
 		domainlogger.Int64("payment_id", finalized.ID),

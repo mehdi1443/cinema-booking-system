@@ -47,7 +47,7 @@ type ShowtimeRepositoryInterface interface {
 type ReservationRepositoryInterface interface {
 	CreateReservation(ctx context.Context, userID, showtimeID int64, showtimeSeatIDs []int64, expiresAt time.Time) (*entity.Reservation, error)
 	GetReservation(ctx context.Context, id int64) (*entity.Reservation, error)
-	ListUserReservations(ctx context.Context, userID int64) ([]entity.Reservation, error)
+	ListUserReservations(ctx context.Context, userID int64, limit, offset int) ([]entity.Reservation, int64, error)
 	CancelReservation(ctx context.Context, id int64) (*entity.Reservation, error)
 	ExpireReservations(ctx context.Context, now time.Time) error
 }

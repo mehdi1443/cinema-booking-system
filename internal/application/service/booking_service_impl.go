@@ -478,19 +478,23 @@ func (s *reservationService) Get(ctx context.Context, id, userID int64, allowAny
 	return dto.ToReservationResponse(reservation), nil
 }
 
-func (s *reservationService) ListMine(ctx context.Context, userID int64) ([]*dto.ReservationResponse, error) {
-	if err := s.repo.ExpireReservations(ctx, time.Now()); err != nil {
-		return nil, err
+func (s *reservationService) ListMine(ctx context.Context, userID int64, page, limit int) ([]*dto.ReservationResponse, int64, error) {
+	if userID <= 0 {
+		return nil, 0, exception.ErrInvalidInput
 	}
-	reservations, err := s.repo.ListUserReservations(ctx, userID)
+	_, limit, offset := normalizePagination(page, limit)
+	if err := s.repo.ExpireReservations(ctx, time.Now()); err != nil {
+		return nil, 0, err
+	}
+	reservations, total, err := s.repo.ListUserReservations(ctx, userID, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	result := make([]*dto.ReservationResponse, 0, len(reservations))
 	for i := range reservations {
 		result = append(result, dto.ToReservationResponse(&reservations[i]))
 	}
-	return result, nil
+	return result, total, nil
 }
 
 func (s *reservationService) Cancel(ctx context.Context, id, userID int64, allowAny bool) (*dto.ReservationResponse, error) {
