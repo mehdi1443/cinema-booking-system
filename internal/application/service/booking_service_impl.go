@@ -322,11 +322,12 @@ func (s *showtimeService) Update(ctx context.Context, id int64, req *dto.UpdateS
 	if err != nil {
 		return nil, err
 	}
-	if showtime.Status == enum.ShowtimeStatusCancelled || showtime.Status == enum.ShowtimeStatusCompleted || !showtime.StartsAt.After(time.Now()) {
+	if showtime.Status == enum.ShowtimeStatusCancelled || showtime.Status == enum.ShowtimeStatusCompleted {
 		return nil, exception.ErrResourceInUse
 	}
+	now := time.Now()
 	if req.StartsAt != nil {
-		if !req.StartsAt.After(time.Now()) {
+		if !req.StartsAt.After(now) {
 			return nil, exception.ErrInvalidInput
 		}
 		movie, err := s.movieRepo.GetByID(ctx, showtime.MovieID)
@@ -339,6 +340,27 @@ func (s *showtimeService) Update(ctx context.Context, id int64, req *dto.UpdateS
 	if req.Status != nil {
 		if !req.Status.IsValid() {
 			return nil, exception.ErrInvalidStatus
+		}
+		switch *req.Status {
+		case enum.ShowtimeStatusCancelled:
+			if !showtime.StartsAt.After(now) {
+				return nil, exception.ErrResourceInUse
+			}
+		case enum.ShowtimeStatusCompleted:
+			if showtime.EndsAt.After(now) {
+				return nil, exception.ErrInvalidInput
+			}
+		case enum.ShowtimeStatusDraft, enum.ShowtimeStatusPublished:
+			if !showtime.StartsAt.After(now) {
+				return nil, exception.ErrResourceInUse
+			}
+			if *req.Status == enum.ShowtimeStatusPublished {
+				if showtime.Hall == nil || showtime.Hall.Status != enum.HallStatusActive ||
+					showtime.Hall.Cinema == nil || showtime.Hall.Cinema.Status != enum.CinemaStatusActive ||
+					showtime.Movie == nil || showtime.Movie.Status == enum.MovieInactive || showtime.Movie.Status == enum.MovieEnded {
+					return nil, exception.ErrShowtimeNotBookable
+				}
+			}
 		}
 		showtime.Status = *req.Status
 	}

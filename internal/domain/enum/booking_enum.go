@@ -78,6 +78,7 @@ const (
 	PaymentPending   PaymentStatus = "PENDING"
 	PaymentSucceeded PaymentStatus = "SUCCEEDED"
 	PaymentFailed    PaymentStatus = "FAILED"
+	PaymentRefunded  PaymentStatus = "REFUNDED"
 )
 
 type TicketStatus string

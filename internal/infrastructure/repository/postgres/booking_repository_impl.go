@@ -377,13 +377,80 @@ func (r *bookingRepository) ListShowtimes(ctx context.Context, filter DB.Showtim
 }
 
 func (r *bookingRepository) UpdateShowtime(ctx context.Context, showtime *entity.Showtime) (*entity.Showtime, error) {
-	result := r.db.GetDB().WithContext(ctx).Model(&entity.Showtime{}).Where("id = ?", showtime.ID).
-		Updates(map[string]any{"starts_at": showtime.StartsAt, "ends_at": showtime.EndsAt, "status": showtime.Status, "updated_at": time.Now()})
-	if result.Error != nil {
-		return nil, handleBookingDBError(result.Error)
-	}
-	if result.RowsAffected == 0 {
-		return nil, exception.ErrShowtimeNotFound
+	err := r.db.WithTransaction(func(txDB database.Database) error {
+		tx := txDB.GetDB().WithContext(ctx)
+		now := time.Now()
+		var current entity.Showtime
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&current, showtime.ID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return exception.ErrShowtimeNotFound
+			}
+			return handleBookingDBError(err)
+		}
+
+		result := tx.Model(&entity.Showtime{}).Where("id = ?", showtime.ID).
+			Updates(map[string]any{"starts_at": showtime.StartsAt, "ends_at": showtime.EndsAt, "status": showtime.Status, "updated_at": now})
+		if result.Error != nil {
+			return handleBookingDBError(result.Error)
+		}
+		if result.RowsAffected == 0 {
+			return exception.ErrShowtimeNotFound
+		}
+
+		// Closing a showtime atomically settles every affected booking state.
+		// The reservation trigger marks pending payments as failed.
+		if showtime.Status == enum.ShowtimeStatusCancelled || showtime.Status == enum.ShowtimeStatusCompleted {
+			if err := tx.Model(&entity.Reservation{}).
+				Where("showtime_id = ? AND status = ?", showtime.ID, enum.ReservationPendingPayment).
+				Updates(map[string]any{"status": enum.ReservationCancelled, "updated_at": now}).Error; err != nil {
+				return handleBookingDBError(err)
+			}
+			if err := tx.Model(&entity.ShowtimeSeat{}).
+				Where("showtime_id = ? AND status = ?", showtime.ID, enum.ShowtimeSeatHeld).
+				Updates(map[string]any{"status": enum.ShowtimeSeatAvailable, "reservation_id": nil, "held_until": nil, "updated_at": now}).Error; err != nil {
+				return handleBookingDBError(err)
+			}
+		}
+		if showtime.Status == enum.ShowtimeStatusCancelled {
+			paidReservations := tx.Model(&entity.Reservation{}).
+				Select("id").Where("showtime_id = ? AND status = ?", showtime.ID, enum.ReservationPaid)
+			if err := tx.Model(&entity.Payment{}).
+				Where("reservation_id IN (?) AND status = ?", paidReservations, enum.PaymentSucceeded).
+				Updates(map[string]any{
+					"status":              enum.PaymentRefunded,
+					"refund_reference_id": gorm.Expr("'mock-refund-showtime-' || id::text"),
+					"refunded_at":         now, "updated_at": now,
+				}).Error; err != nil {
+				return handleBookingDBError(err)
+			}
+			if err := tx.Model(&entity.Ticket{}).
+				Where("reservation_id IN (?) AND status = ?", paidReservations, enum.TicketActive).
+				Updates(map[string]any{"status": enum.TicketCancelled, "updated_at": now}).Error; err != nil {
+				return handleBookingDBError(err)
+			}
+			if err := tx.Model(&entity.ShowtimeSeat{}).
+				Where("showtime_id = ? AND status = ?", showtime.ID, enum.ShowtimeSeatSold).
+				Updates(map[string]any{"status": enum.ShowtimeSeatAvailable, "reservation_id": nil, "held_until": nil, "updated_at": now}).Error; err != nil {
+				return handleBookingDBError(err)
+			}
+			if err := tx.Model(&entity.Reservation{}).
+				Where("showtime_id = ? AND status = ?", showtime.ID, enum.ReservationPaid).
+				Updates(map[string]any{"status": enum.ReservationCancelled, "updated_at": now}).Error; err != nil {
+				return handleBookingDBError(err)
+			}
+		}
+		if showtime.Status == enum.ShowtimeStatusCompleted {
+			if err := tx.Model(&entity.Ticket{}).
+				Where("reservation_id IN (?) AND status = ?",
+					tx.Model(&entity.Reservation{}).Select("id").Where("showtime_id = ?", showtime.ID), enum.TicketActive).
+				Updates(map[string]any{"status": enum.TicketExpired, "updated_at": now}).Error; err != nil {
+				return handleBookingDBError(err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, handleBookingDBError(err)
 	}
 	return r.GetShowtime(ctx, showtime.ID)
 }

@@ -86,16 +86,18 @@ type ReservationItem struct {
 
 type Payment struct {
 	BaseEntity
-	ReservationID  int64                `gorm:"not null;index" json:"reservation_id"`
-	UserID         int64                `gorm:"not null;index" json:"user_id"`
-	Amount         int64                `gorm:"not null" json:"amount"`
-	Provider       enum.PaymentProvider `gorm:"type:payment_provider;not null" json:"provider"`
-	Status         enum.PaymentStatus   `gorm:"type:payment_status;not null;index" json:"status"`
-	Authority      string               `gorm:"type:varchar(100);not null;uniqueIndex" json:"authority"`
-	ReferenceID    *string              `gorm:"type:varchar(100);uniqueIndex" json:"reference_id,omitempty"`
-	IdempotencyKey string               `gorm:"type:varchar(100);not null" json:"-"`
-	FailureReason  *string              `gorm:"type:varchar(255)" json:"failure_reason,omitempty"`
-	PaidAt         *time.Time           `json:"paid_at,omitempty"`
+	ReservationID     int64                `gorm:"not null;index" json:"reservation_id"`
+	UserID            int64                `gorm:"not null;index" json:"user_id"`
+	Amount            int64                `gorm:"not null" json:"amount"`
+	Provider          enum.PaymentProvider `gorm:"type:payment_provider;not null" json:"provider"`
+	Status            enum.PaymentStatus   `gorm:"type:payment_status;not null;index" json:"status"`
+	Authority         string               `gorm:"type:varchar(100);not null;uniqueIndex" json:"authority"`
+	ReferenceID       *string              `gorm:"type:varchar(100);uniqueIndex" json:"reference_id,omitempty"`
+	IdempotencyKey    string               `gorm:"type:varchar(100);not null" json:"-"`
+	FailureReason     *string              `gorm:"type:varchar(255)" json:"failure_reason,omitempty"`
+	PaidAt            *time.Time           `json:"paid_at,omitempty"`
+	RefundReferenceID *string              `gorm:"type:varchar(100);uniqueIndex" json:"refund_reference_id,omitempty"`
+	RefundedAt        *time.Time           `json:"refunded_at,omitempty"`
 
 	Reservation *Reservation `gorm:"foreignKey:ReservationID" json:"reservation,omitempty"`
 	User        *User        `gorm:"foreignKey:UserID" json:"user,omitempty"`
@@ -103,13 +105,16 @@ type Payment struct {
 
 type Ticket struct {
 	BaseEntity
-	ReservationID int64             `gorm:"not null;uniqueIndex" json:"reservation_id"`
-	PaymentID     int64             `gorm:"not null;uniqueIndex" json:"payment_id"`
-	UserID        int64             `gorm:"not null;index" json:"user_id"`
-	Code          string            `gorm:"type:varchar(100);not null;uniqueIndex" json:"code"`
-	Status        enum.TicketStatus `gorm:"type:ticket_status;not null;index" json:"status"`
-	UsedAt        *time.Time        `json:"used_at,omitempty"`
-	UsedByUserID  *int64            `gorm:"index" json:"used_by_user_id,omitempty"`
+	ReservationID  int64             `gorm:"not null;uniqueIndex" json:"reservation_id"`
+	PaymentID      int64             `gorm:"not null;uniqueIndex" json:"payment_id"`
+	UserID         int64             `gorm:"not null;index" json:"user_id"`
+	Code           string            `gorm:"type:varchar(100);not null;uniqueIndex" json:"code"`
+	Status         enum.TicketStatus `gorm:"type:ticket_status;not null;index" json:"status"`
+	UsedAt         *time.Time        `json:"used_at,omitempty"`
+	UsedByUserID   *int64            `gorm:"index" json:"used_by_user_id,omitempty"`
+	PDFURL         *string           `gorm:"column:pdf_url;type:text" json:"pdf_url,omitempty"`
+	PDFObjectKey   *string           `gorm:"column:pdf_object_key;type:varchar(255);uniqueIndex" json:"-"`
+	PDFGeneratedAt *time.Time        `gorm:"column:pdf_generated_at" json:"pdf_generated_at,omitempty"`
 
 	Reservation *Reservation `gorm:"foreignKey:ReservationID" json:"reservation,omitempty"`
 	Payment     *Payment     `gorm:"foreignKey:PaymentID" json:"payment,omitempty"`
